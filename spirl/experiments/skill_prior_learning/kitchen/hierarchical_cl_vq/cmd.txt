@@ -1,0 +1,6 @@
+python /home/wenyongyan/下载/spirl-master/spirl/train.py --path=configs/skill_prior_learning/kitchen/hierarchical_cl_vq --val_data_size=160
+
+python /home/wenyongyan/下载/spirl-master/spirl/train.py --path=configs/skill_prior_learning/kitchen/hierarchical_cl_vq --val_data_size=160
+
+python /home/wenyongyan/下载/spirl-master/spirl/train.py --path=configs/skill_prior_learning/kitchen/hierarchical_cl_vq --val_data_size=160
+
