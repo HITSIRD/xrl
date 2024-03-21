@@ -18,10 +18,10 @@ from spirl.rl.components.sampler import Sampler
 from spirl.rl.components.replay_buffer import RolloutStorage
 
 # notice!
-os.environ['EXP_DIR'] = './experiments_zuo'
-os.environ['DATA'] = './data'
-WANDB_PROJECT_NAME = 'spirl'
-WANDB_ENTITY_NAME = 'zrc0622'
+# os.environ['EXP_DIR'] = './experiments_zuo'
+# os.environ['DATA'] = './data'
+WANDB_PROJECT_NAME = 'spirl_baseline_K_16'
+WANDB_ENTITY_NAME = 'hitsird'
 
 class RLTrainer:
     """Sets up RL training loop, instantiates all components, runs training."""

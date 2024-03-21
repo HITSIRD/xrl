@@ -26,14 +26,14 @@ from spirl.utils.wandb import WandBLogger
 from spirl.components.params import get_args
 
 # notice!
-os.environ['EXP_DIR'] = './experiments_zuo'
-os.environ['DATA'] = './data'
-WANDB_PROJECT_NAME = 'spirl'
-WANDB_ENTITY_NAME = 'zrc0622'
+# os.environ['EXP_DIR'] = './experiments_zuo'
+# os.environ['DATA'] = './data'
+WANDB_PROJECT_NAME = 'spirl_baseline_K_16'
+WANDB_ENTITY_NAME = 'hitsird'
 # os.environ['LD_LIBRARY_PATH'] = '$LD_LIBRARY_PATH:/home/wenyongyan/.mujoco/mujoco210/bin:$LD_LIBRARY_PATH:/usr/lib/nvidia'
 
 
-class ModelTrainer(BaseTrainer):
+class ModdelTrainer(BaseTrainer):
     def __init__(self, args):
         self.args = args
         self.setup_device()
