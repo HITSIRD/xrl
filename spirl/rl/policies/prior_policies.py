@@ -173,6 +173,35 @@ class LearnedVQPriorAugmentedPolicy(PriorInitializedPolicy, LearnedPriorAugmente
         # action, log_prob = self._tanh_squash_output(action, 0)  # ignore log_prob output
         return AttrDict(action=action, log_prob=log_prob, action_index=index)
 
+class LearnedVQPriorAugmentedPolicyCDT(PriorInitializedPolicy, LearnedPriorAugmentedPolicy):
+    def __init__(self, config):
+        LearnedPriorAugmentedPolicy.__init__(self, config)
+
+    def forward(self, obs):
+        with no_batchnorm_update(self):
+            return LearnedPriorAugmentedPolicy.forward(self, obs)
+
+    def sample_rand(self, obs):
+        with torch.no_grad():
+            with no_batchnorm_update(self.prior_net):
+                prior_dist = self.prior_net.compute_learned_prior(obs, first_only=True).detach()
+        action, index = prior_dist.sample()
+        log_prob = prior_dist.log_prob(index)
+        # action, log_prob = self._tanh_squash_output(action, 0)  # ignore log_prob output
+        return AttrDict(action=action, log_prob=log_prob)
+
+    def _build_network(self):
+        if self._hp.policy_model is not None:
+            net = self._hp.policy_model(self._hp.policy_model_params, None)
+        else:
+            net = self._hp.prior_model(self._hp.prior_model_params, None)
+
+        if self._hp.load_weights:
+            if self._hp.policy_model is not None:
+                BaseAgent.load_model_weights(net, self._hp.policy_model_checkpoint, self._hp.prior_model_epoch)
+            else:
+                BaseAgent.load_model_weights(net, self._hp.prior_model_checkpoint, self._hp.prior_model_epoch)
+        return net
 
 class ACPriorInitializedPolicy(PriorInitializedPolicy):
     """PriorInitializedPolicy for case with separate prior obs --> uses prior observation as input only."""

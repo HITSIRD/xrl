@@ -25,11 +25,12 @@ from spirl.components.trainer_base import BaseTrainer
 from spirl.utils.wandb import WandBLogger
 from spirl.components.params import get_args
 
-WANDB_PROJECT_NAME = 'spirl_baseline'
-WANDB_ENTITY_NAME = 'hitsird'
-
-os.environ[
-    'LD_LIBRARY_PATH'] = '$LD_LIBRARY_PATH:/home/wenyongyan/.mujoco/mujoco210/bin:$LD_LIBRARY_PATH:/usr/lib/nvidia'
+# notice!
+os.environ['EXP_DIR'] = './experiments_zuo'
+os.environ['DATA'] = './data'
+WANDB_PROJECT_NAME = 'spirl'
+WANDB_ENTITY_NAME = 'zrc0622'
+# os.environ['LD_LIBRARY_PATH'] = '$LD_LIBRARY_PATH:/home/wenyongyan/.mujoco/mujoco210/bin:$LD_LIBRARY_PATH:/usr/lib/nvidia'
 
 
 class ModelTrainer(BaseTrainer):
@@ -104,8 +105,8 @@ class ModelTrainer(BaseTrainer):
             'adam_beta': 0.9,  # beta1 param in Adam
             'top_of_n_eval': 1,  # number of samples used at eval time
             'top_comp_metric': None,  # metric that is used for comparison at eval time (e.g. 'mse')
-            # 'logging_target': 'wandb',
-            'logging_target': None,
+            'logging_target': 'wandb',
+            # 'logging_target': None,
         })
         return default_dict
 

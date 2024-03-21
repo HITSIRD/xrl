@@ -138,8 +138,19 @@ class BaseAgent(nn.Module):
 
         grads = [p.grad for p in network.parameters()]
         nan_hook(grads)
-
+        # self._print_gradients(network) # print network gradients
         opt.step()
+
+    # print gradients
+    def _print_gradients(self, module, module_name=''):
+        """Recursively prints the gradients of all the parameters in a module and its submodules."""
+        if isinstance(module, torch.nn.Module):
+            for name, sub_module in module.named_children():
+                full_name = f"{module_name}.{name}" if module_name else name
+                self._print_gradients(sub_module, full_name)
+            for name, param in module.named_parameters(recurse=False):
+                full_name = f"{module_name}.{name}" if module_name else name
+                print(f"Layer: {full_name} | Size: {param.size()} | Grad: {param.grad}")
 
     def _get_obs_norm_info(self):
         if isinstance(self._obs_normalizer, DummyNormalizer): return {}
