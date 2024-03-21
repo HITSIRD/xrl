@@ -33,7 +33,7 @@ WANDB_ENTITY_NAME = 'zrc0622'
 # os.environ['LD_LIBRARY_PATH'] = '$LD_LIBRARY_PATH:/home/wenyongyan/.mujoco/mujoco210/bin:$LD_LIBRARY_PATH:/usr/lib/nvidia'
 
 
-class ModdelTrainer(BaseTrainer):
+class ModelTrainer(BaseTrainer):
     def __init__(self, args):
         self.args = args
         self.setup_device()
