@@ -20,7 +20,7 @@ from spirl.rl.components.replay_buffer import RolloutStorage
 # notice!
 os.environ['EXP_DIR'] = './experiments_zuo'
 os.environ['DATA'] = './data'
-WANDB_PROJECT_NAME = 'spirl'
+WANDB_PROJECT_NAME = 'spirl+cdt'
 WANDB_ENTITY_NAME = 'zrc0622'
 
 class RLTrainer:
@@ -41,6 +41,7 @@ class RLTrainer:
         # set seeds, display, worker shutdown
         if args.seed != -1: self._hp.seed = args.seed   # override from command line if set
         set_seeds(self._hp.seed)
+        print(f'seed is: {self._hp.seed}')
         os.environ["DISPLAY"] = ":1"
         set_shutdown_hooks()
 

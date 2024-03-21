@@ -28,7 +28,7 @@ from spirl.components.params import get_args
 # notice!
 os.environ['EXP_DIR'] = './experiments_zuo'
 os.environ['DATA'] = './data'
-WANDB_PROJECT_NAME = 'spirl'
+WANDB_PROJECT_NAME = 'spirl+cdt'
 WANDB_ENTITY_NAME = 'zrc0622'
 # os.environ['LD_LIBRARY_PATH'] = '$LD_LIBRARY_PATH:/home/wenyongyan/.mujoco/mujoco210/bin:$LD_LIBRARY_PATH:/usr/lib/nvidia'
 
