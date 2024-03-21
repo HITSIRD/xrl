@@ -63,7 +63,10 @@ class VQCDTPredictor(nn.Module):
         # 设置属性
         self.sigmoid = nn.Sigmoid()
         self.softmax = nn.Softmax(dim=1)
-        self.num_intermediate_variables = hp.num_intermediate_variables
+        if hp.feature_learning_depth >= 0:
+            self.num_intermediate_variables = hp.num_intermediate_variables
+        else:
+            self.num_intermediate_variables = input_dim
         self.feature_learning_depth = hp.feature_learning_depth
         self.decision_depth = hp.decision_depth
         self.input_dim = input_dim
