@@ -6,7 +6,6 @@ import numpy as np
 
 class RolloutSaver(object):
     """Saves rollout episodes to a target directory."""
-
     def __init__(self, save_dir):
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
@@ -25,7 +24,7 @@ class RolloutSaver(object):
         # store trajectory info in traj0 group
         traj_data = f.create_group("traj0")
         traj_data.create_dataset("states", data=np.array(episode.observation))
-        # traj_data.create_dataset("images", data=np.array(episode.image, dtype=np.uint8))
+        traj_data.create_dataset("images", data=np.array(episode.image, dtype=np.uint8))
         traj_data.create_dataset("actions", data=np.array(episode.action))
 
         terminals = np.array(episode.done)
@@ -41,58 +40,6 @@ class RolloutSaver(object):
         f.close()
 
         self.counter += 1
-
-    def _resize_video(self, images, dim=64):
-        """Resize a video in numpy array form to target dimension."""
-        ret = np.zeros((images.shape[0], dim, dim, 3))
-
-        for i in range(images.shape[0]):
-            ret[i] = cv2.resize(images[i], dsize=(dim, dim),
-                                interpolation=cv2.INTER_CUBIC)
-
-        return ret.astype(np.uint8)
-
-    def reset(self):
-        """Resets counter."""
-        self.counter = 0
-
-
-class HPRolloutSaver(object):
-    """Saves rollout episodes to a target directory."""
-
-    def __init__(self, save_dir):
-        if not os.path.exists(save_dir):
-            os.makedirs(save_dir)
-        self.save_dir = save_dir
-        self.data = None
-        self.counter = 0
-
-    def save_rollout(self, episode):
-        # if self.data is None:
-        index = np.where(np.array(episode.is_hl_step))
-        if self.data is None:
-            self.data = {}
-            self.data['observation'] = np.array(episode['observation'])[index]
-            self.data['hl_action_index'] = np.array(episode['hl_action_index'])[index]
-        else:
-            self.data['observation'] = np.append(self.data['observation'], np.array(episode['observation'])[index],
-                                                 axis=0)
-            self.data['hl_action_index'] = np.append(self.data['hl_action_index'],
-                                                     np.array(episode['hl_action_index'])[index], axis=0)
-
-    def save(self):
-        save_path = os.path.join(self.save_dir, "hp_rollout.h5")
-
-        # save rollout to file
-        f = h5py.File(save_path, "w")
-        f.create_dataset("traj_per_file", data=1)
-
-        # store trajectory info in traj0 group
-        traj_data = f.create_group("traj")
-        traj_data.create_dataset("states", data=self.data['observation'])
-        # traj_data.create_dataset("images", data=np.array(episode.image, dtype=np.uint8))
-        # traj_data.create_dataset("actions", data=np.array(episode.action))
-        traj_data.create_dataset("hl_action_index", data=self.data['hl_action_index'])
 
     def _resize_video(self, images, dim=64):
         """Resize a video in numpy array form to target dimension."""

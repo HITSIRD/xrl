@@ -26,7 +26,7 @@ configuration = {
     'num_epochs': 25,
     'max_rollout_len': 280,
     'n_steps_per_epoch': 100000,
-    'n_warmup_steps': 0,
+    'n_warmup_steps': 256,
     # 'n_warmup_steps': 512,
 }
 configuration = AttrDict(configuration)
@@ -61,7 +61,7 @@ ll_model_params = AttrDict(
     n_processing_layers=5,
     nz_vae=10,
     n_rollout_steps=10,
-    codebook_K=32
+    codebook_K=16
 )
 
 # LL Agent
