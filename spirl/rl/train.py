@@ -16,14 +16,7 @@ from spirl.rl.utils.wandb import WandBLogger
 from spirl.rl.utils.rollout_utils import RolloutSaver
 from spirl.rl.components.sampler import Sampler
 from spirl.rl.components.replay_buffer import RolloutStorage
-
-# notice!
-os.environ['EXP_DIR'] = './experiments_zuo'
-os.environ['DATA'] = './data'
-WANDB_PROJECT_NAME = 'spirl+cdt'
-WANDB_ENTITY_NAME = 'zrc0622'
-
-os.environ['LD_LIBRARY_PATH'] = '$LD_LIBRARY_PATH:/home/wenyongyan/.mujoco/mujoco210/bin:$LD_LIBRARY_PATH:/usr/lib/nvidia'
+from spirl.configs.local import *
 
 class RLTrainer:
     """Sets up RL training loop, instantiates all components, runs training."""

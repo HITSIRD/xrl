@@ -24,13 +24,7 @@ from spirl.utils.pytorch_utils import LossSpikeHook, NanGradHook, NoneGradHook, 
 from spirl.components.trainer_base import BaseTrainer
 from spirl.utils.wandb import WandBLogger
 from spirl.components.params import get_args
-
-# notice!
-# os.environ['EXP_DIR'] = './experiments_zuo'
-# os.environ['DATA'] = './data'
-WANDB_PROJECT_NAME = 'spirl_baseline_K_16'
-WANDB_ENTITY_NAME = 'hitsird'
-os.environ['LD_LIBRARY_PATH'] = '$LD_LIBRARY_PATH:/home/wenyongyan/.mujoco/mujoco210/bin:$LD_LIBRARY_PATH:/usr/lib/nvidia'
+from spirl.configs.local import *
 
 
 class ModelTrainer(BaseTrainer):
@@ -302,7 +296,7 @@ class ModelTrainer(BaseTrainer):
         if torch.cuda.device_count() > 1:
             raise Error("Detected {} devices. Currently only single-GPU training is supported!".format(
                 torch.cuda.device_count()),
-                        "Set CUDA_VISIBLE_DEVICES=<desired_gpu_id>.")
+                "Set CUDA_VISIBLE_DEVICES=<desired_gpu_id>.")
             # print("\nUsing {} GPUs!\n".format(torch.cuda.device_count()))
             # model = DataParallelWrapper(model)
         model = model.to(self.device)
