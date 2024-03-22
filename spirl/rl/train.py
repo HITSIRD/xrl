@@ -18,10 +18,10 @@ from spirl.rl.components.sampler import Sampler
 from spirl.rl.components.replay_buffer import RolloutStorage
 
 # notice!
-# os.environ['EXP_DIR'] = './experiments_zuo'
-# os.environ['DATA'] = './data'
-WANDB_PROJECT_NAME = 'spirl_baseline_K_16'
-WANDB_ENTITY_NAME = 'hitsird'
+os.environ['EXP_DIR'] = './experiments_zuo'
+os.environ['DATA'] = './data'
+WANDB_PROJECT_NAME = 'spirl+cdt'
+WANDB_ENTITY_NAME = 'zrc0622'
 
 os.environ['LD_LIBRARY_PATH'] = '$LD_LIBRARY_PATH:/home/wenyongyan/.mujoco/mujoco210/bin:$LD_LIBRARY_PATH:/usr/lib/nvidia'
 
@@ -43,6 +43,7 @@ class RLTrainer:
         # set seeds, display, worker shutdown
         if args.seed != -1: self._hp.seed = args.seed   # override from command line if set
         set_seeds(self._hp.seed)
+        print(f'seed is: {self._hp.seed}')
         os.environ["DISPLAY"] = ":1"
         set_shutdown_hooks()
 

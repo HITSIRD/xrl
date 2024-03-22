@@ -64,7 +64,10 @@ class VQCDTPredictor(nn.Module):
         # 设置属性
         self.sigmoid = nn.Sigmoid()
         self.softmax = nn.Softmax(dim=1)
-        self.num_intermediate_variables = hp.num_intermediate_variables
+        if hp.feature_learning_depth >= 0:
+            self.num_intermediate_variables = hp.num_intermediate_variables
+        else:
+            self.num_intermediate_variables = input_dim
         self.feature_learning_depth = hp.feature_learning_depth
         self.decision_depth = hp.decision_depth
         self.input_dim = input_dim
@@ -80,50 +83,61 @@ class VQCDTPredictor(nn.Module):
         self.feature_learning_init()
         self.decision_init()
 
+        if self.greatest_path_probability:
+            print('use best path')
+
         # 最大叶节点索引
         self.max_leaf_idx = None
 
     def feature_learning_init(self):
-        self.num_fl_inner_nodes = 2**self.feature_learning_depth -1
-        self.num_fl_leaves = self.num_fl_inner_nodes + 1
-        self.fl_inner_nodes = nn.Linear(self.input_dim+1, self.num_fl_inner_nodes, bias=False)
-        # coefficients of feature combinations
-        fl_leaf_weights = torch.randn(self.num_fl_leaves*self.num_intermediate_variables, self.input_dim)
-        self.fl_leaf_weights = nn.Parameter(fl_leaf_weights)
+        if self.feature_learning_depth < 0: # 特征树深度小于0时不需要特征树
+            print('use SDT')
+            return
+        else:
+            print('use CDT')
+            self.num_fl_inner_nodes = 2**self.feature_learning_depth -1
+            self.num_fl_leaves = self.num_fl_inner_nodes + 1
+            self.fl_inner_nodes = nn.Linear(self.input_dim+1, self.num_fl_inner_nodes, bias=False)
+            # coefficients of feature combinations
+            fl_leaf_weights = torch.randn(self.num_fl_leaves*self.num_intermediate_variables, self.input_dim)
+            self.fl_leaf_weights = nn.Parameter(fl_leaf_weights)
 
-        # temperature term
-        if self.beta_fl is True or self.beta_fl==1: # learnable
-            beta_fl = torch.randn(self.num_fl_inner_nodes)  # use different beta_fl for each node
-            # beta_fl = torch.randn(1)     # or use one beta_fl across all nodes
-            self.beta_fl = nn.Parameter(beta_fl)
-        elif self.beta_fl is False or self.beta_fl==0:
-            self.beta_fl = torch.ones(1).to(self.device)   # or use one beta_fl across all nodes
-        else:  # pass in value for beta_fl
-            self.beta_fl = torch.tensor(self.beta_fl).to(self.device)
+            # temperature term
+            if self.beta_fl is True or self.beta_fl==1: # learnable
+                beta_fl = torch.randn(self.num_fl_inner_nodes)  # use different beta_fl for each node
+                # beta_fl = torch.randn(1)     # or use one beta_fl across all nodes
+                self.beta_fl = nn.Parameter(beta_fl)
+            elif self.beta_fl is False or self.beta_fl==0:
+                self.beta_fl = torch.ones(1).to(self.device)   # or use one beta_fl across all nodes
+            else:  # pass in value for beta_fl
+                self.beta_fl = torch.tensor(self.beta_fl).to(self.device)
 
     def feature_learning_forward(self):
         """ 
         Forward the tree for feature learning.
         Return the probabilities for reaching each leaf.
         """
-        path_prob = self.sigmoid(self.beta_fl*self.fl_inner_nodes(self.aug_data))
+        if self.feature_learning_depth < 0:
+            return None
+        else:
+            path_prob = self.sigmoid(self.beta_fl*self.fl_inner_nodes(self.aug_data))
 
-        path_prob = torch.unsqueeze(path_prob, dim=2)
-        path_prob = torch.cat((path_prob, 1-path_prob), dim=2)
-        _mu = self.aug_data.data.new(self.batch_size,1,1).fill_(1.)
+            path_prob = torch.unsqueeze(path_prob, dim=2)
+            path_prob = torch.cat((path_prob, 1-path_prob), dim=2)
+            _mu = self.aug_data.data.new(self.batch_size,1,1).fill_(1.)
 
-        begin_idx = 0
-        end_idx = 1
-        for layer_idx in range(0, self.feature_learning_depth):
-            _path_prob = path_prob[:, begin_idx:end_idx, :]
+            begin_idx = 0
+            end_idx = 1
+            for layer_idx in range(0, self.feature_learning_depth):
+                _path_prob = path_prob[:, begin_idx:end_idx, :]
 
-            _mu = _mu.view(self.batch_size, -1, 1).repeat(1, 1, 2)
-            _mu = _mu * _path_prob
-            begin_idx = end_idx  # index for each layer
-            end_idx = begin_idx + 2 ** (layer_idx+1)
-        mu = _mu.view(self.batch_size, self.num_fl_leaves)  
+                _mu = _mu.view(self.batch_size, -1, 1).repeat(1, 1, 2)
+                _mu = _mu * _path_prob
+                begin_idx = end_idx  # index for each layer
+                end_idx = begin_idx + 2 ** (layer_idx+1)
+            mu = _mu.view(self.batch_size, self.num_fl_leaves)  
 
-        return mu   
+            return mu   
 
     def decision_init(self):
             self.num_dc_inner_nodes = 2**self.decision_depth -1
@@ -147,7 +161,11 @@ class VQCDTPredictor(nn.Module):
         """
         Forward the differentiable decision tree
         """
-        self.intermediate_features_construct()
+        if self.feature_learning_depth >= 0:
+            self.intermediate_features_construct() # 计算中间特征self.features: (batch_size*num_fl_leaves, num_intermediate_variables)
+        else:
+            self.features = self.data # (batch_size, input_dim)
+        
         aug_features = self._data_augment_(self.features)
         path_prob = self.sigmoid(self.beta_dc*self.dc_inner_nodes(aug_features))
         feature_batch_size = self.features.shape[0]
@@ -165,7 +183,7 @@ class VQCDTPredictor(nn.Module):
             _mu = _mu * _path_prob
             begin_idx = end_idx  # index for each layer
             end_idx = begin_idx + 2 ** (layer_idx+1)
-        mu = _mu.view(feature_batch_size, self.num_dc_leaves)  
+        mu = _mu.view(feature_batch_size, self.num_dc_leaves)  # (batch_size*num_fl_leaves, num_dc_leaves)
 
         return mu
 
@@ -177,7 +195,7 @@ class VQCDTPredictor(nn.Module):
         self.features = features.contiguous().view(self.num_fl_leaves, self.num_intermediate_variables, -1).permute(2,0,1).contiguous().view(-1, self.num_intermediate_variables)  # return: (N, num_intermediate_variables) where N=batch_size*num_fl_leaves
 
     def decision_leaves(self, p): # p：到达每个叶节点的概率
-        distribution_per_leaf = self.softmax(self.dc_leaves) # distribution_per_leaf：每个叶节点输出各动作的概率
+        distribution_per_leaf = self.softmax(self.dc_leaves) # distribution_per_leaf：不同动作叶子输出不同动作的概率
         average_distribution = torch.mm(p, distribution_per_leaf)  # sum(probability of each leaf * leaf distribution)
         return average_distribution # (batch_size, output_dim) # 各动作的概率
 
@@ -185,34 +203,56 @@ class VQCDTPredictor(nn.Module):
         LogProb = False
         self.data = data
         self.batch_size = data.size()[0]
-        self.aug_data = self._data_augment_(data)
-        fl_probs = self.feature_learning_forward()  # (batch_size, num_fl_leaves) 
-        dc_probs = self.decision_forward()
-        dc_probs = dc_probs.view(self.batch_size, self.num_fl_leaves, -1)   # (batch_size, num_fl_leaves, num_dc_leaves)
+        
+        if self.feature_learning_depth >= 0:
+            self.aug_data = self._data_augment_(data)
+            fl_probs = self.feature_learning_forward()  # (batch_size, num_fl_leaves), 在该特征下到达不同中间特征叶子的概率
+            dc_probs = self.decision_forward() # (batch_size*num_fl_leaves, num_dc_leaves)
+            dc_probs = dc_probs.view(self.batch_size, self.num_fl_leaves, -1)   # (batch_size, num_fl_leaves, num_dc_leaves), 在不同中间特征叶子的特征下到达不同动作叶子的概率
 
-        _mu = torch.bmm(fl_probs.unsqueeze(1), dc_probs).squeeze(1)  # (batch_size, num_dc_leaves)
-        output = self.decision_leaves(_mu)
+            _mu = torch.bmm(fl_probs.unsqueeze(1), dc_probs).squeeze(1)  # (batch_size, num_dc_leaves), 在该特征下到达不同动作叶子的概率
+            output = self.decision_leaves(_mu)
 
-        if self.greatest_path_probability:
-            vs, ids = torch.max(fl_probs, 1)  # ids is the leaf index with maximal path probability
-            # get the path with greatest probability, get index of it, feature vector and feature value on that leaf
-            self.max_leaf_idx_fl = ids
-            self.max_feature_vector = self.fl_leaf_weights.view(self.num_fl_leaves, self.num_intermediate_variables, self.input_dim)[ids]
-            self.max_feature_value = self.features.view(-1, self.num_fl_leaves, self.num_intermediate_variables)[:, ids, :]
+            if self.greatest_path_probability:
+                vs, ids = torch.max(fl_probs, 1)  # ids is the leaf index with maximal path probability: 在特征下最有可能的中间特征叶子的索引
+                # get the path with greatest probability, get index of it, feature vector and feature value on that leaf
+                self.max_leaf_idx_fl = ids
+                self.max_feature_vector = self.fl_leaf_weights.view(self.num_fl_leaves, self.num_intermediate_variables, self.input_dim)[ids]
+                self.max_feature_value = self.features.view(-1, self.num_fl_leaves, self.num_intermediate_variables)[:, ids, :]
 
-            one_dc_probs = dc_probs[torch.arange(dc_probs.shape[0]), ids, :]  # select decision path probabilities of learned features with largest probability
-            one_hot_path_probability_dc = torch.zeros(one_dc_probs.shape).to(self.device)
-            vs_dc, ids_dc = torch.max(one_dc_probs, 1)  # ids is the leaf index with maximal path probability
-            self.max_leaf_idx_dc = ids_dc
-            one_hot_path_probability_dc.scatter_(1, ids_dc.view(-1,1), 1.)
-            prediction = self.decision_leaves(one_hot_path_probability_dc)
+                one_dc_probs = dc_probs[torch.arange(dc_probs.shape[0]), ids, :]  # select decision path probabilities of learned features with largest probability
+                one_hot_path_probability_dc = torch.zeros(one_dc_probs.shape).to(self.device)
+                vs_dc, ids_dc = torch.max(one_dc_probs, 1)  # ids is the leaf index with maximal path probability: 在中间特征下最有可能的动作叶子的索引
+                self.max_leaf_idx_dc = ids_dc
+                one_hot_path_probability_dc.scatter_(1, ids_dc.view(-1,1), 1.)
+                prediction = self.decision_leaves(one_hot_path_probability_dc)
 
-        else:  # prediction value equals to the average distribution
-            prediction = output
+            else:  # prediction value equals to the average distribution
+                prediction = output
 
-        if LogProb:
-            output = torch.log(output) # 根据所有叶节点得到的输出
-            prediction = torch.log(prediction) # 根据最优路径得到的输出
+            if LogProb:
+                output = torch.log(output) # 根据所有叶节点得到的输出
+                prediction = torch.log(prediction) # 根据最优路径得到的输出
+             
+        else:
+            dc_probs = self.decision_forward() # (batch_size, num_dc_leaves)
+            _mu = dc_probs
+            output = self.decision_leaves(_mu)
+
+            if self.greatest_path_probability:
+                one_dc_probs = dc_probs
+                one_hot_path_probability_dc = torch.zeros(one_dc_probs.shape).to(self.device)
+                vs_dc, ids_dc = torch.max(one_dc_probs, 1)
+                self.max_leaf_idx_dc = ids_dc
+                one_hot_path_probability_dc.scatter_(1, ids_dc.view(-1,1), 1.)
+                prediction = self.decision_leaves(one_hot_path_probability_dc)
+            
+            else:  # prediction value equals to the average distribution
+                prediction = output
+
+            if LogProb:
+                output = torch.log(output) # 根据所有叶节点得到的输出
+                prediction = torch.log(prediction) # 根据最优路径得到的输出
 
         return prediction
 
