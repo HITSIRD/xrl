@@ -30,10 +30,10 @@ from spirl.components.params import get_args
 # os.environ['DATA'] = './data'
 WANDB_PROJECT_NAME = 'spirl_baseline_K_16'
 WANDB_ENTITY_NAME = 'hitsird'
-# os.environ['LD_LIBRARY_PATH'] = '$LD_LIBRARY_PATH:/home/wenyongyan/.mujoco/mujoco210/bin:$LD_LIBRARY_PATH:/usr/lib/nvidia'
+os.environ['LD_LIBRARY_PATH'] = '$LD_LIBRARY_PATH:/home/wenyongyan/.mujoco/mujoco210/bin:$LD_LIBRARY_PATH:/usr/lib/nvidia'
 
 
-class ModdelTrainer(BaseTrainer):
+class ModelTrainer(BaseTrainer):
     def __init__(self, args):
         self.args = args
         self.setup_device()
@@ -105,7 +105,7 @@ class ModdelTrainer(BaseTrainer):
             'adam_beta': 0.9,  # beta1 param in Adam
             'top_of_n_eval': 1,  # number of samples used at eval time
             'top_comp_metric': None,  # metric that is used for comparison at eval time (e.g. 'mse')
-            'logging_target': 'wandb',
+            'logging_target': 'None',
             # 'logging_target': None,
         })
         return default_dict

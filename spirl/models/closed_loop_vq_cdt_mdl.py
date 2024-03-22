@@ -88,8 +88,8 @@ class ClVQCDTMdl(ClSPiRLMdl):
 
     def decode(self, z, cond_inputs, steps, inputs=None):
         assert inputs is not None  # need additional state sequence input for full decode
-        # seq_enc = self._get_seq_enc(inputs)
-        seq_enc = inputs.states[:, :-1, :30]
+        seq_enc = self._get_seq_enc(inputs)
+        # seq_enc = inputs.states[:, :-1, :30]
         decode_inputs = torch.cat((seq_enc[:, :steps], z[:, None].repeat(1, steps, 1)), dim=-1)
         return batch_apply(decode_inputs, self.decoder)
 

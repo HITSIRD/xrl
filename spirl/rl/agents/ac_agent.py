@@ -29,7 +29,7 @@ class ACAgent(BaseAgent):
         # TODO implement non-sampling validation mode
         obs = map2torch(self._obs_normalizer(obs), self._hp.device)
         if index is not None:
-            return AttrDict(action=self.policy.net.codebook.embedding.weight[index].cpu().numpy(), log_prob=0)
+            return AttrDict(action=self.policy.net.codebook.embedding.weight[index].cpu().numpy(), log_prob=0, action_index=index)
         # if task is not None:
         #     return AttrDict(action=self.policy.forward(task).cpu().numpy())
         if len(obs.shape) == 1:     # we need batched inputs for policy
@@ -74,7 +74,7 @@ class ACAgent(BaseAgent):
 class SACAgent(ACAgent):
     """Implements SAC algorithm."""
     def __init__(self, config):
-        ACAgent.__init__(self, config)
+        self.init__ = ACAgent.__init__(self, config)
         self._hp = self._default_hparams().overwrite(config)
 
         # build critics and target networks, copy weights of critics to target networks

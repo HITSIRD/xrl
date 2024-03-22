@@ -287,8 +287,8 @@ class HierarchicalAgent(BaseAgent):
 
     def make_ll_obs(self, obs, hl_action):
         """Creates low-level agent's observation from env observation and HL action."""
-        # return np.concatenate((obs, hl_action), axis=-1)
-        return np.concatenate((obs[:30], hl_action), axis=-1)
+        return np.concatenate((obs, hl_action), axis=-1)
+        # return np.concatenate((obs[:30], hl_action), axis=-1)
 
     def add_experience(self, experience_batch):
         self.hl_agent.add_experience(experience_batch.hl_batch)

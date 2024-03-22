@@ -54,7 +54,8 @@ class VQPredictor(Predictor):
 
     def forward(self, *inp):
         out = super().forward(*inp)
-        return torch.softmax(out, dim=-1)
+        return out
+        # return torch.softmax(out, dim=-1)
 
 class VQCDTPredictor(nn.Module):
     def __init__(self, hp, input_dim, output_dim):

@@ -31,8 +31,8 @@ hl_policy_params.update(AttrDict(
     prior_model=ll_policy_params.policy_model,
     prior_model_params=ll_policy_params.policy_model_params,
     prior_model_checkpoint=ll_policy_params.policy_model_checkpoint,
-    policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
-                                          "hrl/kitchen/spirl_cl_vq_wogoal/kitchen_sequence_seed_18"),
+    # policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
+    #                                       "hrl/kitchen/spirl_cl_vq_wogoal/kitchen_sequence_seed_18"),
 ))
 
 # register new LL agent in agent_config and turn off LL agent updates

@@ -16,10 +16,10 @@ from spirl.modules.subnetworks import BaseProcessingLSTM, Predictor, Encoder
 from spirl.modules.recurrent_modules import RecurrentPredictor
 from spirl.utils.general_utils import AttrDict, ParamDict, split_along_axis, get_clipped_optimizer
 from spirl.utils.pytorch_utils import map2np, ten2ar, RemoveSpatial, ResizeSpatial, map2torch, find_tensor, \
-                                        TensorModule, RAdam
+    TensorModule, RAdam
 from spirl.utils.vis_utils import fig2img
 from spirl.modules.variational_inference import ProbabilisticModel, Gaussian, MultivariateGaussian, get_fixed_prior, \
-                                                mc_kl_divergence
+    mc_kl_divergence
 from spirl.modules.layers import LayerBuilderParams
 from spirl.modules.mdn import MDN, GMM
 from spirl.modules.Categorical import Categorical
@@ -28,6 +28,7 @@ from spirl.modules.flow_models import ConditionedFlowModel
 
 class SkillPriorMdl(BaseModel, ProbabilisticModel):
     """Skill embedding + prior model for SPIRL algorithm."""
+
     def __init__(self, params, logger=None):
         BaseModel.__init__(self, logger)
         ProbabilisticModel.__init__(self)
@@ -56,48 +57,48 @@ class SkillPriorMdl(BaseModel, ProbabilisticModel):
         default_dict = ParamDict({
             'use_convs': False,
             'device': None,
-            'n_rollout_steps': 10,        # number of decoding steps
-            'cond_decode': False,         # if True, conditions decoder on prior inputs
+            'n_rollout_steps': 10,  # number of decoding steps
+            'cond_decode': False,  # if True, conditions decoder on prior inputs
         })
 
         # Network size
         default_dict.update({
-            'state_dim': 1,             # dimensionality of the state space
-            'action_dim': 1,            # dimensionality of the action space
-            'nz_enc': 32,               # number of dimensions in encoder-latent space
-            'nz_vae': 10,               # number of dimensions in vae-latent space
-            'nz_mid': 32,               # number of dimensions for internal feature spaces
-            'nz_mid_lstm': 128,         # size of middle LSTM layers
-            'n_lstm_layers': 1,         # number of LSTM layers
-            'n_processing_layers': 3,   # number of layers in MLPs
+            'state_dim': 1,  # dimensionality of the state space
+            'action_dim': 1,  # dimensionality of the action space
+            'nz_enc': 32,  # number of dimensions in encoder-latent space
+            'nz_vae': 10,  # number of dimensions in vae-latent space
+            'nz_mid': 32,  # number of dimensions for internal feature spaces
+            'nz_mid_lstm': 128,  # size of middle LSTM layers
+            'n_lstm_layers': 1,  # number of LSTM layers
+            'n_processing_layers': 3,  # number of layers in MLPs
         })
 
         # Learned prior
         default_dict.update({
-            'n_prior_nets': 1,              # number of prior networks in ensemble
-            'num_prior_net_layers': 6,      # number of layers of the learned prior MLP
-            'nz_mid_prior': 128,            # dimensionality of internal feature spaces for prior net
-            'nll_prior_train': True,        # if True, trains learned prior by maximizing NLL
+            'n_prior_nets': 1,  # number of prior networks in ensemble
+            'num_prior_net_layers': 6,  # number of layers of the learned prior MLP
+            'nz_mid_prior': 128,  # dimensionality of internal feature spaces for prior net
+            'nll_prior_train': True,  # if True, trains learned prior by maximizing NLL
             'learned_prior_type': 'gauss',  # distribution type for learned prior, ['gauss', 'gmm', 'flow']
-            'n_gmm_prior_components': 5,    # number of Gaussian components for GMM learned prior
+            'n_gmm_prior_components': 5,  # number of Gaussian components for GMM learned prior
         })
 
         # Loss weights
         default_dict.update({
-            'reconstruction_mse_weight': 1.,    # weight of MSE reconstruction loss
-            'kl_div_weight': 1.,                # weight of KL divergence loss
-            'target_kl': None,                  # if not None, adds automatic beta-tuning to reach target KL divergence
+            'reconstruction_mse_weight': 1.,  # weight of MSE reconstruction loss
+            'kl_div_weight': 1.,  # weight of KL divergence loss
+            'target_kl': None,  # if not None, adds automatic beta-tuning to reach target KL divergence
         })
 
         # VQ-VAE
         default_dict.update({
-            'codebook_K': 32,              # number of code book vector
-            'commitment_beta': 0.25,        # commitment beta hyperparameter
+            'codebook_K': 32,  # number of code book vector
+            'commitment_beta': 0.25,  # commitment beta hyperparameter
         })
 
         # loading pre-trained components
         default_dict.update({
-            'embedding_checkpoint': None,   # optional, if provided loads weights for encoder, decoder and freezes it
+            'embedding_checkpoint': None,  # optional, if provided loads weights for encoder, decoder and freezes it
         })
 
         # add new params to parent params
@@ -107,11 +108,10 @@ class SkillPriorMdl(BaseModel, ProbabilisticModel):
 
     def build_network(self):
         """Defines the network architecture (encoder aka inference net, decoder, prior)."""
-        assert not self._hp.use_convs   # currently only supports non-image inputs
+        assert not self._hp.use_convs  # currently only supports non-image inputs
         self.q = self._build_inference_net()
-        self.codebook = self._build_codebook()
         self.decoder = RecurrentPredictor(self._hp,
-                                          input_size=self._hp.action_dim+self._hp.nz_vae,
+                                          input_size=self._hp.action_dim + self._hp.nz_vae,
                                           output_size=self._hp.action_dim)
         self.decoder_input_initalizer = self._build_decoder_initializer(size=self._hp.action_dim)
         self.decoder_hidden_initalizer = self._build_decoder_initializer(size=self.decoder.cell.get_state_size())
@@ -124,7 +124,7 @@ class SkillPriorMdl(BaseModel, ProbabilisticModel):
         :arg use_learned_prior: if True, decodes samples from learned prior instead of posterior, used for RL
         """
         output = AttrDict()
-        inputs.observations = inputs.actions    # for seamless evaluation
+        inputs.observations = inputs.actions  # for seamless evaluation
 
         # run inference
         output.q = self._run_inference(inputs)
@@ -135,11 +135,11 @@ class SkillPriorMdl(BaseModel, ProbabilisticModel):
         # infer learned skill prior
         output.q_hat = self.compute_learned_prior(self._learned_prior_input(inputs))
         if use_learned_prior:
-            output.p = output.q_hat     # use output of learned skill prior for sampling
+            output.p = output.q_hat  # use output of learned skill prior for sampling
 
         # sample latent variable
         output.z = output.p.sample() if self._sample_prior else output.q.sample()
-        output.z_q = output.z.clone() if not self._sample_prior else output.q.sample()   # for loss computation
+        output.z_q = output.z.clone() if not self._sample_prior else output.q.sample()  # for loss computation
 
         # decode
         assert self._regression_targets(inputs).shape[1] == self._hp.n_rollout_steps
@@ -218,7 +218,7 @@ class SkillPriorMdl(BaseModel, ProbabilisticModel):
 
             # sample latent variable from prior
             z = self.compute_learned_prior(self._learned_prior_input(inputs), first_only=True).sample() \
-                if use_learned_prior else Gaussian(torch.zeros((1, self._hp.nz_vae*2), device=self.device)).sample()
+                if use_learned_prior else Gaussian(torch.zeros((1, self._hp.nz_vae * 2), device=self.device)).sample()
 
             # decode into action plan
             z = z.repeat(self._hp.batch_size, 1)  # this is a HACK flat LSTM decoder can only take batch_size inputs
@@ -230,7 +230,7 @@ class SkillPriorMdl(BaseModel, ProbabilisticModel):
 
     def reset(self):
         """Resets action plan (should be called at beginning of episode when used in RL loop)."""
-        self._action_plan = deque()        # stores action plan of LL policy when model is used as policy
+        self._action_plan = deque()  # stores action plan of LL policy when model is used as policy
 
     def load_weights_and_freeze(self):
         """Optionally loads weights for components of the architecture + freezes these components."""
@@ -262,6 +262,7 @@ class SkillPriorMdl(BaseModel, ProbabilisticModel):
 
                 def forward(self, state):
                     return self.val.repeat(find_tensor(state).shape[0], 1)
+
             return FixedTrainableInitializer(self._hp)
 
     def _build_prior_ensemble(self):
@@ -287,7 +288,7 @@ class SkillPriorMdl(BaseModel, ProbabilisticModel):
         inf_input = inputs.actions
         if self._hp.cond_decode:
             inf_input = torch.cat((inf_input, self._learned_prior_input(inputs)[:, None]
-                                        .repeat(1, inf_input.shape[1], 1)), dim=-1)
+                                   .repeat(1, inf_input.shape[1], 1)), dim=-1)
         return MultivariateGaussian(self.q(inf_input)[:, -1])
 
     def compute_learned_prior(self, inputs, first_only=False):
@@ -335,14 +336,14 @@ class SkillPriorMdl(BaseModel, ProbabilisticModel):
 
     def _learned_prior_input(self, inputs):
         return inputs.states[:, 0]
-        # return inputs.states[:, 0, :30]
+        # return inputs.states[:, 0, :30]  # full
 
     def _regression_targets(self, inputs):
         return inputs.actions
 
     def evaluate_prior_divergence(self, state):
         """Evaluates prior divergence as mean pairwise KL divergence of ensemble of priors."""
-        assert self._hp.n_prior_nets > 1        # need more than one prior in ensemble to evaluate divergence
+        assert self._hp.n_prior_nets > 1  # need more than one prior in ensemble to evaluate divergence
         if not isinstance(state, torch.Tensor):
             state = torch.tensor(state, device=self._hp.device)
         if len(state.shape) == 1:
@@ -355,7 +356,7 @@ class SkillPriorMdl(BaseModel, ProbabilisticModel):
 
     @property
     def resolution(self):
-        return 64       # return dummy resolution, images are not used by this model
+        return 64  # return dummy resolution, images are not used by this model
 
     @property
     def latent_dim(self):
@@ -368,7 +369,7 @@ class SkillPriorMdl(BaseModel, ProbabilisticModel):
     @property
     def prior_input_size(self):
         return self.state_dim
-        # return 30
+        # return 30  # full
 
     @property
     def n_rollout_steps(self):
@@ -381,11 +382,12 @@ class SkillPriorMdl(BaseModel, ProbabilisticModel):
 
 class ImageSkillPriorMdl(SkillPriorMdl):
     """Implements learned skill prior with image input."""
+
     def _default_hparams(self):
         default_dict = ParamDict({
-            'prior_input_res': 32,      # input resolution of prior images
-            'encoder_ngf': 8,           # number of feature maps in shallowest level of encoder
-            'n_input_frames': 1,        # number of prior input frames
+            'prior_input_res': 32,  # input resolution of prior images
+            'encoder_ngf': 8,  # number of feature maps in shallowest level of encoder
+            'n_input_frames': 1,  # number of prior input frames
         })
         # add new params to parent params
         return super()._default_hparams().overwrite(default_dict)
@@ -394,11 +396,11 @@ class ImageSkillPriorMdl(SkillPriorMdl):
         params = copy.deepcopy(self._hp)
         return params.overwrite(AttrDict(
             use_convs=True,
-            use_skips=False,                  # no skip connections needed flat we are not reconstructing
+            use_skips=False,  # no skip connections needed flat we are not reconstructing
             img_sz=self._hp.prior_input_res,  # image resolution
-            input_nc=3*self._hp.n_input_frames,  # number of input feature maps
-            ngf=self._hp.encoder_ngf,         # number of feature maps in shallowest level
-            nz_enc=self.prior_input_size,     # size of image encoder output feature
+            input_nc=3 * self._hp.n_input_frames,  # number of input feature maps
+            ngf=self._hp.encoder_ngf,  # number of feature maps in shallowest level
+            nz_enc=self.prior_input_size,  # size of image encoder output feature
             builder=LayerBuilderParams(use_convs=True, normalization=self._hp.normalization)
         ))
 
@@ -414,9 +416,9 @@ class ImageSkillPriorMdl(SkillPriorMdl):
         # inference gets conditioned on prior input if decoding is also conditioned on prior input
         if not self._hp.cond_decode:
             return super()._build_inference_net()
-        self.cond_encoder = nn.Sequential(ResizeSpatial(self._hp.prior_input_res),      # encodes image inputs
+        self.cond_encoder = nn.Sequential(ResizeSpatial(self._hp.prior_input_res),  # encodes image inputs
                                           Encoder(self._updated_encoder_params()),
-                                          RemoveSpatial(),)
+                                          RemoveSpatial(), )
         return torch.nn.Sequential(
             BaseProcessingLSTM(self._hp, in_dim=self._hp.action_dim + self._hp.nz_enc, out_dim=self._hp.nz_enc),
             torch.nn.Linear(self._hp.nz_enc, self._hp.nz_vae * 2)
@@ -426,7 +428,7 @@ class ImageSkillPriorMdl(SkillPriorMdl):
         if not self._hp.cond_decode:
             return super()._build_decoder_initializer(size)
         return nn.Sequential(
-            self.cond_encoder,      # encode image conditioning
+            self.cond_encoder,  # encode image conditioning
             super()._build_decoder_initializer(size),
         )
 
@@ -438,19 +440,19 @@ class ImageSkillPriorMdl(SkillPriorMdl):
         return MultivariateGaussian(self.q(inf_input)[:, -1])
 
     def _learned_prior_input(self, inputs):
-        return inputs.images[:, :self._hp.n_input_frames]\
+        return inputs.images[:, :self._hp.n_input_frames] \
             .reshape(inputs.images.shape[0], -1, self.resolution, self.resolution)
 
     def _regression_targets(self, inputs):
-        return inputs.actions[:, (self._hp.n_input_frames-1):]
+        return inputs.actions[:, (self._hp.n_input_frames - 1):]
 
     def unflatten_obs(self, raw_obs):
         """Utility to unflatten [obs, prior_obs] concatenated observation (for RL usage)."""
         assert len(raw_obs.shape) == 2 and raw_obs.shape[1] == self.state_dim \
-               + self._hp.prior_input_res**2 * 3 * self._hp.n_input_frames
+               + self._hp.prior_input_res ** 2 * 3 * self._hp.n_input_frames
         return AttrDict(
             obs=raw_obs[:, :self.state_dim],
-            prior_obs=raw_obs[:, self.state_dim:].reshape(raw_obs.shape[0], 3*self._hp.n_input_frames,
+            prior_obs=raw_obs[:, self.state_dim:].reshape(raw_obs.shape[0], 3 * self._hp.n_input_frames,
                                                           self._hp.prior_input_res, self._hp.prior_input_res)
         )
 
@@ -460,7 +462,7 @@ class ImageSkillPriorMdl(SkillPriorMdl):
 
     @property
     def resolution(self):
-      return self._hp.prior_input_res
+        return self._hp.prior_input_res
 
 
 class SkillSpaceLogger(Logger):
@@ -468,17 +470,19 @@ class SkillSpaceLogger(Logger):
     Logger for Skill Space model. No extra methods needed to implement by
     environment-specific logger implementation.
     """
+
     def visualize(self, model_output, inputs, losses, step, phase, logger):
         self._plot_latents(model_output, logger, step, phase)
 
     def _plot_latents(self, model_output, logger, step, phase):
         """Visualizes 2D Gaussian latents if available."""
-        if model_output.p.shape[1] == 2:   # only supports 2D gaussian latents
+        if model_output.p.shape[1] == 2:  # only supports 2D gaussian latents
             graphs = []
             for i in range(self._n_logged_samples):
                 fig = plt.figure()
                 ax = plt.subplot(111)
-                plt.xlim(-2, 2); plt.ylim(-2, 2)
+                plt.xlim(-2, 2);
+                plt.ylim(-2, 2)
 
                 # draw prior
                 self._draw_gaussian(ax, model_output.p[i].tensor(), color='black')
@@ -502,8 +506,8 @@ class SkillSpaceLogger(Logger):
             return np.exp(logsig)
 
         ell = Ellipse(xy=(px, py),
-                      width=2*logsig2std(p_logsig_x), height=2*logsig2std(p_logsig_y),
-                      angle=0, color=color)     # this assumes diagonal gaussian
+                      width=2 * logsig2std(p_logsig_x), height=2 * logsig2std(p_logsig_y),
+                      angle=0, color=color)  # this assumes diagonal gaussian
         if weight is not None:
             ell.set_alpha(weight)
         else:

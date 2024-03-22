@@ -27,6 +27,7 @@ class Policy(nn.Module):
         output_dist = self._compute_action_dist(obs)
         if isinstance(output_dist, Categorical):
             action, index, log_prob = output_dist.rsample()
+            # print(output_dist.entropy().mean())
         else:
             action = output_dist.rsample()
             log_prob = output_dist.log_prob(action)
