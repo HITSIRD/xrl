@@ -185,10 +185,10 @@ class LearnedVQPriorAugmentedPolicyCDT(PriorInitializedPolicy, LearnedPriorAugme
         with torch.no_grad():
             with no_batchnorm_update(self.prior_net):
                 prior_dist = self.prior_net.compute_learned_prior(obs, first_only=True).detach()
-        action, index = prior_dist.sample()
-        log_prob = prior_dist.log_prob(index)
+        action, index, log_prob = prior_dist.sample()
+        # log_prob = prior_dist.log_prob(index)
         # action, log_prob = self._tanh_squash_output(action, 0)  # ignore log_prob output
-        return AttrDict(action=action, log_prob=log_prob)
+        return AttrDict(action=action, log_prob=log_prob, action_index=index)
 
     def _build_network(self):
         if self._hp.policy_model is not None:
