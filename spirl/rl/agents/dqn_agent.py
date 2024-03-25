@@ -1,173 +1,137 @@
 import torch
-import torch as T
-import torch.nn as nn
-import torch.optim as optim
-import torch.nn.functional as F
 import numpy as np
-from spirl.rl.components.policy import Policy
-from spirl.utils.general_utils import AttrDict, ParamDict
+
+from spirl.rl.components.agent import BaseAgent
+from spirl.utils.pytorch_utils import ten2ar, avg_grad_norm, TensorModule, check_shape, map2torch, map2np
+from spirl.utils.general_utils import ParamDict, map_dict, AttrDict
 
 
-class DQNPolicy(Policy):
+class DQNAgent(BaseAgent):
     def __init__(self, config):
+        BaseAgent.__init__(self, config)
         self._hp = self._default_hparams().overwrite(config)
-        super().__init__()
+        self.policy = self._hp.policy(self._hp.policy_params)
 
-        self.tau = self._hp.tau
-        self.epsilon = self._hp.epsilon
-        self.eps_min = self._hp.eps_end
-        self.eps_dec = self._hp.eps_dec
-        self.batch_size = self._hp.batch_size
-        self.update_count = 0
-        self.action_space = [i for i in range(self._hp.action_dim)]
+        # build replay buffer
+        self.replay_buffer = self._hp.replay(self._hp.replay_params)
+        self.policy_opt = self._get_optimizer(self._hp.optimizer, self.policy.q_eval, self._hp.policy_lr)
+        self._update_steps = 0
 
-        self.q_eval = DuelingDeepQNetwork(config=self._hp)
-        self.q_target = DuelingDeepQNetwork(config=self._hp)
-
-        # self.memory = ReplayBuffer(state_dim=state_dim, task_dim=task_dim, action_dim=action_dim,
-        #                            max_size=self.max_size, batch_size=self.batch_size)
-
-        self.update_network_parameters(tau=1.0)
-        self.last_q_params = self.q_eval.parameters()
-
-        self.codebook = self._load_codebook()
+        if not self._hp.update_codebook:
+            self.policy.codebook.requires_grad = False
 
     def _default_hparams(self):
         default_dict = ParamDict({
-            'tau': 0.1,
-            'epsilon': 0.9,
-            'eps_end': 0.01,
-            'eps_dec': 1e-4,
-            'max_size': 50000,
-            'batch_size': 256,
-            'hidden_layers': [64, 64],
+            'policy_lr': 5e-5,  # learning rate for policy update
+            'update_codebook': False,
+            'target_update_interval': 100,
         })
         return super()._default_hparams().overwrite(default_dict)
 
-    def update_network_parameters(self, tau=None):
-        if tau is None:
-            tau = self.tau
+    def update(self, experience_batch):
+        self.add_experience(experience_batch)
 
-        for q_target_params, q_eval_params in zip(self.q_target.parameters(), self.q_eval.parameters()):
-            q_target_params.data.copy_(tau * q_eval_params + (1 - tau) * q_target_params)
+        for _ in range(self._hp.update_iterations):
+            # sample batch and normalize
+            experience_batch = self._sample_experience()
+            experience_batch = self._normalize_batch(experience_batch)
+            experience_batch = map2torch(experience_batch, self._hp.device)
+            experience_batch = self._preprocess_experience(experience_batch)
 
-    def decrement_epsilon(self):
-        self.epsilon = self.epsilon - self.eps_dec if self.epsilon > self.eps_min else self.eps_min
+            # policy_output = self._run_policy(experience_batch.observation)
 
-    def save_parameters(self):
-        self.last_q_params = self.q_eval.parameters()
+            batch_idx = torch.arange(self._hp.batch_size, dtype=torch.long).to(self.device)
+            with torch.no_grad():
+                q_ = self.policy.q_target.forward(experience_batch.observation_next)
+                max_actions = torch.argmax(self.policy.q_eval.forward(experience_batch.observation_next), dim=-1)
+                # done_index = torch.where(experience_batch.done > 0.5)
+                # if not done_index:
+                #     q_[done_index] = 0.0
+                target = experience_batch.reward + self._hp.discount_factor * q_[batch_idx, max_actions]
+            q = self.policy.q_eval.forward(experience_batch.observation)[
+                batch_idx, experience_batch.action_index.long()]
 
-    def _build_network(self):
-        pass
+            mse_loss = torch.nn.MSELoss()
+            loss = mse_loss(q, target.detach())
+            self.policy_opt.zero_grad()
+            loss.backward()
+            self.policy_opt.step()
 
-    def recover(self):
-        for last_q_params, q_eval_params in zip(self.last_q_params, self.q_eval.parameters()):
-            q_eval_params.data.copy_(last_q_params)
+            # logging
+            info = AttrDict(  # losses
+                loss=loss,
+                value=q.mean(),
+                epsilon=self.policy.epsilon
+            )
+            # if self._update_steps % 100 == 0:
+            #     info.update(AttrDict(       # gradient norms
+            #         policy_grad_norm=avg_grad_norm(self.policy),
+            #         critic_1_grad_norm=avg_grad_norm(self.critics[0]),
+            #         critic_2_grad_norm=avg_grad_norm(self.critics[1]),
+            #     ))
 
-    def forward(self, obs):
-        q_vals = self.q_eval.forward(obs)
-        action = T.argmax(q_vals, dim=-1)
+            info = map_dict(ten2ar, info)
 
-        size = action.shape[0] if action.dim() > 0 else 1
-        index = torch.arange(size, dtype=torch.long).to(self.device)
-        if np.random.random() < self.epsilon:
-            action = torch.from_numpy(np.array(np.random.choice(self._hp.codebook_K, size))).long()
-        return AttrDict(action=self.codebook[action], action_index=action, value=q_vals[index, action])
+        if self._update_steps % self._hp.target_update_interval == 0:
+            self.policy.update_network_parameters()
+            # print(f'steps: {self._update_steps}')
+            # print(f'loss: {loss}')
+            # print(f'q: {q.mean()}')
 
-    def sample_rand(self, obs):
-        return self.forward(obs)
+        self._update_steps += 1
+        self.policy.decrement_epsilon()
+        return info
 
-    def _load_codebook(self):
-        weight = torch.load(self._hp.codebook_checkpoint)
+    def _act(self, obs, index=None, task=None):
+        obs = map2torch(self._obs_normalizer(obs), self._hp.device)
 
-        return weight['state_dict']['codebook.embedding.weight']
-        # return weight['state_dict']['hl_agent']['policy.net.codebook.embedding.weight']
+        if len(obs.shape) == 1:  # we need batched inputs for policy
+            policy_output = self._remove_batch(self.policy(obs[None]))
+            return map2np(policy_output)
+        return map2np(self.policy(obs))
 
+    def _run_policy(self, obs):
+        """Allows child classes to post-process policy outputs."""
+        return self.policy(obs)
 
-class DuelingDeepQNetwork(nn.Module):
-    def __init__(self, config):
-        super(DuelingDeepQNetwork, self).__init__()
-        self.config = config
-        self.fc_layers, self.V, self.A = self._build_net(self.config)
+    def _act_rand(self, obs):
+        policy_output = self.policy.sample_rand(map2torch(obs, self.policy.device))
+        if hasattr(policy_output, 'dist'):
+            del policy_output['dist']
+        return map2np(policy_output)
 
-        # self.cnn = nn.Sequential(
-        #     nn.Conv2d(3, 16, kernel_size=3, stride=2, padding=0),
-        #     nn.ReLU(),
-        #     nn.Conv2d(16, 16, kernel_size=3, stride=2, padding=0),
-        #     nn.ReLU(),
-        #     nn.Flatten(),
-        #     nn.Linear(16, 64),
-        #     nn.ReLU(),
-        # )
+    def _sample_experience(self):
+        return self.replay_buffer.sample(n_samples=self._hp.batch_size)
 
-    def forward(self, obs):
-        x = obs
-        #
-        for i in range(len(self.fc_layers)):
-            x = T.relu(self.fc_layers[i](x))
+    def _normalize_batch(self, experience_batch):
+        """Optionally apply observation normalization."""
+        experience_batch.observation = self._obs_normalizer(experience_batch.observation)
+        experience_batch.observation_next = self._obs_normalizer(experience_batch.observation_next)
+        return experience_batch
 
-        V = self.V(x)
-        A = self.A(x)
-        Q = V + A - T.mean(A, dim=-1, keepdim=True)
+    def state_dict(self, *args, **kwargs):
+        d = super().state_dict()
+        d['policy_opt'] = self.policy_opt.state_dict()
+        return d
 
-        return Q
+    def load_state_dict(self, state_dict, *args, **kwargs):
+        self.policy_opt.load_state_dict(state_dict.pop('policy_opt'))
+        super().load_state_dict(state_dict, *args, **kwargs)
 
-    def _build_net(self, config):
-        fc_layers = nn.ModuleList([])
+    def visualize(self, logger, rollout_storage, step):
+        super().visualize(logger, rollout_storage, step)
+        self.policy.visualize(logger, rollout_storage, step)
 
-        curr_input_dim = config.input_dim
-        for i in range(len(config.hidden_layers)):
-            fc_layers.append(nn.Linear(curr_input_dim, config.hidden_layers[i]))
-            curr_input_dim = config.hidden_layers[i]
+    def add_experience(self, experience_batch):
+        """Adds experience to replay buffer."""
+        if not experience_batch:
+            return  # pass if experience_batch is empty
+        self.replay_buffer.append(experience_batch)
+        self._obs_normalizer.update(experience_batch.observation)
 
-        V = nn.Linear(curr_input_dim, 1)
-        A = nn.Linear(curr_input_dim, config.codebook_K)
+    def reset(self):
+        self.policy.reset()
 
-        return fc_layers, V, A
-    # def save_checkpoint(self, checkpoint_file):
-    #     T.save(self.state_dict(), checkpoint_file)
-    #
-    # def load_checkpoint(self, checkpoint_file):
-    #     self.load_state_dict(T.load(checkpoint_file))
-
-# class ReplayBuffer:
-#     def __init__(self, state_dim, task_dim, action_dim, max_size, batch_size):
-#         self.mem_size = max_size
-#         self.batch_size = batch_size
-#         self.mem_cnt = 0
-#
-#         self.state_memory = np.zeros((self.mem_size, *state_dim))
-#         self.task_memory = np.zeros((self.mem_size, task_dim))
-#         self.action_memory = np.zeros((self.mem_size,))
-#         self.reward_memory = np.zeros((self.mem_size,))
-#         self.next_state_memory = np.zeros((self.mem_size, *state_dim))
-#         self.terminal_memory = np.zeros((self.mem_size,), dtype=bool)
-#
-#     def insert(self, state, task, action, reward, state_, done):
-#         mem_idx = self.mem_cnt % self.mem_size
-#
-#         self.state_memory[mem_idx] = state.cpu()
-#         self.task_memory[mem_idx] = task.cpu()
-#         self.action_memory[mem_idx] = action.cpu()
-#         self.reward_memory[mem_idx] = reward.cpu()
-#         self.next_state_memory[mem_idx] = state_.cpu()
-#         self.terminal_memory[mem_idx] = done
-#
-#         self.mem_cnt += 1
-#
-#     def sample_buffer(self):
-#         mem_len = min(self.mem_size, self.mem_cnt)
-#
-#         batch = np.random.choice(mem_len, self.batch_size, replace=False)
-#
-#         states = self.state_memory[batch]
-#         tasks = self.task_memory[batch]
-#         actions = self.action_memory[batch]
-#         rewards = self.reward_memory[batch]
-#         states_ = self.next_state_memory[batch]
-#         terminals = self.terminal_memory[batch]
-#
-#         return states, tasks, actions, rewards, states_, terminals
-#
-#     def ready(self):
-#         return self.mem_cnt > self.batch_size
+    def _preprocess_experience(self, experience_batch):
+        """Optionally pre-process experience before it is used for policy training."""
+        return experience_batch
