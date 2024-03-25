@@ -20,7 +20,7 @@ class ClVQCDTMdl(ClSPiRLMdl):
         assert not self._hp.use_convs  # currently only supports non-image inputs
         assert self._hp.cond_decode  # need to decode based on state for closed-loop low-level
         self.q = self._build_inference_net()
-        self.decoder = Predictor(self._hp,
+        self.decoder = VQPredictor(self._hp,
                                  input_size=self.enc_size + self._hp.nz_vae,
                                  output_size=self._hp.action_dim,
                                  mid_size=self._hp.nz_mid_prior)
@@ -107,7 +107,7 @@ class ClVQCDTMdl(ClSPiRLMdl):
                     #   num_layers=self._hp.num_prior_net_layers, mid_size=self._hp.nz_mid_prior)
 
     def _compute_learned_prior(self, prior_mdl, inputs):
-        return Categorical(prior_mdl(inputs), self.codebook)
+        return Categorical(logits=prior_mdl(inputs), codebook=self.codebook)
 
     def _build_codebook(self):
         return VQEmbedding(self._hp.codebook_K, self._hp.nz_vae)
