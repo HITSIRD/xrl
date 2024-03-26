@@ -9,10 +9,10 @@ ll_model_params.cond_decode = True
 
 # CDT config
 ll_model_params.update(AttrDict(
-    feature_learning_depth = 2,
-    decision_depth = 9,
+    feature_learning_depth = 8,
+    decision_depth = 8,
     num_intermediate_variables = 30,
-    greatest_path_probability = 1,
+    greatest_path_probability = 0,
     beta_fl = 0,
     beta_dc = 0,
 ))
@@ -22,7 +22,7 @@ ll_policy_params = AttrDict(
     policy_model=ClVQSPiRLMdl,
     policy_model_params=ll_model_params,
     policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
-                                         "skill_prior_learning/kitchen/hierarchical_cl_vq_wogoal"),
+                                         "skill_prior_learning/kitchen/hierarchical_cl_vq/k16_2"),
 )
 ll_policy_params.update(ll_model_params)
 
