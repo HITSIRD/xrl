@@ -3,5 +3,6 @@
 /spirl/configs/local.py
 
 /setup.py
+/requirements.txt
 /spirl.egg-info
 /d4rl.egg-info
