@@ -1,23 +1,13 @@
 from spirl.configs.hrl.kitchen.spirl.conf import *
 from spirl.models.closed_loop_vq_spirl_mdl import ClVQSPiRLMdl
-from spirl.models.closed_loop_vq_cdt_mdl import ClVQCDTMdl
 from spirl.rl.policies.cl_model_policies import ClModelPolicy
-from spirl.rl.policies.prior_policies import LearnedVQPriorAugmentedPolicy, LearnedVQPriorAugmentedPolicyCDT
+from spirl.rl.policies.prior_policies import LearnedVQPriorAugmentedPolicy
 
 # update model params to conditioned decoder on state
 ll_model_params.cond_decode = True
 
-# CDT config
 ll_model_params.update(AttrDict(
-    feature_learning_depth = 0,
-    decision_depth = 8,
-    num_intermediate_variables = 30,
-    greatest_path_probability = 0,
-    beta_fl = 0,
-    beta_dc = 0,
-    codebook_K=24,
-    if_freeze=False,
-    cdt_embedding_checkpoint=os.path.join(os.environ["EXP_DIR"], "skill_prior_learning/kitchen/hierarchical_cl_vq/k24_9/weights"),
+    codebook_K=16,
 ))
 
 # create LL closed-loop policy
@@ -25,7 +15,7 @@ ll_policy_params = AttrDict(
     policy_model=ClVQSPiRLMdl,
     policy_model_params=ll_model_params,
     policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
-                                         "skill_prior_learning/kitchen/hierarchical_cl_vq/k24_9"),
+                                         "skill_prior_learning/kitchen/hierarchical_cl_vq/k16_1"),
 )
 ll_policy_params.update(ll_model_params)
 
@@ -37,17 +27,15 @@ ll_agent_config = AttrDict(
     critic_params=hl_critic_params
 )
 
-hl_agent_config.policy = LearnedVQPriorAugmentedPolicyCDT
+hl_agent_config.policy = LearnedVQPriorAugmentedPolicy
 
-# update HL policy model params 
+# update HL policy model params
 hl_policy_params.update(AttrDict(
-    policy=LearnedVQPriorAugmentedPolicyCDT,
-    policy_model=ClVQCDTMdl,
-    policy_model_params=ll_policy_params.policy_model_params,
-    load_weights=False,
+    policy=LearnedVQPriorAugmentedPolicy,
     prior_model=ll_policy_params.policy_model,
     prior_model_params=ll_policy_params.policy_model_params,
     prior_model_checkpoint=ll_policy_params.policy_model_checkpoint,
+    policy_model_checkpoint = os.path.join(os.environ["EXP_DIR"], "hrl/kitchen/spirl_cl_vq/k16_s4_1")
 ))
 
 # register new LL agent in agent_config and turn off LL agent updates

@@ -6,18 +6,22 @@ from spirl.rl.policies.prior_policies import LearnedVQPriorAugmentedPolicy
 # update model params to conditioned decoder on state
 ll_model_params.cond_decode = True
 
+ll_model_params.update(AttrDict(
+    codebook_K=24,
+))
+
 # create LL closed-loop policy
 ll_policy_params = AttrDict(
     policy_model=ClVQSPiRLMdl,
     policy_model_params=ll_model_params,
     policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
-                                         "skill_prior_learning/kitchen/hierarchical_cl_vq/K_16"),
+                                         "skill_prior_learning/kitchen/hierarchical_cl_vq/k24_9"),
 )
 ll_policy_params.update(ll_model_params)
 
 # create LL SAC agent (by default we will only use it for rolling out decoded skills, not finetuning skill decoder)
 ll_agent_config = AttrDict(
-    policy=ClModelPolicy,
+    policy=ClModelPolicy, # ClModelPolicy
     policy_params=ll_policy_params,
     critic=MLPCritic,                   # LL critic is not used since we are not finetuning LL
     critic_params=hl_critic_params
@@ -27,7 +31,7 @@ hl_agent_config.policy = LearnedVQPriorAugmentedPolicy
 
 # update HL policy model params
 hl_policy_params.update(AttrDict(
-    policy=LearnedVQPriorAugmentedPolicy,
+    policy=LearnedVQPriorAugmentedPolicy, # PriorInitializedPolicy PriorAugmentedPolicy 
     prior_model=ll_policy_params.policy_model,
     prior_model_params=ll_policy_params.policy_model_params,
     prior_model_checkpoint=ll_policy_params.policy_model_checkpoint,

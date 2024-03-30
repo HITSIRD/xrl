@@ -19,14 +19,15 @@ class ClVQCDTMdl(ClSPiRLMdl):
     def build_network(self):
         assert not self._hp.use_convs  # currently only supports non-image inputs
         assert self._hp.cond_decode  # need to decode based on state for closed-loop low-level
-        self.q = self._build_inference_net()
-        self.decoder = VQPredictor(self._hp,
+        self.q = self._build_inference_net() # encoder
+        self.decoder = Predictor(self._hp,
                                  input_size=self.enc_size + self._hp.nz_vae,
                                  output_size=self._hp.action_dim,
-                                 mid_size=self._hp.nz_mid_prior)
-        self.p = self._build_prior_ensemble()
-        self.codebook = self._build_codebook()
+                                 mid_size=self._hp.nz_mid_prior) # 70(10维embedding，60维state) -> 9(9维动作)
+        self.p = self._build_prior_ensemble() # 60(60维state) -> 32(32维codebook概率)
+        self.codebook = self._build_codebook() # 1(动作index) -> 10(10维embedding)
         self.log_sigma = get_constant_parameter(0., learnable=False)
+        self.load_weights_or_freeze()
 
     def forward(self, inputs, use_learned_prior=False):
         """Forward pass of the VQ SPIRL model.
@@ -102,6 +103,7 @@ class ClVQCDTMdl(ClSPiRLMdl):
         )
 
     def _build_prior_net(self):
+        print('use CDT predictor')
         return VQCDTPredictor(self._hp, input_dim=self.prior_input_size, output_dim=self._hp.codebook_K)
         # return VQPredictor(self._hp, input_size=self.prior_input_size, output_size=self._hp.codebook_K,
                     #   num_layers=self._hp.num_prior_net_layers, mid_size=self._hp.nz_mid_prior)
@@ -130,6 +132,16 @@ class ClVQCDTMdl(ClSPiRLMdl):
         else:
             super().load_weights_and_freeze()
 
+    def load_weights_or_freeze(self):
+        if hasattr(self._hp, 'cdt_embedding_checkpoint') and self._hp.cdt_embedding_checkpoint is not None:
+            print("Loading pre-trained embedding from {}!".format(self._hp.cdt_embedding_checkpoint))
+            self.load_state_dict(load_by_key(self._hp.cdt_embedding_checkpoint, 'decoder', self.state_dict(), self.device))
+            self.load_state_dict(load_by_key(self._hp.cdt_embedding_checkpoint, 'q', self.state_dict(), self.device))
+            self.load_state_dict(load_by_key(self._hp.cdt_embedding_checkpoint, 'codebook', self.state_dict(), self.device))
+            if self._hp.if_freeze:
+                freeze_modules([self.decoder, self.q, self.codebook])
+                print('freeze!')
+
     def _log_losses(self, losses, step, log_images, phase):
         for name, loss in losses.items():
             self._logger.log_scalar(loss, name + '_loss', step, phase)
@@ -138,8 +150,8 @@ class ClVQCDTMdl(ClSPiRLMdl):
 
     @property
     def enc_size(self):
-        # return self._hp.state_dim
-        return 30
+        return self._hp.state_dim
+        # return 30
 
 
 class ImageClSPiRLMdl(ClSPiRLMdl, ImageSkillPriorMdl):

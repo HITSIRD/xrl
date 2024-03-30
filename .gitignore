@@ -8,3 +8,4 @@
 /d4rl.egg-info
 
 *.pyc
+.vscode
