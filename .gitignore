@@ -6,3 +6,5 @@
 /requirements.txt
 /spirl.egg-info
 /d4rl.egg-info
+
+*.pyc
