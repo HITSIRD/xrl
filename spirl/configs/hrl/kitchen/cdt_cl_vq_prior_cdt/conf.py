@@ -7,7 +7,7 @@ from spirl.rl.policies.prior_policies import LearnedVQPriorAugmentedPolicy, Lear
 # update model params to conditioned decoder on state
 ll_model_params.cond_decode = True
 
-prior_model_name = "spirl_k24_b1"
+prior_model_name = "cdt_0+8+30+0_k24_b1"
 
 # CDT config
 ll_model_params.update(AttrDict(
@@ -18,17 +18,17 @@ ll_model_params.update(AttrDict(
     beta_fl = 0,
     beta_dc = 0,
     codebook_K=24,
-    if_freeze=False,
-    cdt_embedding_checkpoint=os.path.join(os.environ["EXP_DIR"], 
-                                          f"skill_prior_learning/kitchen/hierarchical_cl_vq/{prior_model_name}/weights"),
+    # if_freeze=False,
+    # cdt_embedding_checkpoint=os.path.join(os.environ["EXP_DIR"], 
+                                        #   f"skill_prior_learning/kitchen/hierarchical_cl_vq_cdt/{prior_model_name}/weights"),
 ))
 
 # create LL closed-loop policy
 ll_policy_params = AttrDict(
-    policy_model=ClVQSPiRLMdl,
+    policy_model=ClVQCDTMdl,
     policy_model_params=ll_model_params,
     policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
-                                         f"skill_prior_learning/kitchen/hierarchical_cl_vq/{prior_model_name}"),
+                                         f"skill_prior_learning/kitchen/hierarchical_cl_vq_cdt/{prior_model_name}"),
 )
 ll_policy_params.update(ll_model_params)
 
@@ -44,10 +44,7 @@ hl_agent_config.policy = LearnedVQPriorAugmentedPolicyCDT
 
 # update HL policy model params 
 hl_policy_params.update(AttrDict(
-    policy=LearnedVQPriorAugmentedPolicyCDT,
-    policy_model=ClVQCDTMdl,
-    policy_model_params=ll_policy_params.policy_model_params,
-    load_weights=False,
+    policy=LearnedVQPriorAugmentedPolicy, # PriorInitializedPolicy PriorAugmentedPolicy 
     prior_model=ll_policy_params.policy_model,
     prior_model_params=ll_policy_params.policy_model_params,
     prior_model_checkpoint=ll_policy_params.policy_model_checkpoint,
