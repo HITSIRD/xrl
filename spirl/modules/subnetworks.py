@@ -43,7 +43,7 @@ class Predictor(BaseProcessingNet):
 
     def forward(self, *inp):
         out = super().forward(*inp)
-        return remove_spatial(out, yes=not self.spatial)
+        return remove_spatial(out, yes=not self.spatial) # remove_spatial when spatial is False
 
 
 class VQPredictor(Predictor):
@@ -54,8 +54,8 @@ class VQPredictor(Predictor):
 
     def forward(self, *inp):
         out = super().forward(*inp)
-        return out
-        # return torch.softmax(out, dim=-1)
+        # return out
+        return torch.softmax(remove_spatial(out, yes=not self.spatial), dim=-1)
 
 class VQCDTPredictor(nn.Module):
     def __init__(self, hp, input_dim, output_dim):
