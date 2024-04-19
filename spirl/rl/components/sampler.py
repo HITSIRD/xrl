@@ -201,10 +201,10 @@ class HierarchicalSampler(Sampler):
                                     reward=self.reward_since_last_hl,
                                     done=done,
                                     action=self.last_hl_action,
-                                    action_index=agent_output.hl_action_index if hasattr(agent_output,
-                                                                                         'hl_action_index') else None,
                                     observation_next=obs,
                                 ))
+                                if hasattr(agent_output, 'hl_action_index'):
+                                    hl_experience_batch[0].action_index=agent_output.hl_action_index
                                 hl_step += 1
                                 if done:
                                     hl_experience_batch[-1].reward += reward  # add terminal reward
@@ -216,8 +216,8 @@ class HierarchicalSampler(Sampler):
 
                         # update stored observation
                         self._obs = obs
-                        env_steps += 1;
-                        self._episode_step += 1;
+                        env_steps += 1
+                        self._episode_step += 1
                         self._episode_reward += reward
                         self.reward_since_last_hl += reward
 
