@@ -195,9 +195,9 @@ def ar2ten(array, device, dtype=None):
         return array
 
     if isinstance(array, np.ndarray):
-        tensor = torch.from_numpy(array).to(device)
+        tensor = torch.from_numpy(array).float().to(device)
     else:
-        tensor = torch.tensor(array).to(device)
+        tensor = torch.tensor(array).float().to(device)
     if dtype is not None:
         tensor = tensor.to(dtype)
     return tensor

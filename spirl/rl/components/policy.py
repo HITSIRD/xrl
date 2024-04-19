@@ -23,7 +23,7 @@ class Policy(nn.Module):
         })
         return default_dict
 
-    def forward(self, obs):
+    def forward(self, obs, index=None):
         output_dist = self._compute_action_dist(obs)
         if isinstance(output_dist, Categorical):
             action, index, log_prob = output_dist.rsample()

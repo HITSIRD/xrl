@@ -23,14 +23,14 @@ class DeterministicPolicy(Policy):
         })
         return super()._default_hparams().overwrite(default_dict)
 
-    def forward(self, i):
-        return self.net.codebook.embedding.weight[i]
+    def forward(self, obs, index):
+        return AttrDict(action=self.net[index].detach().cpu().numpy(), action_index=index)
 
     def _build_network(self):
-        net = self._hp.prior_model(self._hp.prior_model_params, None)
-        if self._hp.load_weights:
-            BaseAgent.load_model_weights(net, self._hp.prior_model_checkpoint, self._hp.policy_model_epoch)
-        return net
+        # net = self._hp.prior_model(self._hp.prior_model_params, None)
+        weight = torch.load(self._hp.codebook_checkpoint)
+        # return weight['state_dict']['hl_agent']['policy.prior_net.codebook.embedding.weight']
+        return weight['state_dict']['hl_agent']['policy.net.codebook.embedding.weight']
 
     def reset(self):
         self.steps_since_hl, self.last_z = np.Inf, None
@@ -50,3 +50,8 @@ class DeterministicPolicy(Policy):
     @property
     def horizon(self):
         return self._hp.policy_model_params.n_rollout_steps
+
+    @property
+    def has_trainable_params(self):
+        """Indicates whether policy has trainable params."""
+        return False

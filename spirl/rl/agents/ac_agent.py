@@ -29,9 +29,8 @@ class ACAgent(BaseAgent):
         # TODO implement non-sampling validation mode
         obs = map2torch(self._obs_normalizer(obs), self._hp.device)
         if index is not None:
-            return AttrDict(action=self.policy.net.codebook.embedding.weight[index].cpu().numpy(), log_prob=0, action_index=index)
-        # if task is not None:
-        #     return AttrDict(action=self.policy.forward(task).cpu().numpy())
+            return self.policy(obs, index)
+
         if len(obs.shape) == 1:     # we need batched inputs for policy
             policy_output = self._remove_batch(self.policy(obs[None]))
             if 'dist' in policy_output:

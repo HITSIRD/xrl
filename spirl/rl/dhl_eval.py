@@ -21,8 +21,8 @@ from spirl.rl.components.replay_buffer import RolloutStorage
 
 WANDB_PROJECT_NAME = 'spirl'
 WANDB_ENTITY_NAME = 'hitsird'
-class DHLEvaluater:
-    """Sets up RL training loop, instantiates all components, runs training."""
+class DHLEvaluator:
+    """Deterministic high level policy evaluator."""
     def __init__(self, args):
         self.args = args
         self.setup_device()
@@ -92,7 +92,7 @@ class DHLEvaluater:
             'log_images_per_epoch': 4,    # log images/videos N times per epoch
             'logging_target': 'none',    # where to log results to
             'n_warmup_steps': 0,    # steps of warmup experience collection before training
-            'num_sample': 50,
+            'num_sample': 20,
         })
         return default_dict
 
@@ -106,7 +106,7 @@ class DHLEvaluater:
         #         for i in range(32):   # for efficiency instead of self.args.n_val_samples
         #             z.append(self.sampler.sample_z(is_train=False))
 
-        for i in range(1):
+        for i in range(16):
         # for i in range(2):
             val_rollout_storage = RolloutStorage()
             with self.agent.val_mode():
@@ -124,9 +124,6 @@ class DHLEvaluater:
             for k in success_rate.keys():
                 success_rate[k] = success_rate[k] / self._hp.num_sample
             stat[i] = [complete_task, success_rate]
-
-            # with open('evaluate_' + '.json', "w") as file:
-            #     json.dump(success_rate, file)
 
             if self.is_chef:
                 # with timing(f"index {i} eval log time: "):
@@ -282,4 +279,4 @@ class DHLEvaluater:
 
 
 if __name__ == '__main__':
-    DHLEvaluater(args=get_args())
+    DHLEvaluator(args=get_args())

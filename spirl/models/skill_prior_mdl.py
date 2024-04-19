@@ -336,7 +336,6 @@ class SkillPriorMdl(BaseModel, ProbabilisticModel):
 
     def _learned_prior_input(self, inputs):
         return inputs.states[:, 0]
-        # return inputs.states[:, 0, :30]  # full
 
     def _regression_targets(self, inputs):
         return inputs.actions
@@ -369,7 +368,6 @@ class SkillPriorMdl(BaseModel, ProbabilisticModel):
     @property
     def prior_input_size(self):
         return self.state_dim
-        # return 30  # full
 
     @property
     def n_rollout_steps(self):

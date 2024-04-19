@@ -18,7 +18,7 @@ class D4RLSequenceSplitDataset(Dataset):
         self.remove_goal = self.spec.remove_goal if 'remove_goal' in self.spec else False
         self.dataset_size = dataset_size
         self.device = data_conf.device
-        self.n_worker = 4
+        self.n_worker = 16
         self.shuffle = shuffle
 
         env = gym.make(self.spec.env_name)

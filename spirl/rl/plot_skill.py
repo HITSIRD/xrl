@@ -10,7 +10,7 @@ TASK_ELEMENTS = {'microwave': 0,
                  'slide cabinet': 5,
                  'hinge cabinet': 6
                  }
-K = 32
+K = 16
 
 
 def plot_skill(file_path):
@@ -46,11 +46,6 @@ def plot_skill(file_path):
 
 
 if __name__ == '__main__':
-    # file_path = 'VQDHL_kitchen_2/skill_evaluate_20240113_195731'
-    # file_path = 'VQDHL_kitchen_2/skill_evaluate_20240116_165415'
-    # file_path = '/home/wenyongyan/下载/spirl-master/spirl/experiments/hrl/kitchen/spirl_cl/SPIRLv2_kitchen_seed0/skill_evaluate_20240117_222606'
-    # file_path = '/home/wenyongyan/下载/spirl-master/spirl/experiments/hrl/kitchen/spirl_cl_wogoal/SPIRLv2_kitchen_seed0/skill_evaluate_20240118_204934'
-    # file_path = '/home/wenyongyan/下载/spirl-master/spirl/experiments/hrl/kitchen/spirl_cl_wogoal/SPIRLv2_kitchen_seed0/skill_evaluate_20240119_110341'
-    # file_path = '/home/wenyongyan/下载/spirl-master/spirl/experiments/hrl/kitchen/spirl_cl_vq_wogoal/kitchen_seed_0/skill_evaluate_20240124_185445'
-    file_path = '/home/wenyongyan/下载/spirl-master/spirl/experiments/hrl/kitchen/spirl_cl_vq_wogoal/kitchen_seed_0/skill_evaluate_20240125_224154'
+    # file_path = 'hrl/kitchen/vq/test/refined'
+    file_path = 'hrl/kitchen/vq/test/skill_evaluate_20240419_103610'
     plot_skill(file_path)

@@ -301,6 +301,7 @@ class RLTrainer:
                       timers['rollout'].avg + timers['update'].avg + timers['log'].avg))
         togo_train_time = timers['batch'].avg * (self._hp.num_epochs * self._hp.n_steps_per_epoch - self.global_step) \
                           / self._hp.n_steps_per_update / 3600.
+        print('FPS: {}'.format(self.conf.agent.hl_interval / timers['batch'].avg))
         print('ETA: {:.2f}h'.format(togo_train_time))
 
     @property

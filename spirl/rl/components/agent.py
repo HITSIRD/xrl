@@ -243,14 +243,9 @@ class HierarchicalAgent(BaseAgent):
         if self._perform_hl_step_now:
             # perform step with high-level policy
             self._last_hl_output = self.hl_agent.act(obs_input, index=index, task=task)
-            # self._last_hl_output = AttrDict()
-            # if index is not None:
-                # self._last_hl_output.action = index
-            # print(self._last_hl_output.action)
             output.is_hl_step = True
             if len(obs_input.shape) == 2 and len(self._last_hl_output.action.shape) == 1:
                 self._last_hl_output.action = self._last_hl_output.action[None]  # add batch dim if necessary
-                # self._last_hl_output.log_prob = self._last_hl_output.log_prob[None]
         else:
             output.is_hl_step = False
         output.update(prefix_dict(self._last_hl_output, 'hl_'))
@@ -288,7 +283,6 @@ class HierarchicalAgent(BaseAgent):
     def make_ll_obs(self, obs, hl_action):
         """Creates low-level agent's observation from env observation and HL action."""
         return np.concatenate((obs, hl_action), axis=-1)
-        # return np.concatenate((obs[:30], hl_action), axis=-1)
 
     def add_experience(self, experience_batch):
         self.hl_agent.add_experience(experience_batch.hl_batch)
@@ -355,10 +349,6 @@ class FixedIntervalHierarchicalAgent(HierarchicalAgent):
 
     @property
     def _perform_hl_step_now(self):
-        # if self._steps_since_hl == 0:
-        #     return True
-        # else:
-        #     return False
         return self._steps_since_hl % self._hp.hl_interval == 0
 
     def reset(self):

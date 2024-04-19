@@ -174,6 +174,7 @@ class ModelTrainer(BaseTrainer):
                               upto_log_time.avg - data_load_time.avg,
                               batch_time.avg))
                 togo_train_time = batch_time.avg * (self._hp.num_epochs - epoch) * epoch_len / 3600.
+                print('FPS: {}'.format(self.conf.model.n_rollout_steps / batch_time.avg))
                 print('ETA: {:.2f}h'.format(togo_train_time))
 
             del output, losses
@@ -208,7 +209,7 @@ class ModelTrainer(BaseTrainer):
 
                     self.model_test.log_outputs(output, inputs, losses_meter.avg, self.global_step,
                                                 log_images=True, phase='val', **self._logging_kwargs)
-                    # print(('\nTest set: Average loss: {:.4f} in {:.2f}s\n'.format(losses_meter.avg.total.items(), time.time() - start)))
+                    print(('\nTest set: Average loss: {:.4f} in {:.2f}s\n'.format(losses_meter.avg.total.item(), time.time() - start)))
             del output
 
     def setup_device(self):

@@ -61,8 +61,8 @@ class Sampler:
 
                         # update stored observation
                         self._obs = obs
-                        step += 1;
-                        self._episode_step += 1;
+                        step += 1
+                        self._episode_step += 1
                         self._episode_reward += reward
 
                         # reset if episode ends

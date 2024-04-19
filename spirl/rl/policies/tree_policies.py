@@ -62,3 +62,8 @@ class CARTPolicy(Policy):
 
         # return weight['state_dict']['hl_agent']['policy.prior_net.codebook.embedding.weight']
         return weight['state_dict']['hl_agent']['policy.net.codebook.embedding.weight']
+
+    @property
+    def has_trainable_params(self):
+        """Indicates whether policy has trainable params."""
+        return False

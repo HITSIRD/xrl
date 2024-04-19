@@ -1,4 +1,5 @@
-from .kitchen_envs import KitchenMicrowaveKettleLightSliderV0, KitchenMicrowaveKettleBottomBurnerLightV0, KitchenMicrowaveLightSliderHingeV0, KitchenKettleBottomBurnerTopBurnerSliderV0
+from .kitchen_envs import KitchenMicrowaveKettleLightSliderV0, KitchenMicrowaveKettleBottomBurnerLightV0, \
+    KitchenMicrowaveLightSliderHingeV0, KitchenKettleBottomBurnerTopBurnerSliderV0, KitchenAllTasksV0
 from gym.envs.registration import register
 
 # Smaller dataset with only positive demonstrations.
@@ -58,6 +59,17 @@ register(
     kwargs={
         'ref_min_score': 0.0,
         'ref_max_score': 4.0,
+        'dataset_url': 'http://rail.eecs.berkeley.edu/datasets/offline_rl/kitchen/kitchen_microwave_kettle_bottomburner_light-v0.hdf5'
+    }
+)
+
+register(
+    id='kitchen-all-v0',
+    entry_point='d4rl.kitchen:KitchenAllTasksV0',
+    max_episode_steps=280,
+    kwargs={
+        'ref_min_score': 0.0,
+        'ref_max_score': 7.0,
         'dataset_url': 'http://rail.eecs.berkeley.edu/datasets/offline_rl/kitchen/kitchen_microwave_kettle_bottomburner_light-v0.hdf5'
     }
 )
