@@ -24,13 +24,15 @@ class DeterministicPolicy(Policy):
         return super()._default_hparams().overwrite(default_dict)
 
     def forward(self, obs, index):
+        index = np.random.randint(16)
         return AttrDict(action=self.net[index].detach().cpu().numpy(), action_index=index)
 
     def _build_network(self):
         # net = self._hp.prior_model(self._hp.prior_model_params, None)
         weight = torch.load(self._hp.codebook_checkpoint)
         # return weight['state_dict']['hl_agent']['policy.prior_net.codebook.embedding.weight']
-        return weight['state_dict']['hl_agent']['policy.net.codebook.embedding.weight']
+        # return weight['state_dict']['hl_agent']['policy.net.codebook.embedding.weight']
+        return weight['state_dict']['codebook.embedding.weight']
 
     def reset(self):
         self.steps_since_hl, self.last_z = np.Inf, None

@@ -92,7 +92,7 @@ class DHLEvaluator:
             'log_images_per_epoch': 4,    # log images/videos N times per epoch
             'logging_target': 'none',    # where to log results to
             'n_warmup_steps': 0,    # steps of warmup experience collection before training
-            'num_sample': 20,
+            'num_sample': 1000,
         })
         return default_dict
 
@@ -106,7 +106,7 @@ class DHLEvaluator:
         #         for i in range(32):   # for efficiency instead of self.args.n_val_samples
         #             z.append(self.sampler.sample_z(is_train=False))
 
-        for i in range(16):
+        for i in range(1):
         # for i in range(2):
             val_rollout_storage = RolloutStorage()
             with self.agent.val_mode():
