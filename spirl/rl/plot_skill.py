@@ -47,5 +47,5 @@ def plot_skill(file_path):
 
 if __name__ == '__main__':
     # file_path = 'hrl/kitchen/vq/test/refined'
-    file_path = 'hrl/kitchen/vq/test/skill_evaluate_20240419_103610'
+    file_path = 'hrl/kitchen/vq/test/skill_evaluate_20240425_211045_gumbel'
     plot_skill(file_path)

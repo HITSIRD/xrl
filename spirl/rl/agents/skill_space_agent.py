@@ -28,7 +28,7 @@ class SkillSpaceAgent(BaseAgent):
         })
         return super()._default_hparams().overwrite(default_dict)
 
-    def _act(self, obs):
+    def _act(self, obs, index=None, task=None):
         assert len(obs.shape) == 2 and obs.shape[0] == 1  # assume single-observation batches with leading 1-dim
         if not self.action_plan:
             # generate action plan if the current one is empty

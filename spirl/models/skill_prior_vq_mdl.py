@@ -1,8 +1,7 @@
 import torch
 import torch.nn as nn
 
-from spirl.models.closed_loop_spirl_mdl import ClSPiRLMdl
-from spirl.modules.losses import NLL
+from spirl.modules.recurrent_modules import RecurrentPredictor
 from spirl.utils.general_utils import batch_apply, ParamDict, AttrDict
 from spirl.utils.pytorch_utils import get_constant_parameter, ResizeSpatial, RemoveSpatial
 from spirl.models.skill_prior_mdl import SkillPriorMdl, ImageSkillPriorMdl
@@ -13,19 +12,24 @@ from spirl.modules.vq_vae import VQEmbedding
 from spirl.modules.Categorical import Categorical
 
 
-class ClVQCDTMdl(ClSPiRLMdl):
-    """SPiRL model with closed-loop VQ low-level skill decoder."""
+class SkillPriorVQMdl(SkillPriorMdl):
+    """SPiRL model with VQ low-level skill decoder."""
 
     def build_network(self):
         assert not self._hp.use_convs  # currently only supports non-image inputs
-        assert self._hp.cond_decode  # need to decode based on state for closed-loop low-level
-        self.q = self._build_inference_net() # encoder
-        self.decoder = Predictor(self._hp,
-                                 input_size=self.enc_size + self._hp.nz_vae,
-                                 output_size=self._hp.action_dim,
-                                 mid_size=self._hp.nz_mid_prior) # 70(10维embedding，60维state) -> 9(9维动作)
-        self.p = self._build_prior_ensemble() # 60(60维state) -> 32(32维codebook概率)
-        self.codebook = self._build_codebook() # 1(动作index) -> 10(10维embedding)
+        self.q = self._build_inference_net()  # encoder
+        # self.decoder = VQPredictor(self._hp,
+        #                            input_size=self._hp.nz_vae,
+        #                            output_size=self._hp.action_dim,
+        #                            mid_size=self._hp.nz_mid_prior)
+        self.decoder = RecurrentPredictor(self._hp,
+                                          input_size=self._hp.action_dim + self._hp.nz_vae,
+                                          output_size=self._hp.action_dim)
+        self.decoder_input_initalizer = self._build_decoder_initializer(size=self._hp.action_dim)
+        self.decoder_hidden_initalizer = self._build_decoder_initializer(size=self.decoder.cell.get_state_size())
+
+        self.p = self._build_prior_ensemble()
+        self.codebook = self._build_codebook()
         self.log_sigma = get_constant_parameter(0., learnable=False)
         self.load_weights_or_freeze()
 
@@ -46,8 +50,7 @@ class ClVQCDTMdl(ClSPiRLMdl):
         assert self._regression_targets(inputs).shape[1] == self._hp.n_rollout_steps
         output.reconstruction = self.decode(output.z_q_x_st,
                                             cond_inputs=self._learned_prior_input(inputs),
-                                            steps=self._hp.n_rollout_steps,
-                                            inputs=inputs)
+                                            steps=self._hp.n_rollout_steps)
 
         # infer learned skill prior
         output.q_hat = self.compute_learned_prior(self._learned_prior_input(inputs))
@@ -73,7 +76,7 @@ class ClVQCDTMdl(ClSPiRLMdl):
 
         # commitment loss
         losses.commitment_loss = self._hp.commitment_beta * mse_loss(model_output.z_e_x,
-                                                                      model_output.z_q_x.detach())
+                                                                     model_output.z_q_x.detach())
 
         # learned skill prior net loss
         # losses.prior_loss = loss_cret(model_output.q_hat, model_output.z_q_x)
@@ -87,12 +90,6 @@ class ClVQCDTMdl(ClSPiRLMdl):
         inf_input = torch.cat((inputs.actions, self._get_seq_enc(inputs)), dim=-1)
         return self.q(inf_input)[:, -1]
 
-    def decode(self, z, cond_inputs, steps, inputs=None):
-        assert inputs is not None  # need additional state sequence input for full decode
-        seq_enc = self._get_seq_enc(inputs)
-        decode_inputs = torch.cat((seq_enc[:, :steps], z[:, None].repeat(1, steps, 1)), dim=-1)
-        return batch_apply(decode_inputs, self.decoder)
-
     def _build_inference_net(self):
         # condition inference on states since decoder is conditioned on states too
         input_size = self._hp.action_dim + self.prior_input_size
@@ -102,8 +99,8 @@ class ClVQCDTMdl(ClSPiRLMdl):
         )
 
     def _build_prior_net(self):
-        print('use CDT predictor')
-        return VQCDTPredictor(self._hp, input_dim=self.prior_input_size, output_dim=self._hp.codebook_K)
+        return VQPredictor(self._hp, input_size=self.prior_input_size, output_size=self._hp.codebook_K,
+                           num_layers=self._hp.num_prior_net_layers, mid_size=self._hp.nz_mid_prior)
 
     def _compute_learned_prior(self, prior_mdl, inputs):
         return Categorical(logits=prior_mdl(inputs), codebook=self.codebook)
@@ -132,9 +129,11 @@ class ClVQCDTMdl(ClSPiRLMdl):
     def load_weights_or_freeze(self):
         if hasattr(self._hp, 'cdt_embedding_checkpoint') and self._hp.cdt_embedding_checkpoint is not None:
             print("Loading pre-trained embedding from {}!".format(self._hp.cdt_embedding_checkpoint))
-            self.load_state_dict(load_by_key(self._hp.cdt_embedding_checkpoint, 'decoder', self.state_dict(), self.device))
+            self.load_state_dict(
+                load_by_key(self._hp.cdt_embedding_checkpoint, 'decoder', self.state_dict(), self.device))
             self.load_state_dict(load_by_key(self._hp.cdt_embedding_checkpoint, 'q', self.state_dict(), self.device))
-            self.load_state_dict(load_by_key(self._hp.cdt_embedding_checkpoint, 'codebook', self.state_dict(), self.device))
+            self.load_state_dict(
+                load_by_key(self._hp.cdt_embedding_checkpoint, 'codebook', self.state_dict(), self.device))
             if self._hp.if_freeze:
                 freeze_modules([self.decoder, self.q, self.codebook])
                 print('freeze!')
@@ -149,50 +148,3 @@ class ClVQCDTMdl(ClSPiRLMdl):
     def enc_size(self):
         return self._hp.state_dim
         # return 30
-
-
-class ImageClSPiRLMdl(ClSPiRLMdl, ImageSkillPriorMdl):
-    """SPiRL model with closed-loop decoder that operates on image observations."""
-
-    def _default_hparams(self):
-        default_dict = ParamDict({
-            'prior_input_res': 32,  # input resolution of prior images
-            'encoder_ngf': 8,  # number of feature maps in shallowest level of encoder
-            'n_input_frames': 1,  # number of prior input frames
-        })
-        # add new params to parent params
-        return super()._default_hparams().overwrite(default_dict)
-
-    def _build_prior_net(self):
-        return ImageSkillPriorMdl._build_prior_net(self)
-
-    def _build_inference_net(self):
-        self.img_encoder = nn.Sequential(ResizeSpatial(self._hp.prior_input_res),  # encodes image inputs
-                                         Encoder(self._updated_encoder_params()),
-                                         RemoveSpatial(), )
-        return ClSPiRLMdl._build_inference_net(self)
-
-    def _get_seq_enc(self, inputs):
-        # stack input image sequence
-        stacked_imgs = torch.cat([inputs.images[:, t:t + inputs.actions.shape[1]]
-                                  for t in range(self._hp.n_input_frames)], dim=2)
-        # encode stacked seq
-        return batch_apply(stacked_imgs, self.img_encoder)
-
-    def _learned_prior_input(self, inputs):
-        return ImageSkillPriorMdl._learned_prior_input(self, inputs)
-
-    def _regression_targets(self, inputs):
-        return ImageSkillPriorMdl._regression_targets(self, inputs)
-
-    def enc_obs(self, obs):
-        """Optionally encode observation for decoder."""
-        return self.img_encoder(obs)
-
-    @property
-    def enc_size(self):
-        return self._hp.nz_enc
-
-    @property
-    def prior_input_size(self):
-        return self.enc_size

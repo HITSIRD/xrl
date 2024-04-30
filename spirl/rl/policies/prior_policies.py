@@ -1,6 +1,7 @@
 import torch
 import copy
 
+from spirl.modules.Categorical import Categorical
 from spirl.modules.variational_inference import MultivariateGaussian, mc_kl_divergence
 from spirl.rl.components.agent import BaseAgent
 from spirl.rl.components.policy import Policy
@@ -169,8 +170,6 @@ class LearnedVQPriorAugmentedPolicy(PriorInitializedPolicy, LearnedPriorAugmente
             with no_batchnorm_update(self.prior_net):
                 prior_dist = self.prior_net.compute_learned_prior(obs, first_only=True).detach()
         action, index, log_prob = prior_dist.sample()
-        # log_prob = prior_dist.log_prob(index)
-        # action, log_prob = self._tanh_squash_output(action, 0)  # ignore log_prob output
         return AttrDict(action=action, log_prob=log_prob, action_index=index)
 
 class LearnedVQPriorAugmentedPolicyCDT(PriorInitializedPolicy, LearnedPriorAugmentedPolicy):

@@ -174,6 +174,7 @@ class SACAgent(ACAgent):
                 alpha=self.alpha,
                 pi_log_prob=policy_output.log_prob.mean(),
                 policy_entropy=policy_output.dist.entropy().mean(),
+                prior_policy_entropy=policy_output.prior_dist.entropy().mean(),
                 q_target=q_target.mean(),
                 q_1=qs[0].mean(),
                 q_2=qs[1].mean(),
@@ -183,8 +184,6 @@ class SACAgent(ACAgent):
 
             # print(self._update_steps)
             self._update_steps += 1
-            # if self._update_steps % 10 == 0:
-            #     print(self.policy.net.codebook.embedding.weight[0])
 
         return info
 
@@ -224,7 +223,6 @@ class SACAgent(ACAgent):
                                       for critic in self.critics])
         policy_loss = -1 * q_est + self.alpha * policy_output.log_prob[:, None]
         check_shape(policy_loss, [self._hp.batch_size, 1])
-        # print(self.policy.net.codebook.embedding.weight)
         return policy_loss.mean()
 
     def _compute_next_value(self, experience_batch, policy_output):
@@ -284,7 +282,6 @@ class SACAgent(ACAgent):
     @property
     def alpha(self):
         return self._log_alpha().exp()
-        # return torch.zeros(1).to(self.device)
 
     @property
     def schedule_steps(self):

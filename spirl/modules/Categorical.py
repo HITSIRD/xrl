@@ -12,17 +12,19 @@ class Categorical:
     """ Represents a categorical distribution """
 
     # TODO: implement a dict conversion function
-    def __init__(self, probs=None, logits=None, codebook=None):
+    def __init__(self, probs=None, logits=None, codebook=None, fixed=False):
         self.prob = torch.distributions.Categorical(probs=probs, logits=logits)
         self.codebook = codebook
 
-        # if codebook is not None:
-        #     self.codebook.embedding.weight.requires_grad = False
+        if codebook is not None:
+            self.codebook.embedding.weight.requires_grad = not fixed
 
     def sample(self):
         if self.codebook is not None:
             index = self.prob.sample()
-            return self.codebook.embedding.weight[index], index, self.prob.log_prob(index)
+            action = self.codebook.embedding.weight[index]
+            log_prob = self.prob.log_prob(index)
+            return action, index, log_prob
         else:
             return self.prob.sample()
 
