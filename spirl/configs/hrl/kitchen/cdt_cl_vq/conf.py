@@ -51,6 +51,7 @@ hl_policy_params.update(AttrDict(
     prior_model=ll_policy_params.policy_model,
     prior_model_params=ll_policy_params.policy_model_params,
     prior_model_checkpoint=ll_policy_params.policy_model_checkpoint,
+    squash_output_dist=False,   # TODO fa7475f：保持对数概率的原始值？
 ))
 
 # register new LL agent in agent_config and turn off LL agent updates
@@ -60,4 +61,8 @@ agent_config.update(AttrDict(
     ll_agent=SACAgent,
     ll_agent_params=ll_agent_config,
     update_ll=False,
+))
+
+agent_config.hl_agent_params.update(AttrDict(   # TODO fa7475f：某个参数？
+    td_schedule_params=AttrDict(p=1.5),
 ))

@@ -64,6 +64,7 @@ class ClVQCDTMdl(ClSPiRLMdl):
 
         mse_loss = torch.nn.MSELoss()
         ce_loss = torch.nn.CrossEntropyLoss()
+        nll_loss = torch.nn.NLLLoss()
 
         # reconstruction loss, assume unit variance model output Gaussian
         losses.rec_mse = mse_loss(model_output.reconstruction, inputs.actions)
@@ -77,7 +78,8 @@ class ClVQCDTMdl(ClSPiRLMdl):
 
         # learned skill prior net loss
         # losses.prior_loss = loss_cret(model_output.q_hat, model_output.z_q_x)
-        losses.prior_loss = ce_loss(model_output.q_hat.prob.probs, model_output.indices)
+        # losses.prior_loss = ce_loss(model_output.q_hat.prob.probs, model_output.indices)
+        losses.prior_loss = nll_loss(model_output.q_hat.prob.logits, model_output.indices)
 
         losses.total = losses.rec_mse + losses.vq_loss + losses.commitment_loss + losses.prior_loss
         return losses
@@ -93,6 +95,9 @@ class ClVQCDTMdl(ClSPiRLMdl):
         decode_inputs = torch.cat((seq_enc[:, :steps], z[:, None].repeat(1, steps, 1)), dim=-1)
         return batch_apply(decode_inputs, self.decoder)
 
+    def _build_prior_ensemble(self):
+        return nn.ModuleList([self._build_prior_net() for _ in range(self._hp.n_prior_nets)])
+
     def _build_inference_net(self):
         # condition inference on states since decoder is conditioned on states too
         input_size = self._hp.action_dim + self.prior_input_size
@@ -106,7 +111,7 @@ class ClVQCDTMdl(ClSPiRLMdl):
         return VQCDTPredictor(self._hp, input_dim=self.prior_input_size, output_dim=self._hp.codebook_K)
 
     def _compute_learned_prior(self, prior_mdl, inputs):
-        return Categorical(logits=prior_mdl(inputs), codebook=self.codebook)
+        return Categorical(probs=prior_mdl(inputs), codebook=self.codebook) # 使用probs（经过softmax的值）初始化，那么访问的.logits就是对数概率
 
     def _build_codebook(self):
         return VQEmbedding(self._hp.codebook_K, self._hp.nz_vae)
