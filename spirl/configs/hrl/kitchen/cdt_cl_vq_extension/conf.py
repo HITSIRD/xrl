@@ -1,34 +1,34 @@
 from spirl.configs.hrl.kitchen.spirl.conf import *
-from spirl.models.closed_loop_vq_spirl_mdl import ClVQSPiRLMdl
-from spirl.models.closed_loop_vq_cdt_mdl import ClVQCDTMdl
+from spirl.models.closed_loop_vq_spirl_mdl import ClVQSPiRLMdl, ClVQSPiRLMdlExtension
+from spirl.models.closed_loop_vq_cdt_mdl import ClVQCDTMdl, ClVQCDTMdlExtension
 from spirl.rl.policies.cl_model_policies import ClModelPolicy
 from spirl.rl.policies.prior_policies import LearnedVQPriorAugmentedPolicy, LearnedVQPriorAugmentedPolicyCDT
 
 # update model params to conditioned decoder on state
 ll_model_params.cond_decode = True
 
-prior_model_name = "cdt1_k16_-1+60+6+1_1"
+prior_model_name = "cdt1_k16_-1+60+6+0_1"
 
 # CDT config
 ll_model_params.update(AttrDict(
     feature_learning_depth = -1,
     num_intermediate_variables = 20,
     decision_depth = 6,
-    greatest_path_probability = 1,
+    greatest_path_probability = 0,
     beta_fl = 0,
     beta_dc = 0,
     codebook_K=16,
-    # if_freeze=False,
-    # cdt_embedding_checkpoint=os.path.join(os.environ["EXP_DIR"], 
-                                        #   f"skill_prior_learning/kitchen/hierarchical_cl_vq_cdt/{prior_model_name}/weights"), // 其它组件的位置
+    if_freeze=False,
+    cdt_embedding_checkpoint=os.path.join(os.environ["EXP_DIR"], 
+                                          f"skill_prior_learning/kitchen/hierarchical_cl_vq/{prior_model_name}/weights"),
 ))
 
 # create LL closed-loop policy
 ll_policy_params = AttrDict(
-    policy_model=ClVQCDTMdl,
+    policy_model=ClVQSPiRLMdlExtension,
     policy_model_params=ll_model_params,
     policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
-                                         f"skill_prior_learning/kitchen/hierarchical_cl_vq_cdt/{prior_model_name}"),
+                                         f"skill_prior_learning/kitchen/hierarchical_cl_vq/{prior_model_name}"),
 )
 ll_policy_params.update(ll_model_params)
 
@@ -44,10 +44,13 @@ hl_agent_config.policy = LearnedVQPriorAugmentedPolicyCDT
 
 # update HL policy model params 
 hl_policy_params.update(AttrDict(
-    policy=LearnedVQPriorAugmentedPolicy, # PriorInitializedPolicy PriorAugmentedPolicy 
-    prior_model=ll_policy_params.policy_model, 
+    policy=LearnedVQPriorAugmentedPolicyCDT,
+    policy_model=ClVQCDTMdlExtension,
+    policy_model_params=ll_policy_params.policy_model_params,
+    load_weights=False, # 不使用先验初始化
+    prior_model=ll_policy_params.policy_model,
     prior_model_params=ll_policy_params.policy_model_params,
-    prior_model_checkpoint=ll_policy_params.policy_model_checkpoint,    
+    prior_model_checkpoint=ll_policy_params.policy_model_checkpoint,
     squash_output_dist=False,   # TODO fa7475f：保持对数概率的原始值？
 ))
 

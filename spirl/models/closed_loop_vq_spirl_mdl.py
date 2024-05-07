@@ -62,6 +62,7 @@ class ClVQSPiRLMdl(ClSPiRLMdl):
         losses = AttrDict()
 
         mse_loss = torch.nn.MSELoss()
+        ce_loss = torch.nn.CrossEntropyLoss()
         nll_loss = torch.nn.NLLLoss()
 
         # reconstruction loss, assume unit variance model output Gaussian
@@ -75,6 +76,7 @@ class ClVQSPiRLMdl(ClSPiRLMdl):
                                                                       model_output.z_q_x.detach())
 
         # learned skill prior net loss
+        # losses.prior_loss = ce_loss(model_output.q_hat.prob.logits, model_output.indices)
         losses.prior_loss = nll_loss(model_output.q_hat.prob.logits, model_output.indices)
 
         losses.total = losses.rec_mse + losses.vq_loss + losses.commitment_loss + losses.prior_loss
@@ -186,3 +188,7 @@ class ImageClSPiRLMdl(ClSPiRLMdl, ImageSkillPriorMdl):
     @property
     def prior_input_size(self):
         return self.enc_size
+    
+class ClVQSPiRLMdlExtension(ClVQSPiRLMdl):
+    def _compute_learned_prior(self, prior_mdl, inputs):
+        return Categorical(logits=prior_mdl(inputs), codebook=self.codebook)

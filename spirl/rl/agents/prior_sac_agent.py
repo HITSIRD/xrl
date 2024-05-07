@@ -11,6 +11,7 @@ class ActionPriorSACAgent(SACAgent):
     def __init__(self, config):
         SACAgent.__init__(self, config)
         self._target_divergence = self._hp.td_schedule(self._hp.td_schedule_params)
+        # self.warm_step = 0
 
     def _default_hparams(self):
         default_dict = ParamDict({
@@ -36,6 +37,11 @@ class ActionPriorSACAgent(SACAgent):
         """Computes loss for policy update."""
         q_est = torch.min(*[critic(experience_batch.observation, self._prep_action(policy_output.action)).q
                                       for critic in self.critics])
+        # if self.warm_step < 1000000:
+        #     policy_loss = -1 * q_est
+        #     self.warm_step = self.warm_step + 1
+        # else:
+        #     policy_loss = -1 * q_est + self.alpha * policy_output.prior_divergence[:, None]
         policy_loss = -1 * q_est + self.alpha * policy_output.prior_divergence[:, None]
         check_shape(policy_loss, [self._hp.batch_size, 1])
         return policy_loss.mean()

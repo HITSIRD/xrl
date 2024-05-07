@@ -7,7 +7,7 @@ from spirl.rl.policies.prior_policies import LearnedVQPriorAugmentedPolicy, Lear
 # update model params to conditioned decoder on state
 ll_model_params.cond_decode = True
 
-prior_model_name = "k16_2"
+prior_model_name = "cdt1_k16_-1+60+6+0_1"
 
 # CDT config
 ll_model_params.update(AttrDict(
@@ -47,7 +47,7 @@ hl_policy_params.update(AttrDict(
     policy=LearnedVQPriorAugmentedPolicyCDT,
     policy_model=ClVQCDTMdl,
     policy_model_params=ll_policy_params.policy_model_params,
-    load_weights=False,
+    load_weights=False, # 不使用先验初始化
     prior_model=ll_policy_params.policy_model,
     prior_model_params=ll_policy_params.policy_model_params,
     prior_model_checkpoint=ll_policy_params.policy_model_checkpoint,

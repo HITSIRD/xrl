@@ -63,7 +63,7 @@ class ClVQCDTMdl(ClSPiRLMdl):
         losses = AttrDict()
 
         mse_loss = torch.nn.MSELoss()
-        ce_loss = torch.nn.CrossEntropyLoss()
+        ce_loss = torch.nn.CrossEntropyLoss()   # softmax + log + NLLLoss
         nll_loss = torch.nn.NLLLoss()
 
         # reconstruction loss, assume unit variance model output Gaussian
@@ -201,3 +201,7 @@ class ImageClSPiRLMdl(ClSPiRLMdl, ImageSkillPriorMdl):
     @property
     def prior_input_size(self):
         return self.enc_size
+    
+class ClVQCDTMdlExtension(ClVQCDTMdl):
+    def _compute_learned_prior(self, prior_mdl, inputs):
+        return Categorical(logits=prior_mdl(inputs), codebook=self.codebook)
