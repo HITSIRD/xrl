@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 import math
 import numpy as np
 
@@ -31,6 +32,10 @@ class Categorical:
     def kl_divergence(self, other):
         """Here self=q and other=p and we compute KL(q, p)"""
         delta = 1e-15
+        # delta = 0.002
+        # other_double_probs = F.softmax(other.prob.probs, dim=-1)
+        # self_double_probs = F.softmax(self.prob.probs, dim=-1)
+        # return torch.nn.functional.kl_div((other_double_probs + delta).log(), self_double_probs + delta, reduction='none')
         return torch.nn.functional.kl_div((other.prob.probs + delta).log(), self.prob.probs + delta, reduction='none')
 
     def wasserstein_distance(self, other):

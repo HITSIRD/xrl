@@ -1,6 +1,6 @@
 from spirl.configs.hrl.kitchen.spirl.conf import *
 from spirl.models.closed_loop_vq_spirl_mdl import ClVQSPiRLMdl
-from spirl.models.closed_loop_vq_cdt_mdl import ClVQCDTMdl
+from spirl.models.closed_loop_vq_cdt_mdl import ClVQCDTMdl, ClVQCDTMdlExtension
 from spirl.rl.policies.cl_model_policies import ClModelPolicy
 from spirl.rl.policies.prior_policies import LearnedVQPriorAugmentedPolicy, LearnedVQPriorAugmentedPolicyCDT
 
@@ -25,7 +25,7 @@ ll_model_params.update(AttrDict(
 
 # create LL closed-loop policy
 ll_policy_params = AttrDict(
-    policy_model=ClVQCDTMdl,
+    policy_model=ClVQCDTMdlExtension,
     policy_model_params=ll_model_params,
     policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
                                          f"skill_prior_learning/kitchen/hierarchical_cl_vq_cdt/{prior_model_name}"),
