@@ -68,13 +68,19 @@ class WaypointController(object):
         self._waypoint_idx = 0
 
         self.env.gs[target] = grid_spec.REWARD
-        q_values = q_iteration.q_iteration(env=self.env, num_itrs=50, discount=0.99)
+        q_values = q_iteration.q_iteration(env=self.env, num_itrs=200, discount=0.99)
+
+        if max(q_values[start_idx]) == 0:
+            # no path between start and goal was found!
+            raise ValueError
+
         # compute waypoints by performing a rollout in the grid
         max_ts = 100
         s = start_idx
         waypoints = []
         for i in range(max_ts):
             a = np.argmax(q_values[s])
+            #a = np.random.choice(np.where(q_values[s] == q_values[s].max())[0])
             new_s, reward = self.env.step_stateless(s, a)
 
             waypoint = self.env.gs.idx_to_xy(new_s)

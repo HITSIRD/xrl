@@ -16,7 +16,7 @@ class MazeStateSequenceDataset(Dataset):
         self.spec = data_conf.dataset_spec
         self.dataset_size = dataset_size
         self.device = data_conf.device
-        self.n_worker = 4
+        self.n_worker = 16
         self.shuffle = self.phase == "train"
 
         env = gym.make(self.spec.env_name)

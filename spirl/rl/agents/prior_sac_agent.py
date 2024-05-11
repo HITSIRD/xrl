@@ -73,7 +73,6 @@ class ActionPriorSACAgent(SACAgent):
             return torch.clamp(super().alpha, min=self._hp.alpha_min)
         return super().alpha
 
-
 class RandActScheduledActionPriorSACAgent(ActionPriorSACAgent):
     """Adds scheduled call to random action (aka prior execution) -> used if downstream policy trained from scratch."""
     def __init__(self, *args, **kwargs):

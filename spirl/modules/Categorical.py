@@ -6,7 +6,7 @@ from torch.distributions.multivariate_normal import MultivariateNormal
 
 from spirl.utils.pytorch_utils import ten2ar
 from spirl.utils.general_utils import batch_apply
-
+from scipy.stats import wasserstein_distance
 
 class Categorical:
     """ Represents a categorical distribution """
@@ -32,6 +32,15 @@ class Categorical:
         """Here self=q and other=p and we compute KL(q, p)"""
         delta = 1e-15
         return torch.nn.functional.kl_div((other.prob.probs + delta).log(), self.prob.probs + delta, reduction='none')
+
+    def wasserstein_distance(self, other):
+        u = self.prob.probs.cpu().detach().numpy()
+        v = other.prob.probs.cpu().detach().numpy()
+        if u.shape[0] == 1:
+            return torch.from_numpy(wasserstein_distance(u, v)).float()
+        else:
+            d = torch.from_numpy(np.array([wasserstein_distance(u[i], v[i]) for i in range(u.shape[0])])).float()
+            return d
 
     def nll(self, x):
         # Negative log likelihood (probability)

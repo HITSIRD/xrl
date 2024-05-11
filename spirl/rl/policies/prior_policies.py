@@ -9,7 +9,6 @@ from spirl.rl.policies.mlp_policies import SplitObsMLPPolicy, MLPPolicy, HybridC
 from spirl.utils.general_utils import AttrDict, ParamDict
 from spirl.utils.pytorch_utils import no_batchnorm_update
 
-
 class PriorInitializedPolicy(Policy):
     """Initializes policy network with learned prior net."""
 
@@ -78,7 +77,8 @@ class PriorAugmentedPolicy(Policy):
         policy_output = super().forward(obs)
         if not self._rollout_mode:
             raw_prior_divergence, policy_output.prior_dist = self._compute_prior_divergence(policy_output, obs)
-            policy_output.prior_divergence = self.clamp_divergence(raw_prior_divergence)
+            policy_output.prior_divergence = raw_prior_divergence
+            # policy_output.prior_wasserstein_d = raw_prior_divergence
         return policy_output
 
     def clamp_divergence(self, divergence):
@@ -111,7 +111,7 @@ class LearnedPriorAugmentedPolicy(PriorAugmentedPolicy):
             'prior_model_checkpoint': None,  # checkpoint path of the prior model
             'prior_model_epoch': 'latest',  # epoch that checkpoint should be loaded for (defaults to latest)
             'prior_batch_size': -1,  # optional: use separate batch size for prior network
-            'reverse_KL': False,  # if True, computes KL[q||p] instead of KL[p||q] (can be more stable to opt)
+            'reverse_KL': True,  # if True, computes KL[q||p] instead of KL[p||q] (can be more stable to opt)
             'analytic_KL': True,  # if True, computes KL divergence analytically, otherwise sampling based
             'num_mc_samples': 10,  # number of samples for monte-carlo KL estimate
         })
@@ -164,6 +164,20 @@ class LearnedVQPriorAugmentedPolicy(PriorInitializedPolicy, LearnedPriorAugmente
     def forward(self, obs):
         with no_batchnorm_update(self):
             return LearnedPriorAugmentedPolicy.forward(self, obs)
+
+    def _compute_prior_divergence(self, policy_output, obs):
+        with no_batchnorm_update(self.prior_net):
+            prior_dist = self.prior_net.compute_learned_prior(obs, first_only=True).detach()
+            return self._analytic_divergence(policy_output, prior_dist), prior_dist
+
+    def _analytic_divergence(self, policy_output, prior_dist):
+        """Analytic W-distance between two Cat distributions."""
+        # return policy_output.dist.wasserstein_distance(prior_dist).to(torch.device('cuda'))
+        if self._hp.reverse_KL:
+            return prior_dist.kl_divergence(policy_output.dist).sum(dim=-1)
+        else:
+            return policy_output.dist.kl_divergence(prior_dist).sum(dim=-1)
+        # return policy_output.dist.kl_divergence(prior_dist).sum(dim=-1)
 
     def sample_rand(self, obs):
         with torch.no_grad():

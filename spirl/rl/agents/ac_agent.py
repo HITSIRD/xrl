@@ -182,7 +182,6 @@ class SACAgent(ACAgent):
             info.update(self._aux_info(experience_batch, policy_output))
             info = map_dict(ten2ar, info)
 
-            # print(self._update_steps)
             self._update_steps += 1
 
         return info
@@ -212,7 +211,6 @@ class SACAgent(ACAgent):
             return 0.
         alpha_loss = self._compute_alpha_loss(policy_output)
         self._perform_update(alpha_loss, self.alpha_opt, self._log_alpha)
-        # print(f'updated alpha: {self.alpha}')
         return alpha_loss
 
     def _compute_alpha_loss(self, policy_output):
@@ -281,6 +279,7 @@ class SACAgent(ACAgent):
 
     @property
     def alpha(self):
+        # return torch.zeros(1).to(self.device)
         return self._log_alpha().exp()
 
     @property

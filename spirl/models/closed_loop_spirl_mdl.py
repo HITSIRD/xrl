@@ -44,7 +44,6 @@ class ClSPiRLMdl(SkillPriorMdl):
 
     def _get_seq_enc(self, inputs):
         return inputs.states[:, :-1]
-        # return inputs.states[:, :-1, :30]
 
     def enc_obs(self, obs):
         """Optionally encode observation for decoder."""
