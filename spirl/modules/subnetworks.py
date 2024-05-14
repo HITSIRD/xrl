@@ -91,12 +91,13 @@ class VQCDTPredictor(nn.Module):
 
         # 最大叶节点索引
         self.max_leaf_idx = None
-        prefix = f"s6_2"
+
+        self.if_smooth = hp.if_smooth
+
+        self.tree_name = hp.tree_name
+        self.if_save = hp.if_save
         self.forward_num = 0 # 用来保存模型
-        if hp.feature_learning_depth >= 0:
-            self.model_name = os.path.join(os.environ["EXP_DIR"], f"cdt_model/{hp.codebook_K}_{self.feature_learning_depth}+{self.num_intermediate_variables}+{self.decision_depth}+{self.greatest_path_probability}_{prefix}.pth")
-        else:
-            self.model_name = os.path.join(os.environ["EXP_DIR"], f"cdt_model/{hp.codebook_K}_{self.feature_learning_depth}+{input_dim}+{self.decision_depth}+{self.greatest_path_probability}_{prefix}.pth")
+        self.model_name = os.path.join(os.environ["EXP_DIR"], f"cdt_model/{self.tree_name}.pth")
 
     def feature_learning_init(self):
         if self.feature_learning_depth < 0:  # 特征树深度小于0时不需要特征树
@@ -209,15 +210,19 @@ class VQCDTPredictor(nn.Module):
             self.num_intermediate_variables)  # return: (N, num_intermediate_variables) where N=batch_size*num_fl_leaves
 
     def decision_leaves(self, p):  # p：到达每个叶节点的概率
-        distribution_per_leaf = self.softmax(self.dc_leaves)  # distribution_per_leaf：不同动作叶子输出不同动作的概率
+        if self.if_smooth:
+            distribution_per_leaf = self.softmax(self.dc_leaves / (self.output_dim)**0.5)
+        else:
+            distribution_per_leaf = self.softmax(self.dc_leaves)   # distribution_per_leaf：不同动作叶子输出不同动作的概率
         average_distribution = torch.mm(p, distribution_per_leaf)  # sum(probability of each leaf * leaf distribution)
         return average_distribution  # (batch_size, output_dim) # 各动作的概率
 
     def forward(self, data):
-        self.forward_num = self.forward_num + 1
-        if self.forward_num >= 1:
-            self.forward_num = 0
-        self.save_model(self.model_name)
+        if self.if_save:
+            self.forward_num = self.forward_num + 1
+            if self.forward_num >= 100000:
+                self.forward_num = 0
+                self.save_model(self.model_name)
         LogProb = False
         self.data = data
         self.batch_size = data.size()[0]

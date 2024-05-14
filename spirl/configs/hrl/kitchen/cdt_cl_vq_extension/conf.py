@@ -7,20 +7,23 @@ from spirl.rl.policies.prior_policies import LearnedVQPriorAugmentedPolicy, Lear
 # update model params to conditioned decoder on state
 ll_model_params.cond_decode = True
 
-prior_model_name = "cdt1_k16_-1+60+6+0_1"
+prior_model_name = "spirl_k16_s2_1"
 
 # CDT config
 ll_model_params.update(AttrDict(
+    codebook_K = 16,
     feature_learning_depth = -1,
     num_intermediate_variables = 20,
-    decision_depth = 6,
+    decision_depth = 4,
     greatest_path_probability = 0,
     beta_fl = 0,
     beta_dc = 0,
-    codebook_K=16,
+    if_smooth = False,
+    if_save = False,
+    tree_name = "test",
     if_freeze=False,
     cdt_embedding_checkpoint=os.path.join(os.environ["EXP_DIR"], 
-                                          f"skill_prior_learning/kitchen/hierarchical_cl_vq/{prior_model_name}/weights"),
+                                          f"skill_prior_learning/kitchen/hierarchical_cl_vq_extension/{prior_model_name}/weights"),
 ))
 
 # create LL closed-loop policy
@@ -28,7 +31,7 @@ ll_policy_params = AttrDict(
     policy_model=ClVQSPiRLMdlExtension,
     policy_model_params=ll_model_params,
     policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
-                                         f"skill_prior_learning/kitchen/hierarchical_cl_vq/{prior_model_name}"),
+                                         f"skill_prior_learning/kitchen/hierarchical_cl_vq_extension/{prior_model_name}"),
 )
 ll_policy_params.update(ll_model_params)
 

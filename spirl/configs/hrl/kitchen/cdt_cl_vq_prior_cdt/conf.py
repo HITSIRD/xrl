@@ -7,17 +7,20 @@ from spirl.rl.policies.prior_policies import LearnedVQPriorAugmentedPolicy, Lear
 # update model params to conditioned decoder on state
 ll_model_params.cond_decode = True
 
-prior_model_name = "cdt1_k16_-1+60+6+1_1"
+prior_model_name = "cdt_k16_s1_-1+60+6+0_1"
 
 # CDT config
 ll_model_params.update(AttrDict(
+    codebook_K = 16,
     feature_learning_depth = -1,
     num_intermediate_variables = 20,
     decision_depth = 6,
     greatest_path_probability = 1,
     beta_fl = 0,
     beta_dc = 0,
-    codebook_K=16,
+    if_smooth = False,
+    if_save = False,
+    tree_name = "test"
     # if_freeze=False,
     # cdt_embedding_checkpoint=os.path.join(os.environ["EXP_DIR"], 
                                         #   f"skill_prior_learning/kitchen/hierarchical_cl_vq_cdt/{prior_model_name}/weights"), // 其它组件的位置
