@@ -5,6 +5,7 @@ from torch.utils import data
 import numpy as np
 import copy
 import matplotlib as mpl
+from spirl.configs import local
 
 def get_binary_index(tree):
     """
@@ -103,7 +104,7 @@ def draw_tree(original_tree, input_img=None, show_correlation=False, DrawTree=No
     # fig = plt.figure(figsize=(n_leaves, n_leaves//2), facecolor=(0.5, 0.5, 0.0, 0.8))
     # fig = plt.figure(figsize=(n_leaves, n_leaves//2), facecolor='grey')  # for lunarlander
     # fig = plt.figure(figsize=(2*n_leaves, n_leaves), facecolor='grey')  # for cartpole
-    fig = plt.figure(figsize=(2*n_leaves, n_leaves), facecolor='grey')  # for cartpole
+    fig = plt.figure(figsize=(2*n_leaves, n_leaves), facecolor='white')  # for cartpole
 
 
     gs = GridSpec(tree.max_depth+1, n_leaves*2,
@@ -122,8 +123,8 @@ def draw_tree(original_tree, input_img=None, show_correlation=False, DrawTree=No
     # kernel_max_val  = np.max(list(kernels.values()))
     # leaf_min_val = np.min(list(leaves.values()))
     # leaf_max_val  = np.max(list(leaves.values()))
-    kernel_min_val = -10000.  # for lunarlander
-    kernel_max_val = 10000.   # for lunarlander
+    kernel_min_val = -0.5  # for lunarlander
+    kernel_max_val = 3.   # for lunarlander
     # kernel_min_val = -50.  # for cartpole DM
     # kernel_max_val = 50.  # for cartpole DM
     # kernel_min_val = -5.  # for cartpole FL
@@ -167,6 +168,17 @@ def draw_tree(original_tree, input_img=None, show_correlation=False, DrawTree=No
             leaf_image = leaves[key].squeeze(0)
         else:
             leaf_image = np.ones((tree.output_dim, 1)) @ leaves[key]
+
+        def softmax_for_rows(matrix):
+            # 对每一行的元素应用 exp 函数，同时减去该行的最大值以避免数值溢出
+            exps = np.exp(matrix - np.amax(matrix, axis=1, keepdims=True))
+            # 计算每一行的指数之和
+            sum_exps = np.sum(exps, axis=1, keepdims=True)
+            # 进行归一化，使每一行的和为 1
+            probabilities = exps / sum_exps
+            return probabilities
+        
+        leaf_image = softmax_for_rows(leaf_image)
 
         ax.imshow(leaf_image, vmin=leaf_min_val, vmax=leaf_max_val, **imshow_args)
         ax.get_xaxis().set_visible(False)
@@ -255,8 +267,9 @@ from spirl.modules.subnetworks import VQCDTPredictor
 codebook = 16
 class HyperParameters:
     def __init__(self):
-        self.feature_learning_depth = 0
-        self.decision_depth = 5
+        self.codebook_K = codebook
+        self.feature_learning_depth = -1
+        self.decision_depth = 4
         self.num_intermediate_variables = 20
         self.greatest_path_probability = False
         self.beta_fl = False
@@ -265,7 +278,8 @@ class HyperParameters:
 hp = HyperParameters()
 
 tree = VQCDTPredictor(hp, 60, codebook)
-tree.load_model('/home/zuo/project/xrl/spirl/experiments/cdt_model/16+0+5+20.pth')
+# tree.load_model('/home/zuo/project/xrl/spirl/experiments/old_results1/cdt_model/16_-1+60+6+0_s6_2copy.pth')
+tree.load_model('/home/zuo/project/xrl/spirl/experiments/cdt_model/16_-1+60+4+0_spirl+n2_copy.pth')
 
 # 参数打印
 num_params = 0
@@ -274,6 +288,6 @@ for key, v in tree.state_dict().items():
     num_params+=v.reshape(-1).shape[0]
 print('Total number of parameters in model: ', num_params)
 
+draw_tree(tree, input_img=None, DrawTree='DM', savepath='/home/zuo/project/xrl/spirl/experiments/cdt_model/16+0+5+20+test.pdf')
 draw_tree(tree, input_img=None, DrawTree='DM', savepath='/home/zuo/project/xrl/spirl/experiments/cdt_model/16+0+5+20+test.png')
-
 # draw_tree_with_params(tree, savepath='/home/zuo/project/xrl/spirl/experiments/cdt_model/16+0+5+20+test.png')
