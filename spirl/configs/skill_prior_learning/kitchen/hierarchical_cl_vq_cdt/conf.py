@@ -38,6 +38,9 @@ model_config = AttrDict(
     greatest_path_probability = 0,
     beta_fl = 0,
     beta_dc = 0,
+    if_smooth = False,
+    if_save = False,
+    tree_name = "skill"
 )
 
 # Dataset
