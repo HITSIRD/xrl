@@ -18,9 +18,8 @@ from spirl.rl.utils.wandb import WandBLogger
 from spirl.rl.utils.rollout_utils import RolloutSaver
 from spirl.rl.components.sampler import Sampler
 from spirl.rl.components.replay_buffer import RolloutStorage
+from spirl.rl.utils.rollout_utils import SERolloutSaver
 
-WANDB_PROJECT_NAME = 'spirl'
-WANDB_ENTITY_NAME = 'hitsird'
 class DHLEvaluator:
     """Deterministic high level policy evaluator."""
     def __init__(self, args):
@@ -92,7 +91,7 @@ class DHLEvaluator:
             'log_images_per_epoch': 4,    # log images/videos N times per epoch
             'logging_target': 'none',    # where to log results to
             'n_warmup_steps': 0,    # steps of warmup experience collection before training
-            'num_sample': 1000,
+            'num_sample': 500,
         })
         return default_dict
 
@@ -106,39 +105,49 @@ class DHLEvaluator:
         #         for i in range(32):   # for efficiency instead of self.args.n_val_samples
         #             z.append(self.sampler.sample_z(is_train=False))
 
+        if self.args.save_dir is None:
+            self.args.save_dir = self._hp.exp_path
+        saver = SERolloutSaver(self.args.save_dir)
+        if self.args.save_dir is None:
+            self.args.save_dir = self._hp.exp_path
+
         for i in range(1):
         # for i in range(2):
             val_rollout_storage = RolloutStorage()
             with self.agent.val_mode():
                 with torch.no_grad():
                     with timing(f"index {i} eval rollout time: "):
-                        for _ in range(self._hp.num_sample):   # for efficiency instead of self.args.n_val_samples
-                            val_rollout_storage.append(self.sampler.sample_episode(index=i, is_train=False, render=False))
+                        for s in range(self._hp.num_sample):   # for efficiency instead of self.args.n_val_samples
+                            # set_seeds(seed=s)
+                            episode = self.sampler.sample_episode(index=i, is_train=False, render=False)
+                            val_rollout_storage.append(episode)
                             # val_rollout_storage.append(self.sampler.sample_episode(index=z[i], is_train=False, render=False))
                             # val_rollout_storage.append(self.sampler.sample_episode(is_train=False, render=False))
+                            saver.save_rollout(episode)
+                            saver.save()
 
-            rollout_stats = val_rollout_storage.rollout_stats()
-            complete_task, count = val_rollout_storage.evaluate_task()
-
-            success_rate = count.copy()
-            for k in success_rate.keys():
-                success_rate[k] = success_rate[k] / self._hp.num_sample
-            stat[i] = [complete_task, success_rate]
-
-            if self.is_chef:
-                # with timing(f"index {i} eval log time: "):
-                #     self.agent.log_outputs(rollout_stats, val_rollout_storage,
-                #                            self.logger, log_images=False, step=i)
-                print(f"index {i} evaluation Avg_Reward: {rollout_stats.avg_reward}")
-            del val_rollout_storage
-
-        now = datetime.datetime.now()
-        formatted_date = now.strftime("%Y%m%d_%H%M%S")
-
-        print('writing skill evaluation result...')
-        path = os.path.join(self._hp.exp_path, 'skill_evaluate_' + formatted_date + '.json')
-        with open(path, "w") as file:
-            json.dump(stat, file)
+        #     rollout_stats = val_rollout_storage.rollout_stats()
+        #     complete_task, count = val_rollout_storage.evaluate_task()
+        #
+        #     success_rate = count.copy()
+        #     for k in success_rate.keys():
+        #         success_rate[k] = success_rate[k] / self._hp.num_sample
+        #     stat[i] = [complete_task, success_rate]
+        #
+        #     if self.is_chef:
+        #         # with timing(f"index {i} eval log time: "):
+        #         #     self.agent.log_outputs(rollout_stats, val_rollout_storage,
+        #         #                            self.logger, log_images=False, step=i)
+        #         print(f"index {i} evaluation Avg_Reward: {rollout_stats.avg_reward}")
+        #     del val_rollout_storage
+        #
+        # now = datetime.datetime.now()
+        # formatted_date = now.strftime("%Y%m%d_%H%M%S")
+        #
+        # print('writing skill evaluation result...')
+        # path = os.path.join(self._hp.exp_path, 'skill_evaluate_' + formatted_date + '.json')
+        # with open(path, "w") as file:
+        #     json.dump(stat, file)
 
             # """Generate rollouts and save to hdf5 files."""
             # # print("index {} saving {} rollouts to directory {}...".format(i, self.args.n_val_samples, self.args.save_dir))

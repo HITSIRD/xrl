@@ -3,7 +3,7 @@ import os
 from spirl.models.closed_loop_vq_spirl_mdl import ClVQSPiRLMdl
 from spirl.components.logger import Logger
 from spirl.utils.general_utils import AttrDict
-from spirl.configs.default_data_configs.kitchen import data_spec
+from spirl.configs.default_data_configs.maze import data_spec
 from spirl.components.evaluator import TopOfNSequenceEvaluator
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
@@ -12,9 +12,8 @@ current_dir = os.path.dirname(os.path.realpath(__file__))
 configuration = {
     'model': ClVQSPiRLMdl,
     'logger': Logger,
-    'data_dir': '.',
-    'epoch_cycles_train': 50,
-    'num_epochs': 100,
+    'data_dir': os.path.join(os.environ['DATA_DIR'], 'maze'),
+    'epoch_cycles_train': 10,
     'evaluator': TopOfNSequenceEvaluator,
     'top_of_n_eval': 100,
     'top_comp_metric': 'mse',
@@ -25,11 +24,10 @@ model_config = AttrDict(
     state_dim=data_spec.state_dim,
     action_dim=data_spec.n_actions,
     n_rollout_steps=10,
-    nz_enc=128,
-    nz_mid=128,
+    kl_div_weight=1e-3,
     n_processing_layers=5,
     cond_decode=True,
-    codebook_K=32,
+    codebook_K=16,
     commitment_beta=0.25,
 )
 

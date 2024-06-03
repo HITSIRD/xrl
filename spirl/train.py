@@ -99,8 +99,8 @@ class ModelTrainer(BaseTrainer):
             'adam_beta': 0.9,  # beta1 param in Adam
             'top_of_n_eval': 1,  # number of samples used at eval time
             'top_comp_metric': None,  # metric that is used for comparison at eval time (e.g. 'mse')
-            'logging_target': 'wandb',
-            # 'logging_target': None,
+            # 'logging_target': 'wandb',
+            'logging_target': None,
         })
         return default_dict
 
@@ -137,6 +137,8 @@ class ModelTrainer(BaseTrainer):
         for self.batch_idx, sample_batched in enumerate(self.train_loader):
             data_load_time.update(time.time() - end)
             inputs = AttrDict(map_dict(lambda x: x.to(self.device), sample_batched))
+            inputs.states = inputs.observations
+
             with self.training_context():
                 self.optimizer.zero_grad()
                 output = self.model(inputs)
@@ -191,6 +193,7 @@ class ModelTrainer(BaseTrainer):
             with autograd.no_grad():
                 for batch_idx, sample_batched in enumerate(self.val_loader):
                     inputs = AttrDict(map_dict(lambda x: x.to(self.device), sample_batched))
+                    inputs.states = inputs.observations
 
                     # run evaluator with val-mode model
                     with self.model_test.val_mode():
@@ -210,6 +213,7 @@ class ModelTrainer(BaseTrainer):
                     self.model_test.log_outputs(output, inputs, losses_meter.avg, self.global_step,
                                                 log_images=True, phase='val', **self._logging_kwargs)
                     print(('\nTest set: Average loss: {:.4f} in {:.2f}s\n'.format(losses_meter.avg.total.item(), time.time() - start)))
+                    # print(('\nTest set: Average loss: {:.4f} in {:.2f}s\n'.format(losses_meter.avg.total.value.item(), time.time() - start)))
             del output
 
     def setup_device(self):

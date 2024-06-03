@@ -187,6 +187,8 @@ class VideoDataset(Dataset):
 
     def _crop_rand_subseq(self, data, end_ind, length):
         """Crops a random subseq of specified length from the full sequence."""
+        if length > end_ind + 1:
+            print(end_ind + 1)
         assert length <= end_ind + 1     # sequence needs to be longer than desired subsequence length
         start = np.random.randint(0, end_ind - length + 2)
         for key in data:

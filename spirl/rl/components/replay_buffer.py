@@ -181,6 +181,8 @@ class RolloutStorage:
     def append(self, rollout):
         """Adds rollout to storage."""
         self.rollouts.append(rollout)
+        print(f'rollout {len(self.rollouts)}')
+        print(np.array(rollout.reward).sum())
 
     def rollout_stats(self):
         """Returns AttrDict of average statistics over the rollouts."""

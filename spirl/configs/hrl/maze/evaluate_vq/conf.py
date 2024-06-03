@@ -1,10 +1,15 @@
-from spirl.configs.hrl.kitchen.spirl.conf import *
+from spirl.configs.hrl.maze.spirl.conf import *
 from spirl.models.closed_loop_vq_spirl_mdl import ClVQSPiRLMdl
+from spirl.models.closed_loop_spirl_mdl import ClSPiRLMdl
+from spirl.rl.components.critic import MLPCritic
 from spirl.rl.policies.cl_model_policies import ClModelPolicy
 from spirl.rl.policies.prior_policies import LearnedVQPriorAugmentedPolicy
+from spirl.rl.policies.deterministic_policies import DeterministicPolicy
 
 # update model params to conditioned decoder on state
 ll_model_params.cond_decode = True
+
+hl_agent_config.policy = DeterministicPolicy
 
 ll_model_params.update(AttrDict(
     codebook_K=16,
@@ -12,12 +17,14 @@ ll_model_params.update(AttrDict(
 
 # create LL closed-loop policy
 ll_policy_params = AttrDict(
-    policy_model=ClVQSPiRLMdl,
+    policy_model=ClSPiRLMdl,
     policy_model_params=ll_model_params,
-    policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
-                                         "skill_prior_learning/kitchen/hierarchical_cl_vq/K_16_softmax"),
     # policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
-    #                                      "skill_prior_learning/kitchen/hierarchical_cl_vq/K_32"),
+    #                                      "skill_prior_learning/maze/hierarchical_cl_vq/K_16"),
+    # policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
+    #                                      "skill_prior_learning/maze/hierarchical_cl_vq/K_32"),
+    policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
+                                         "skill_prior_learning/maze/hierarchical_cl"),
 )
 ll_policy_params.update(ll_model_params)
 
@@ -25,20 +32,19 @@ ll_policy_params.update(ll_model_params)
 ll_agent_config = AttrDict(
     policy=ClModelPolicy,  # ClModelPolicy
     policy_params=ll_policy_params,
-    critic=MLPCritic,                   # LL critic is not used since we are not finetuning LL
+    critic=MLPCritic,  # LL critic is not used since we are not finetuning LL
     critic_params=hl_critic_params
 )
 
-hl_agent_config.policy = LearnedVQPriorAugmentedPolicy
-
 # update HL policy model params
 hl_policy_params.update(AttrDict(
-    policy=LearnedVQPriorAugmentedPolicy,  # PriorInitializedPolicy PriorAugmentedPolicy
     prior_model=ll_policy_params.policy_model,
     prior_model_params=ll_policy_params.policy_model_params,
     prior_model_checkpoint=ll_policy_params.policy_model_checkpoint,
-    # policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
-    #                                      "hrl/kitchen/spirl_cl_vq/mkbl_s0_k16_inverse_kl/weights"),
+    # codebook_checkpoint=os.path.join(os.environ["EXP_DIR"],
+    #                                  "skill_prior_learning/maze/hierarchical_cl_vq/K_16/weights/weights_ep199.pth"),
+    codebook_checkpoint=os.path.join(os.environ["EXP_DIR"],
+                                     "skill_prior_learning/maze/hierarchical_cl/weights/weights_ep199.pth"),
     squash_output_dist=False,
 ))
 
@@ -48,6 +54,8 @@ agent_config.update(AttrDict(
     hl_agent_params=hl_agent_config,
     ll_agent=SACAgent,
     ll_agent_params=ll_agent_config,
+    log_videos=False,
+    update_hl=True,
     update_ll=False,
 ))
 

@@ -62,7 +62,7 @@ class ClVQSPiRLMdl(ClSPiRLMdl):
         losses = AttrDict()
 
         mse_loss = torch.nn.MSELoss()
-        ce_loss = torch.nn.CrossEntropyLoss()
+        # ce_loss = torch.nn.CrossEntropyLoss()
         nll_loss = torch.nn.NLLLoss()
 
         # reconstruction loss, assume unit variance model output Gaussian
