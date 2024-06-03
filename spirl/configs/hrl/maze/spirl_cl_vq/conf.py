@@ -1,7 +1,22 @@
-from spirl.configs.hrl.kitchen.spirl.conf import *
+from spirl.configs.hrl.maze.spirl.conf import *
 from spirl.models.closed_loop_vq_spirl_mdl import ClVQSPiRLMdl
+from spirl.rl.components.critic import MLPCritic
 from spirl.rl.policies.cl_model_policies import ClModelPolicy
 from spirl.rl.policies.prior_policies import LearnedVQPriorAugmentedPolicy
+
+configuration = {
+    'seed': 42,
+    'agent': FixedIntervalHierarchicalAgent,
+    'environment': ACRandMaze0S40Env,
+    # 'sampler': ACMultiImageAugmentedHierarchicalSampler,
+    'sampler': HierarchicalSampler,
+    'data_dir': '.',
+    'num_epochs': 30,
+    'max_rollout_len': 2000,
+    'n_steps_per_epoch': 100000,
+    'n_warmup_steps': 1000,
+}
+configuration = AttrDict(configuration)
 
 # update model params to conditioned decoder on state
 ll_model_params.cond_decode = True
@@ -15,9 +30,9 @@ ll_policy_params = AttrDict(
     policy_model=ClVQSPiRLMdl,
     policy_model_params=ll_model_params,
     policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
-                                         "skill_prior_learning/kitchen/hierarchical_cl_vq/K_16_softmax"),
+                                         "skill_prior_learning/maze/hierarchical_cl_vq/K_16"),
     # policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
-    #                                      "skill_prior_learning/kitchen/hierarchical_cl_vq/K_32"),
+    #                                      "skill_prior_learning/maze/hierarchical_cl_vq/K_32"),
 )
 ll_policy_params.update(ll_model_params)
 
@@ -25,7 +40,7 @@ ll_policy_params.update(ll_model_params)
 ll_agent_config = AttrDict(
     policy=ClModelPolicy,  # ClModelPolicy
     policy_params=ll_policy_params,
-    critic=MLPCritic,                   # LL critic is not used since we are not finetuning LL
+    critic=MLPCritic,  # LL critic is not used since we are not finetuning LL
     critic_params=hl_critic_params
 )
 
@@ -37,8 +52,6 @@ hl_policy_params.update(AttrDict(
     prior_model=ll_policy_params.policy_model,
     prior_model_params=ll_policy_params.policy_model_params,
     prior_model_checkpoint=ll_policy_params.policy_model_checkpoint,
-    # policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
-    #                                      "hrl/kitchen/spirl_cl_vq/mkbl_s0_k16_inverse_kl/weights"),
     squash_output_dist=False,
 ))
 
@@ -48,6 +61,8 @@ agent_config.update(AttrDict(
     hl_agent_params=hl_agent_config,
     ll_agent=SACAgent,
     ll_agent_params=ll_agent_config,
+    log_videos=False,
+    update_hl=True,
     update_ll=False,
 ))
 

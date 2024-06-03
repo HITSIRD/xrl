@@ -4,6 +4,7 @@ import numpy as np
 from spirl.utils.general_utils import AttrDict, ParamDict
 from spirl.rl.components.agent import BaseAgent
 from spirl.rl.components.policy import Policy
+from spirl.utils.pytorch_utils import no_batchnorm_update
 
 
 class DeterministicPolicy(Policy):
@@ -24,15 +25,34 @@ class DeterministicPolicy(Policy):
         return super()._default_hparams().overwrite(default_dict)
 
     def forward(self, obs, index):
-        index = np.random.randint(16)
-        return AttrDict(action=self.net[index].detach().cpu().numpy(), action_index=index)
+        # index = np.random.randint(16)
+        with no_batchnorm_update(self):  # BN updates harm the initialized policy
+            result = super().forward(obs)
+            result.action = result.action.cpu()
+            return result
+
+        # return AttrDict(action=self.net[index].detach().cpu().numpy(), action_index=index)
 
     def _build_network(self):
-        # net = self._hp.prior_model(self._hp.prior_model_params, None)
-        weight = torch.load(self._hp.codebook_checkpoint)
-        # return weight['state_dict']['hl_agent']['policy.prior_net.codebook.embedding.weight']
-        # return weight['state_dict']['hl_agent']['policy.net.codebook.embedding.weight']
-        return weight['state_dict']['codebook.embedding.weight']
+        # # net = self._hp.prior_model(self._hp.prior_model_params, None)
+        # weight = torch.load(self._hp.codebook_checkpoint)
+        # # return weight['state_dict']['hl_agent']['policy.prior_net.codebook.embedding.weight']
+        # # return weight['state_dict']['hl_agent']['policy.net.codebook.embedding.weight']
+        # return weight['state_dict']['codebook.embedding.weight']
+
+        if self._hp.policy_model is not None:
+            net = self._hp.policy_model(self._hp.policy_model_params, None)
+        else:
+            net = self._hp.prior_model(self._hp.prior_model_params, None)
+        if self._hp.load_weights:
+            if self._hp.policy_model is not None:
+                BaseAgent.load_model_weights(net, self._hp.policy_model_checkpoint, self._hp.prior_model_epoch)
+            else:
+                BaseAgent.load_model_weights(net, self._hp.prior_model_checkpoint, 199)
+        return net
+
+    def _compute_action_dist(self, obs):
+        return self.net.compute_learned_prior(obs, first_only=True)
 
     def reset(self):
         self.steps_since_hl, self.last_z = np.Inf, None

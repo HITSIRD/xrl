@@ -3,7 +3,7 @@ import gym
 import numpy as np
 
 from spirl.components.data_loader import Dataset
-from spirl.utils.general_utils import AttrDict
+from spirl.utils.general_utils import AttrDict, shuffle_with_seed
 from spirl.utils.video_utils import resize_video
 
 
@@ -53,6 +53,34 @@ class MazeStateSequenceDataset(Dataset):
         if self.dataset_size != -1:
             return self.dataset_size
         return int(self.SPLIT[self.phase] * self.n_samples / self.subseq_len)
+
+    def _get_filenames(self):
+        filenames = self._load_h5_files(self.data_dir)
+
+        if not filenames:
+            raise RuntimeError('No filenames found in {}'.format(self.data_dir))
+        filenames = shuffle_with_seed(filenames)
+        filenames = self._split_with_percentage(self.spec.split, filenames)
+        return filenames
+
+    def _load_h5_files(self, dir):
+        filenames = []
+        for root, dirs, files in os.walk(dir):
+            for file in files:
+                if file.endswith(".h5"): filenames.append(os.path.join(root, file))
+        return filenames
+
+    def _split_with_percentage(self, frac, filenames):
+        assert sum(frac.values()) <= 1.0  # fractions cannot sum up to more than 1
+        assert self.phase in frac
+        if self.phase == 'train':
+            start, end = 0, frac['train']
+        elif self.phase == 'val':
+            start, end = frac['train'], frac['train'] + frac['val']
+        else:
+            start, end = frac['train'] + frac['val'], frac['train'] + frac['val'] + frac['test']
+        start, end = int(len(filenames) * start), int(len(filenames) * end)
+        return filenames[start:end]
 
 
 class AgentCentricRenderMazeSequenceDataset(MazeStateSequenceDataset):

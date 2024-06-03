@@ -96,3 +96,38 @@ class HPRolloutSaver(object):
     def reset(self):
         """Resets counter."""
         self.counter = 0
+
+
+class SERolloutSaver(object):
+    """Saves rollout episodes to a target directory."""
+
+    def __init__(self, save_dir):
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+        self.save_dir = save_dir
+        self.data = None
+        self.counter = 0
+
+    def save_rollout(self, episode):
+        # if self.data is None:
+        self.data = {}
+        self.data['observation'] = np.array(episode['observation'])
+        # self.data['hl_action_index'] = np.array(episode['hl_action_index'])[index]
+
+    def save(self):
+        save_path = os.path.join(self.save_dir, f"rollout_k16_{self.counter}.h5")
+
+        # save rollout to file
+        f = h5py.File(save_path, "w")
+        f.create_dataset("traj_per_file", data=1)
+
+        # store trajectory info in traj0 group
+        traj_data = f.create_group("traj")
+        traj_data.create_dataset("states", data=self.data['observation'])
+        # traj_data.create_dataset("actions", data=np.array(episode.action))
+        # traj_data.create_dataset("hl_action_index", data=self.data['hl_action_index'])
+        self.counter += 1
+
+    def reset(self):
+        """Resets counter."""
+        self.counter = 0

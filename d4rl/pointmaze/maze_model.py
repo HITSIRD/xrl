@@ -133,13 +133,17 @@ class MazeEnv(mujoco_env.MujocoEnv, utils.EzPickle, offline_env.OfflineEnv):
         self.do_simulation(action, self.frame_skip)
         self.set_marker()
         ob = self._get_obs()
+        done = False
+
         if self.reward_type == 'sparse':
-            reward = 1.0 if np.linalg.norm(ob[0:2] - self._target) <= 2.0 else 0.0
+            reward = 0.0
+            if np.linalg.norm(ob[0:2] - self._target) <= 2.0:
+                reward = 1.0
+                # done = True
         elif self.reward_type == 'dense':
             reward = np.exp(-np.linalg.norm(ob[0:2] - self._target))
         else:
             raise ValueError('Unknown reward type %s' % self.reward_type)
-        done = False
         return ob, reward, done, {}
 
     def render(self, mode, *args, **kwargs):

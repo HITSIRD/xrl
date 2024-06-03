@@ -26,6 +26,9 @@ class MazeEnv(GymEnv):
 
     def step(self, *args, **kwargs):
         obs, rew, done, info = super().step(*args, **kwargs)
+        # self._env.render(mode='human')
+        if rew > 0.5:
+            done = True
         return obs, np.float64(rew), done, info     # casting reward to float64 is important for getting shape later
 
 
