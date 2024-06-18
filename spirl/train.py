@@ -137,7 +137,7 @@ class ModelTrainer(BaseTrainer):
         for self.batch_idx, sample_batched in enumerate(self.train_loader):
             data_load_time.update(time.time() - end)
             inputs = AttrDict(map_dict(lambda x: x.to(self.device), sample_batched))
-            inputs.states = inputs.observations
+            # inputs.states = inputs.observations
 
             with self.training_context():
                 self.optimizer.zero_grad()
@@ -193,7 +193,7 @@ class ModelTrainer(BaseTrainer):
             with autograd.no_grad():
                 for batch_idx, sample_batched in enumerate(self.val_loader):
                     inputs = AttrDict(map_dict(lambda x: x.to(self.device), sample_batched))
-                    inputs.states = inputs.observations
+                    # inputs.states = inputs.observations
 
                     # run evaluator with val-mode model
                     with self.model_test.val_mode():

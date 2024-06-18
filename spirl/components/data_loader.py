@@ -23,8 +23,8 @@ class Dataset(data.Dataset):
 
         print('loading files from', self.data_dir)
         self.filenames = self._get_filenames()
-        self.filenames = self._filter_filenames(self.filenames)
-        self.samples_per_file = self._get_samples_per_file(self.filenames[0])
+        # self.filenames = self._filter_filenames(self.filenames)
+        self.dataset = self._get_samples_per_file(self.filenames[0])
 
         self.shuffle = shuffle and phase == 'train'
         self.n_worker = 8 if shuffle else 1  # was 4 before
@@ -71,11 +71,12 @@ class Dataset(data.Dataset):
     def __len__(self):
         if self.dataset_size != -1:
             return self.dataset_size
-        return len(self.filenames) * self.samples_per_file
+        return len(self.filenames) * self.dataset
 
 
 class GlobalSplitDataset(Dataset):
     """Splits in train/val/test using global percentages."""
+
     def _get_filenames(self):
         filenames = self._load_h5_files(self.data_dir)
 
@@ -107,6 +108,7 @@ class GlobalSplitDataset(Dataset):
 
 class VideoDataset(Dataset):
     """Generic video dataset. Assumes that HDF5 file has images/states/actions/pad_mask."""
+
     def __init__(self, *args, resolution, **kwargs):
         super().__init__(*args, **kwargs)
         self.randomize_length = self.spec.randomize_length if 'randomize_length' in self.spec else False
@@ -131,7 +133,7 @@ class VideoDataset(Dataset):
         end_ind = np.argmax(data.pad_mask * np.arange(data.pad_mask.shape[0], dtype=np.float32), 0) \
             if self.randomize_length or self.crop_subseq else self.spec.max_seq_len - 1
         end_ind, data = self._sample_max_len_video(data, end_ind, target_len=self.spec.subseq_len if self.crop_subseq
-                                                                                  else self.spec.max_seq_len)
+        else self.spec.max_seq_len)
 
         if self.randomize_length:
             end_ind = self._randomize_length(start_ind, end_ind, data)
@@ -144,12 +146,12 @@ class VideoDataset(Dataset):
 
     def _get_raw_data(self, index):
         data = AttrDict()
-        file_index = index // self.samples_per_file
+        file_index = index // self.dataset
         path = self.filenames[file_index]
 
         try:
             with h5py.File(path, 'r') as F:
-                ex_index = index % self.samples_per_file  # get the index
+                ex_index = index % self.dataset  # get the index
                 key = 'traj{}'.format(ex_index)
 
                 # Fetch data into a dict
@@ -189,10 +191,10 @@ class VideoDataset(Dataset):
         """Crops a random subseq of specified length from the full sequence."""
         if length > end_ind + 1:
             print(end_ind + 1)
-        assert length <= end_ind + 1     # sequence needs to be longer than desired subsequence length
+        assert length <= end_ind + 1  # sequence needs to be longer than desired subsequence length
         start = np.random.randint(0, end_ind - length + 2)
         for key in data:
-            data[key] = data[key][start : int(start+length)]
+            data[key] = data[key][start: int(start + length)]
         return data
 
     def _sample_max_len_video(self, data_dict, end_ind, target_len):
@@ -256,6 +258,7 @@ class VideoDataset(Dataset):
 
 class PreloadVideoDataset(VideoDataset):
     """Loads all sequences into memory for accelerated training (only possible for small datasets)."""
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._data = self._load_data()
@@ -279,6 +282,7 @@ class PreloadGlobalSplitVideoDataset(PreloadVideoDataset, GlobalSplitDataset):
 
 class GlobalSplitStateSequenceDataset(GlobalSplitVideoDataset):
     """Outputs observation in data dict, not images."""
+
     def __getitem__(self, item):
         data = super().__getitem__(item)
         data.observations = data.pop('states')
@@ -287,6 +291,7 @@ class GlobalSplitStateSequenceDataset(GlobalSplitVideoDataset):
 
 class GlobalSplitActionSequenceDataset(GlobalSplitVideoDataset):
     """Outputs observation in data dict, not images."""
+
     def __getitem__(self, item):
         data = super().__getitem__(item)
         data.observations = data.pop('actions')
@@ -295,6 +300,7 @@ class GlobalSplitActionSequenceDataset(GlobalSplitVideoDataset):
 
 class MixedVideoDataset(GlobalSplitVideoDataset):
     """Loads filenames from multiple directories and merges them with percentage."""
+
     def _load_h5_files(self, unused_dir):
         assert 'data_dirs' in self.spec and 'percentages' in self.spec
         assert np.sum(self.spec.percentages) == 1
@@ -302,7 +308,7 @@ class MixedVideoDataset(GlobalSplitVideoDataset):
         files = [shuffle_with_seed(f) for f in files]
         total_size = min([1 / p * len(f) for p, f in zip(self.spec.percentages, files)])
         filenames = list(itertools.chain.from_iterable(
-            [f[:int(total_size*p)] for p, f in zip(self.spec.percentages, files)]))
+            [f[:int(total_size * p)] for p, f in zip(self.spec.percentages, files)]))
         return filenames
 
 

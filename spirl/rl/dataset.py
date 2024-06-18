@@ -102,7 +102,7 @@ class Collector:
         count = 0
         with self.agent.val_mode():
             with torch.no_grad():
-                for _ in tqdm(range(25000)):
+                for _ in tqdm(range(100)):
                     while True:  # keep producing rollouts until we get a valid one
                         episode = self.sampler.sample_episode(is_train=False, render=False)
                         valid = not hasattr(self.agent, 'rollout_valid') or self.agent.rollout_valid
@@ -111,9 +111,11 @@ class Collector:
                             n_success += 1
                             break
 
+                    print(sum(episode['reward']))
                     if sum(episode['reward']) > 3:
                         saver.save_rollout(episode)
                         count += 1
+                        break
                     reward += sum(episode['reward'])
 
         saver.save()

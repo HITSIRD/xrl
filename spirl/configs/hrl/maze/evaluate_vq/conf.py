@@ -12,19 +12,19 @@ ll_model_params.cond_decode = True
 hl_agent_config.policy = DeterministicPolicy
 
 ll_model_params.update(AttrDict(
-    codebook_K=16,
+    codebook_K=32,
 ))
 
 # create LL closed-loop policy
 ll_policy_params = AttrDict(
-    policy_model=ClSPiRLMdl,
+    policy_model=ClVQSPiRLMdl,
     policy_model_params=ll_model_params,
-    # policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
-    #                                      "skill_prior_learning/maze/hierarchical_cl_vq/K_16"),
+    policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
+                                         "skill_prior_learning/maze/hierarchical_cl_vq/K_32"),
     # policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
     #                                      "skill_prior_learning/maze/hierarchical_cl_vq/K_32"),
-    policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
-                                         "skill_prior_learning/maze/hierarchical_cl"),
+    # policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
+    #                                      "skill_prior_learning/maze/hierarchical_cl"),
 )
 ll_policy_params.update(ll_model_params)
 
@@ -41,10 +41,10 @@ hl_policy_params.update(AttrDict(
     prior_model=ll_policy_params.policy_model,
     prior_model_params=ll_policy_params.policy_model_params,
     prior_model_checkpoint=ll_policy_params.policy_model_checkpoint,
-    # codebook_checkpoint=os.path.join(os.environ["EXP_DIR"],
-    #                                  "skill_prior_learning/maze/hierarchical_cl_vq/K_16/weights/weights_ep199.pth"),
     codebook_checkpoint=os.path.join(os.environ["EXP_DIR"],
-                                     "skill_prior_learning/maze/hierarchical_cl/weights/weights_ep199.pth"),
+                                     "skill_prior_learning/maze/hierarchical_cl_vq/K_32/weights/weights_ep199.pth"),
+    # codebook_checkpoint=os.path.join(os.environ["EXP_DIR"],
+    #                                  "skill_prior_learning/maze/hierarchical_cl/weights/weights_ep199.pth"),
     squash_output_dist=False,
 ))
 
