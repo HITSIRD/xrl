@@ -115,7 +115,7 @@ class SERolloutSaver(object):
         # self.data['hl_action_index'] = np.array(episode['hl_action_index'])[index]
 
     def save(self):
-        save_path = os.path.join(self.save_dir, f"rollout_k16_{self.counter}.h5")
+        save_path = os.path.join(self.save_dir, f"rollout_k32_{self.counter}.h5")
 
         # save rollout to file
         f = h5py.File(save_path, "w")

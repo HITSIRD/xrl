@@ -12,8 +12,8 @@ class KitchenEnv(GymEnv):
     SUBTASKS = ['microwave', 'kettle', 'slide cabinet', 'hinge cabinet', 'bottom burner', 'light switch', 'top burner']
     def _default_hparams(self):
         return super()._default_hparams().overwrite(ParamDict({
-            'name': "kitchen-mlsh-v0",
-            # 'name': "kitchen-mkbl-v0",
+            # 'name': "kitchen-mlsh-v0",
+            'name': "kitchen-mkbl-v0",
             # 'name': "kitchen-kbts-v0",
             # 'name': "kitchen-all-v0"
         }))
