@@ -15,7 +15,7 @@ from spirl.configs.default_data_configs.calvin import data_spec
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 
-notes = 'hierarchical RL on the kitchen env'
+notes = 'hierarchical RL on the calvin env'
 
 configuration = {
     'seed': 42,

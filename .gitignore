@@ -8,6 +8,7 @@
 /d4rl.egg-info
 
 /spirl/data/maze/maze2d
+/spirl/data/calvin/calvin.npz
 
 *.pyc
 .vscode
