@@ -143,8 +143,8 @@ class ModelTrainer(BaseTrainer):
                 self.optimizer.zero_grad()
                 output = self.model(inputs)
                 losses = self.model.loss(output, inputs)
-                losses.total.backward()
-                # losses.total.value.backward()
+                # losses.total.backward()
+                losses.total.value.backward()
                 self.call_hooks(inputs, output, losses, epoch)
 
                 if self.global_step < self._hp.init_grad_clip_step:
@@ -168,7 +168,7 @@ class ModelTrainer(BaseTrainer):
                 print('GPU {}: {}'.format(0, self._hp.exp_path))
                 print(('itr: {} Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                     self.global_step, epoch, self.batch_idx, len(self.train_loader),
-                    100. * self.batch_idx / len(self.train_loader), losses.total.item())))
+                    100. * self.batch_idx / len(self.train_loader), losses.total.value.item())))
 
                 print('avg time for loading: {:.2f}s, logs: {:.2f}s, compute: {:.2f}s, total: {:.2f}s'
                       .format(data_load_time.avg,
@@ -176,7 +176,7 @@ class ModelTrainer(BaseTrainer):
                               upto_log_time.avg - data_load_time.avg,
                               batch_time.avg))
                 togo_train_time = batch_time.avg * (self._hp.num_epochs - epoch) * epoch_len / 3600.
-                print('FPS: {}'.format(self.conf.model.n_rollout_steps / batch_time.avg))
+                # print('FPS: {}'.format(self.conf.model.n_rollout_steps / batch_time.avg))
                 print('ETA: {:.2f}h'.format(togo_train_time))
 
             del output, losses
@@ -212,8 +212,8 @@ class ModelTrainer(BaseTrainer):
 
                     self.model_test.log_outputs(output, inputs, losses_meter.avg, self.global_step,
                                                 log_images=True, phase='val', **self._logging_kwargs)
-                    print(('\nTest set: Average loss: {:.4f} in {:.2f}s\n'.format(losses_meter.avg.total.item(), time.time() - start)))
-                    # print(('\nTest set: Average loss: {:.4f} in {:.2f}s\n'.format(losses_meter.avg.total.value.item(), time.time() - start)))
+                    # print(('\nTest set: Average loss: {:.4f} in {:.2f}s\n'.format(losses_meter.avg.total.item(), time.time() - start)))
+                    print(('\nTest set: Average loss: {:.4f} in {:.2f}s\n'.format(losses_meter.avg.total.value.item(), time.time() - start)))
             del output
 
     def setup_device(self):

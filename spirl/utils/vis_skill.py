@@ -4,6 +4,7 @@ import os
 import matplotlib.pyplot as plt
 
 K = 16
+# plt.rcParams['text.usetex'] = True
 
 def get_filenames_recursive(directory):
     filenames = []
@@ -22,10 +23,10 @@ def plot_skill(file_path):
     for i, s in enumerate(dataset['traj']['hl_action_index']):
         skill[i, s] = 1
 
-    plt.figure(figsize=(4, 2))
+    plt.figure(figsize=(4, 1.8))
     label_size = 5
 
-    x_labels = [i * 10 for i in range(len(dataset['traj']['hl_action_index']))]
+    x_labels = [i for i in range(len(dataset['traj']['hl_action_index']))]
     y_labels = [i for i in range(K)]
 
     plt.yticks(np.arange(K), size=label_size)
@@ -36,14 +37,17 @@ def plot_skill(file_path):
     #     for j in range(len(TASK_ELEMENTS)):
     #         plt.text(i, j, rate[i, j], ha="center", va="center", color="w", size=label_size)
 
-    plt.imshow(skill.T)
+    plt.xlabel('Time Step (× 10)', size=8)
+    plt.ylabel('Skill Index', size=8)
+    plt.imshow(skill.T, aspect='auto', cmap='viridis')
     # cb = plt.colorbar()
     # cb.ax.tick_params(labelsize=label_size)
     plt.tight_layout()
+    # plt.title('')
     # plt.show()
     plt.savefig(file_path + '.pdf')
 
 
 if __name__ == '__main__':
     plot_skill(
-        '/home/wenyongyan/文档/spirl-master/spirl/experiments/hrl/kitchen/spirl_cl_vq/mkbl_s0_k16_inverse_kl/hp_rollout.h5')
+        '/home/wenyongyan/文档/spirl-master/spirl/experiments/hrl/kitchen/spirl_cl_vq/mkbl_s0_k16_inverse_kl/episode_3.h5')

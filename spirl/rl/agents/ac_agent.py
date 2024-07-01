@@ -174,7 +174,7 @@ class SACAgent(ACAgent):
                 alpha=self.alpha,
                 pi_log_prob=policy_output.log_prob.mean(),
                 policy_entropy=policy_output.dist.entropy().mean(),
-                prior_policy_entropy=policy_output.prior_dist.entropy().mean(),
+                # prior_policy_entropy=policy_output.prior_dist.entropy().mean(),
                 q_target=q_target.mean(),
                 q_1=qs[0].mean(),
                 q_2=qs[1].mean(),
