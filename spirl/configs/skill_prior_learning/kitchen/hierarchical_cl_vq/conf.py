@@ -29,7 +29,7 @@ model_config = AttrDict(
     nz_mid=128,
     n_processing_layers=5,
     cond_decode=True,
-    codebook_K=32,
+    codebook_K=8,
     commitment_beta=0.25,
 )
 

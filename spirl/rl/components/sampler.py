@@ -96,9 +96,9 @@ class Sampler:
                             reward=reward,
                             done=done,
                             action=agent_output.action,
-                            hl_action=agent_output.hl_action,
-                            hl_action_index=agent_output.hl_action_index,
-                            is_hl_step=agent_output.is_hl_step,
+                            # hl_action=agent_output.hl_action,
+                            # hl_action_index=agent_output.hl_action_index,
+                            # is_hl_step=agent_output.is_hl_step,
                             observation_next=obs,
                             info=obj2np(info),
                         ))

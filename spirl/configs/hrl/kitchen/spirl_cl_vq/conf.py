@@ -7,7 +7,7 @@ from spirl.rl.policies.prior_policies import LearnedVQPriorAugmentedPolicy
 ll_model_params.cond_decode = True
 
 ll_model_params.update(AttrDict(
-    codebook_K=16,
+    codebook_K=8,
 ))
 
 # create LL closed-loop policy
@@ -15,7 +15,7 @@ ll_policy_params = AttrDict(
     policy_model=ClVQSPiRLMdl,
     policy_model_params=ll_model_params,
     policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
-                                         "skill_prior_learning/kitchen/hierarchical_cl_vq/K_16_softmax"),
+                                         "skill_prior_learning/kitchen/hierarchical_cl_vq/K_8"),
     # policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
     #                                      "skill_prior_learning/kitchen/hierarchical_cl_vq/K_32"),
 )
