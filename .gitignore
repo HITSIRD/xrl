@@ -7,5 +7,7 @@
 /spirl.egg-info
 /d4rl.egg-info
 
+/spirl/data/maze/maze2d
+
 *.pyc
 .vscode
