@@ -13,7 +13,7 @@ from spirl.components.checkpointer import CheckpointHandler, save_cmd, save_git,
 from spirl.utils.general_utils import AttrDict, ParamDict, AverageTimer, timing, pretty_print
 from spirl.rl.utils.mpi import update_with_mpi_config, set_shutdown_hooks, mpi_sum, mpi_gather_experience
 from spirl.rl.utils.wandb import WandBLogger
-from spirl.rl.utils.rollout_utils import RolloutSaver
+from spirl.rl.utils.rollout_utils import RolloutSaver, SERolloutSaver
 from spirl.rl.components.sampler import Sampler
 from spirl.rl.components.replay_buffer import RolloutStorage
 from spirl.configs.local import *
@@ -96,6 +96,7 @@ class RLTrainer:
             'logging_target': 'wandb',    # where to log results to
             # 'logging_target': None,    # where to log results to
             'n_warmup_steps': 0,    # steps of warmup experience collection before training
+            'save_rollout': False,
         })
         return default_dict
 
@@ -125,6 +126,8 @@ class RLTrainer:
 
         # initialize timing
         timers = defaultdict(lambda: AverageTimer())
+
+        # saver = SERolloutSaver(self.args.save_dir)
 
         self.sampler.init(is_train=True)
         ep_start_step = self.global_step
@@ -301,7 +304,7 @@ class RLTrainer:
                       timers['rollout'].avg + timers['update'].avg + timers['log'].avg))
         togo_train_time = timers['batch'].avg * (self._hp.num_epochs * self._hp.n_steps_per_epoch - self.global_step) \
                           / self._hp.n_steps_per_update / 3600.
-        # print('FPS: {}'.format(self.conf.agent.hl_interval / timers['batch'].avg))
+        print('FPS: {}'.format(self.conf.agent.hl_interval / timers['batch'].avg))
         print('ETA: {:.2f}h'.format(togo_train_time))
 
     @property

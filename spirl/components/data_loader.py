@@ -27,7 +27,7 @@ class Dataset(data.Dataset):
         self.dataset = self._get_samples_per_file(self.filenames[0])
 
         self.shuffle = shuffle and phase == 'train'
-        self.n_worker = 8 if shuffle else 1  # was 4 before
+        self.n_worker = 16 if shuffle else 1  # was 4 before
 
     def get_data_loader(self, batch_size, n_repeat):
         print('len {} dataset {}'.format(self.phase, len(self)))

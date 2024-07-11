@@ -15,13 +15,13 @@ from d4rl.pointmaze.semantic_maze_layouts import (
 
 # START_POS = [27.0, 4.0]
 START_POS = [10.0, 24.0]
-TARGET_POS = [18.0, 8.0]
+TARGET_POS = [18.0, 6.0]
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # parser.add_argument("--env_name", type=str, default="kitchen-mixed-v0")
-    parser.add_argument("--env_name", type=str, default="maze2d-randMaze0S40-ac-v0")
+    parser.add_argument("--env_name", type=str, default="maze2d-randMaze0S30-ac-v0")
     args = parser.parse_args()
 
     # env = MazeEnv(semantic_layout2str(SEMANTIC_MAZE_2_LAYOUT), agent_centric_view=False)

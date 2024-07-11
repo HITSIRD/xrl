@@ -16,6 +16,13 @@ from spirl.modules.Categorical import Categorical
 class ClVQSPiRLMdl(ClSPiRLMdl):
     """SPiRL model with closed-loop VQ low-level skill decoder."""
 
+    def _default_hparams(self):
+        default_dict = ParamDict({
+            'fixed_codebook': True,
+        })
+        # add new params to parent params
+        return super()._default_hparams().overwrite(default_dict)
+
     def build_network(self):
         assert not self._hp.use_convs  # currently only supports non-image inputs
         assert self._hp.cond_decode  # need to decode based on state for closed-loop low-level
@@ -73,7 +80,7 @@ class ClVQSPiRLMdl(ClSPiRLMdl):
 
         # commitment loss
         losses.commitment_loss = self._hp.commitment_beta * mse_loss(model_output.z_e_x,
-                                                                      model_output.z_q_x.detach())
+                                                                     model_output.z_q_x.detach())
 
         # learned skill prior net loss
         # losses.prior_loss = ce_loss(model_output.q_hat.prob.logits, model_output.indices)
@@ -106,10 +113,10 @@ class ClVQSPiRLMdl(ClSPiRLMdl):
 
     def _build_prior_net(self):
         return VQPredictor(self._hp, input_size=self.prior_input_size, output_size=self._hp.codebook_K,
-                      num_layers=self._hp.num_prior_net_layers, mid_size=self._hp.nz_mid_prior)
+                           num_layers=self._hp.num_prior_net_layers, mid_size=self._hp.nz_mid_prior)
 
     def _compute_learned_prior(self, prior_mdl, inputs):
-        return Categorical(probs=prior_mdl(inputs), codebook=self.codebook)
+        return Categorical(probs=prior_mdl(inputs), codebook=self.codebook, fixed=self._hp.fixed_codebook)
 
     def _build_codebook(self):
         return VQEmbedding(self._hp.codebook_K, self._hp.nz_vae)
@@ -188,7 +195,8 @@ class ImageClSPiRLMdl(ClSPiRLMdl, ImageSkillPriorMdl):
     @property
     def prior_input_size(self):
         return self.enc_size
-    
-class ClVQSPiRLMdlExtension(ClVQSPiRLMdl):
-    def _compute_learned_prior(self, prior_mdl, inputs):
-        return Categorical(logits=prior_mdl(inputs), codebook=self.codebook)
+
+
+# class ClVQSPiRLMdlExtension(ClVQSPiRLMdl):
+#     def _compute_learned_prior(self, prior_mdl, inputs):
+#         return Categorical(logits=prior_mdl(inputs), codebook=self.codebook)

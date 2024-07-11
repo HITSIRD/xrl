@@ -1,38 +1,36 @@
-from spirl.configs.hrl.calvin.spirl.conf import *
-from spirl.models.closed_loop_vq_cdt_mdl import ClVQCDTMdl
+from spirl.configs.hrl.maze.medium.spirl.conf import *
+from spirl.models.closed_loop_vq_spirl_mdl import ClVQSPiRLMdl
+from spirl.rl.components.critic import MLPCritic
 from spirl.rl.policies.cl_model_policies import ClModelPolicy
-from spirl.rl.policies.prior_policies import LearnedVQPriorAugmentedPolicy, LearnedVQPriorAugmentedPolicyCDT
+from spirl.rl.policies.prior_policies import LearnedVQPriorAugmentedPolicy
+
+configuration = {
+    'seed': 42,
+    'agent': FixedIntervalHierarchicalAgent,
+    'environment': ACRandMaze0S30Env,
+    # 'sampler': ACMultiImageAugmentedHierarchicalSampler,
+    'sampler': HierarchicalSampler,
+    'data_dir': '.',
+    'num_epochs': 25,
+    'max_rollout_len': 2000,
+    'n_steps_per_epoch': 100000,
+    'n_warmup_steps': 1000,
+}
+configuration = AttrDict(configuration)
 
 # update model params to conditioned decoder on state
 ll_model_params.cond_decode = True
 
-prior_model_name = "cdt_k8_s1_-1+15+6+0_4"
-
-# CDT config
 ll_model_params.update(AttrDict(
     codebook_K=8,
-    feature_learning_depth=-1,
-    num_intermediate_variables=15,
-    decision_depth=6,
-    greatest_path_probability=1,
-    beta_fl=0,
-    beta_dc=0,
-    if_smooth=False,
-    if_save=False,
-    tree_name="mlsh_cdtk162_-1+60+5_n+b_s9_1"
-    # if_freeze=False,
-    # cdt_embedding_checkpoint=os.path.join(os.environ["EXP_DIR"], 
-    #   f"skill_prior_learning/kitchen/hierarchical_cl_vq_cdt/{prior_model_name}/weights"), // 其它组件的位置
 ))
 
 # create LL closed-loop policy
 ll_policy_params = AttrDict(
-    policy_model=ClVQCDTMdl,
+    policy_model=ClVQSPiRLMdl,
     policy_model_params=ll_model_params,
     policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
-                                         f"skill_prior_learning/calvin/hierarchical_cl_vq_cdt/{prior_model_name}"),
-    # policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
-    #                                      "skill_prior_learning/kitchen/hierarchical_cl_vq/K_32"),
+                                         "skill_prior_learning/maze/medium/hierarchical_cl_vq/K_8"),
 )
 ll_policy_params.update(ll_model_params)
 
@@ -44,7 +42,7 @@ ll_agent_config = AttrDict(
     critic_params=hl_critic_params
 )
 
-hl_agent_config.policy = LearnedVQPriorAugmentedPolicyCDT
+hl_agent_config.policy = LearnedVQPriorAugmentedPolicy
 
 # update HL policy model params
 hl_policy_params.update(AttrDict(
@@ -52,8 +50,6 @@ hl_policy_params.update(AttrDict(
     prior_model=ll_policy_params.policy_model,
     prior_model_params=ll_policy_params.policy_model_params,
     prior_model_checkpoint=ll_policy_params.policy_model_checkpoint,
-    # policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
-    #                                      "hrl/kitchen/spirl_cl_vq/mkbl_s0_k16_inverse_kl/weights"),
     squash_output_dist=False,
 ))
 
@@ -63,6 +59,8 @@ agent_config.update(AttrDict(
     hl_agent_params=hl_agent_config,
     ll_agent=SACAgent,
     ll_agent_params=ll_agent_config,
+    log_videos=False,
+    update_hl=True,
     update_ll=False,
 ))
 

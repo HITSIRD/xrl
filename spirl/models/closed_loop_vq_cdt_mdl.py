@@ -25,7 +25,7 @@ class ClVQCDTMdl(ClSPiRLMdl):
                                  output_size=self._hp.action_dim,
                                  mid_size=self._hp.nz_mid_prior) # 70(10维embedding，60维state) -> 9(9维动作)
         self.p = self._build_prior_ensemble() # 60(60维state) -> 32(32维codebook概率)
-        self.codebook = self._build_codebook() # 1(动作index) -> 10(10维embedding)
+        self.codebook = self._build_codebook()
         self.log_sigma = get_constant_parameter(0., learnable=False)
         self.load_weights_or_freeze()
 

@@ -54,10 +54,10 @@ class VQPredictor(Predictor):
                          mid_size=mid_size)
 
     def forward(self, *inp):
-        out = super().forward(*inp)
+        logits = super().forward(*inp)
         # return torch.sigmoid(out)
         # return torch.nn.functional.gumbel_softmax(remove_spatial(out, yes=not self.spatial), tau=1.0, dim=-1)
-        return torch.nn.functional.softmax(remove_spatial(out, yes=not self.spatial), dim=-1)
+        return torch.nn.functional.softmax(remove_spatial(logits, yes=not self.spatial), dim=-1)
 
 
 class VQCDTPredictor(nn.Module):

@@ -91,7 +91,7 @@ class DHLEvaluator:
             'log_images_per_epoch': 4,    # log images/videos N times per epoch
             'logging_target': 'none',    # where to log results to
             'n_warmup_steps': 0,    # steps of warmup experience collection before training
-            'num_sample': 500,
+            'num_sample': 10,
         })
         return default_dict
 
@@ -111,22 +111,21 @@ class DHLEvaluator:
         if self.args.save_dir is None:
             self.args.save_dir = self._hp.exp_path
 
-        for i in range(1):
-        # for i in range(2):
+        for i in range(8):
             val_rollout_storage = RolloutStorage()
             with self.agent.val_mode():
                 with torch.no_grad():
                     with timing(f"index {i} eval rollout time: "):
-                        for s in range(self._hp.num_sample):   # for efficiency instead of self.args.n_val_samples
-                            # set_seeds(seed=s)
+                        for _ in range(self._hp.num_sample):
                             episode = self.sampler.sample_episode(index=i, is_train=False, render=False)
+                            # episode = self.sampler.sample_episode(is_train=False, render=False)
                             val_rollout_storage.append(episode)
                             # val_rollout_storage.append(self.sampler.sample_episode(index=z[i], is_train=False, render=False))
                             # val_rollout_storage.append(self.sampler.sample_episode(is_train=False, render=False))
-                            saver.save_rollout(episode)
-                            saver.save()
+                            # saver.save_rollout(episode)
+                            # saver.save('k8')
 
-        #     rollout_stats = val_rollout_storage.rollout_stats()
+            episode_reward_mean, episode_reward_std = val_rollout_storage.rollout_stats(std=True)
         #     complete_task, count = val_rollout_storage.evaluate_task()
         #
         #     success_rate = count.copy()
@@ -134,11 +133,14 @@ class DHLEvaluator:
         #         success_rate[k] = success_rate[k] / self._hp.num_sample
         #     stat[i] = [complete_task, success_rate]
         #
-        #     if self.is_chef:
-        #         # with timing(f"index {i} eval log time: "):
-        #         #     self.agent.log_outputs(rollout_stats, val_rollout_storage,
-        #         #                            self.logger, log_images=False, step=i)
-        #         print(f"index {i} evaluation Avg_Reward: {rollout_stats.avg_reward}")
+            if self.is_chef:
+                # with timing(f"index {i} eval log time: "):
+                #     self.agent.log_outputs(rollout_stats, val_rollout_storage,
+                #                            self.logger, log_images=False, step=i)
+                # print(f"index {i} evaluation Avg_Reward: {rollout_stats.avg_reward}")
+
+                print(f"index {i} evaluation Avg_Reward: {episode_reward_mean} ({episode_reward_std})")
+
         #     del val_rollout_storage
         #
         # now = datetime.datetime.now()

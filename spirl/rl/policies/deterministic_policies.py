@@ -25,11 +25,16 @@ class DeterministicPolicy(Policy):
         return super()._default_hparams().overwrite(default_dict)
 
     def forward(self, obs, index):
-        # index = np.random.randint(16)
-        with no_batchnorm_update(self):  # BN updates harm the initialized policy
-            result = super().forward(obs)
-            result.action = result.action.cpu()
-            return result
+        # index = np.random.randint(self.net.codebook.embedding.weight.shape[0])
+
+        # if self._hp.policy_model is not None:
+        #     with no_batchnorm_update(self):  # BN updates harm the initialized policy
+        #         result = super().forward(obs)
+        #         result.action = result.action.cpu()
+        #         return result
+
+        if self._hp.load_weights:
+            return AttrDict(action=self.net.codebook.embedding.weight[index].detach().cpu().numpy(), action_index=index)
 
         # return AttrDict(action=self.net[index].detach().cpu().numpy(), action_index=index)
 
@@ -48,7 +53,7 @@ class DeterministicPolicy(Policy):
             if self._hp.policy_model is not None:
                 BaseAgent.load_model_weights(net, self._hp.policy_model_checkpoint, self._hp.prior_model_epoch)
             else:
-                BaseAgent.load_model_weights(net, self._hp.prior_model_checkpoint, 199)
+                BaseAgent.load_model_weights(net, self._hp.prior_model_checkpoint, 99)
         return net
 
     def _compute_action_dist(self, obs):

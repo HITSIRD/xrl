@@ -263,9 +263,9 @@ register(
 register(
     id='maze2d-randMaze0S30-ac-v0',
     entry_point='d4rl.pointmaze:MazeEnv',
-    max_episode_steps=800,
+    max_episode_steps=2000,
     kwargs={
-        'maze_spec': rand_layout(seed=0, size=30),
+        'maze_spec': rand_layout(seed=3, size=30),
         'agent_centric_view': True,
         'reward_type': 'sparse',
         'reset_target': False,

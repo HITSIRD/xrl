@@ -1,20 +1,17 @@
 import os
 import copy
 
-from spirl.rl.agents.prior_sac_agent import ActionPriorSACAgent
 from spirl.utils.general_utils import AttrDict
 from spirl.rl.components.agent import FixedIntervalHierarchicalAgent
+from spirl.rl.policies.mlp_policies import SplitObsMLPPolicy
 from spirl.rl.components.critic import SplitObsMLPCritic, MLPCritic
+from spirl.rl.envs.maze import ACRandMaze0S30Env
 from spirl.rl.components.sampler import ACMultiImageAugmentedHierarchicalSampler, HierarchicalSampler
 from spirl.rl.components.replay_buffer import UniformReplayBuffer
-from spirl.rl.policies.prior_policies import ACLearnedPriorAugmentedPIPolicy, LearnedPriorAugmentedPIPolicy
-from spirl.rl.envs.maze import ACRandMaze0S40Env
 from spirl.rl.agents.ac_agent import SACAgent
-from spirl.rl.policies.cl_model_policies import ACClModelPolicy, ClModelPolicy
-from spirl.data.maze.src.maze_agents import MazeACActionPriorSACAgent
-from spirl.models.closed_loop_spirl_mdl import ImageClSPiRLMdl, ClSPiRLMdl
+from spirl.models.skill_prior_mdl import ImageSkillPriorMdl
 from spirl.configs.default_data_configs.maze import data_spec
-
+from spirl.data.maze.src.maze_agents import MazeACSkillSpaceAgent
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 
@@ -23,7 +20,7 @@ notes = 'hierarchical RL on the maze env'
 configuration = {
     'seed': 42,
     'agent': FixedIntervalHierarchicalAgent,
-    'environment': ACRandMaze0S40Env,
+    'environment': ACRandMaze0S30Env,
     # 'sampler': ACMultiImageAugmentedHierarchicalSampler,
     'sampler': HierarchicalSampler,
     'data_dir': '.',
@@ -34,11 +31,8 @@ configuration = {
 }
 configuration = AttrDict(configuration)
 
-
 # Replay Buffer
 replay_params = AttrDict(
-    capacity=1e5,
-    dump_replay=False,
 )
 
 # Observation Normalization
@@ -53,12 +47,13 @@ base_agent_params = AttrDict(
     batch_size=256,
     replay=UniformReplayBuffer,
     replay_params=replay_params,
+    # obs_normalizer=Normalizer,
+    # obs_normalizer_params=obs_norm_params,
     clip_q_target=False,
 )
 
-
 ###### Low-Level ######
-# LL Policy Model
+# LL Policy
 ll_model_params = AttrDict(
     state_dim=data_spec.state_dim,
     action_dim=data_spec.n_actions,
@@ -73,48 +68,22 @@ ll_model_params = AttrDict(
     cond_decode=True,
 )
 
-# LL Policy
-ll_policy_params = AttrDict(
-    # policy_model=ImageClSPiRLMdl,
-    policy_model=ClSPiRLMdl,
-    policy_model_params=ll_model_params,
-    policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"], "skill_prior_learning/maze/hierarchical_cl"),
-    initial_log_sigma=-50.,
-)
-ll_policy_params.update(ll_model_params)
-
-# LL Critic
-ll_critic_params = AttrDict(
-    action_dim=data_spec.n_actions,
-    input_dim=data_spec.state_dim,
-    output_dim=1,
-    action_input=True,
-    unused_obs_size=10,     # ignore HL policy z output in observation for LL critic
-)
-
 # LL Agent
 ll_agent_config = copy.deepcopy(base_agent_params)
 ll_agent_config.update(AttrDict(
-    # policy=ACClModelPolicy,
-    policy=ClModelPolicy,
-    policy_params=ll_policy_params,
-    critic=SplitObsMLPCritic,
-    # critic=MLPCritic,
-    critic_params=ll_critic_params,
+    model=ImageSkillPriorMdl,
+    model_params=ll_model_params,
+    model_checkpoint=os.path.join(os.environ["EXP_DIR"],
+                                  "skill_prior_learning/maze/hierarchical"),
 ))
-
 
 ###### High-Level ########
 # HL Policy
 hl_policy_params = AttrDict(
-    action_dim=ll_model_params.nz_vae,       # z-dimension of the skill VAE
+    action_dim=ll_model_params.nz_vae,  # z-dimension of the skill VAE
     input_dim=data_spec.state_dim,
-    max_action_range=2.,        # prior is Gaussian with unit variance
-    n_layers=5,  # number of policy network layers
-    nz_mid=256,
-    prior_model=ll_policy_params.policy_model,
-    prior_model_params=ll_policy_params.policy_model_params,
-    prior_model_checkpoint=ll_policy_params.policy_model_checkpoint,
+    max_action_range=2.,  # prior is Gaussian with unit variance
+    # unused_obs_size=ll_model_params.prior_input_res ** 2 * 3 * ll_model_params.n_input_frames,
 )
 
 # HL Critic
@@ -125,33 +94,27 @@ hl_critic_params = AttrDict(
     n_layers=2,  # number of policy network layers
     nz_mid=256,
     action_input=True,
-    # unused_obs_size=ll_model_params.prior_input_res **2 * 3 * ll_model_params.n_input_frames,
+    # unused_obs_size=hl_policy_params.unused_obs_size,
 )
 
 # HL Agent
 hl_agent_config = copy.deepcopy(base_agent_params)
 hl_agent_config.update(AttrDict(
-    # policy=ACLearnedPriorAugmentedPIPolicy,
-    policy=LearnedPriorAugmentedPIPolicy,
+    policy=SplitObsMLPPolicy,
     policy_params=hl_policy_params,
     # critic=SplitObsMLPCritic,
     critic=MLPCritic,
     critic_params=hl_critic_params,
-    td_schedule_params=AttrDict(p=1.),
 ))
-
 
 ##### Joint Agent #######
 agent_config = AttrDict(
-    # hl_agent=MazeACActionPriorSACAgent,
-    hl_agent=ActionPriorSACAgent,
+    hl_agent=SACAgent,
     hl_agent_params=hl_agent_config,
-    ll_agent=SACAgent,
+    ll_agent=MazeACSkillSpaceAgent,
     ll_agent_params=ll_agent_config,
     hl_interval=ll_model_params.n_rollout_steps,
     log_videos=False,
-    update_hl=True,
-    update_ll=False,
 )
 
 # Dataset - Random data
@@ -164,3 +127,12 @@ env_config = AttrDict(
     screen_height=ll_model_params.prior_input_res,
     screen_width=ll_model_params.prior_input_res,
 )
+
+# reduce replay capacity because we are training image-based, do not dump (too large)
+from spirl.rl.components.replay_buffer import SplitObsUniformReplayBuffer
+
+agent_config.ll_agent_params.replay = SplitObsUniformReplayBuffer
+agent_config.ll_agent_params.replay_params.unused_obs_size = ll_model_params.prior_input_res ** 2 * 3 * 2 + \
+                                                             hl_agent_config.policy_params.action_dim  # ignore HL action
+agent_config.ll_agent_params.replay_params.dump_replay = False
+agent_config.hl_agent_params.replay_params.dump_replay = False

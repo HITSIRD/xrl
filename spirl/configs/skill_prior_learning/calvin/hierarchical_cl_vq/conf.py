@@ -30,6 +30,7 @@ model_config = AttrDict(
     cond_decode=True,
     codebook_K=4,
     commitment_beta=0.25,
+    fixed_codebook=False,
 )
 
 # Dataset

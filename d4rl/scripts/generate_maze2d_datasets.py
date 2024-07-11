@@ -47,7 +47,7 @@ def main():
     parser.add_argument("--render", action="store_true", help="Render trajectories")
     parser.add_argument("--noisy", action="store_true", help="Noisy actions")
     parser.add_argument(
-        "--env_name", type=str, default="maze2d-randMaze0S40-ac-v0", help="Maze type"
+        "--env_name", type=str, default="maze2d-randMaze0S30-ac-v0", help="Maze type"
     )
     parser.add_argument(
         "--num_samples", type=int, default=int(250000), help="Num samples to collect"

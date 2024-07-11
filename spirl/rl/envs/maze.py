@@ -41,3 +41,13 @@ class ACRandMaze0S40Env(MazeEnv):
             'name': "maze2d-randMaze0S40-ac-v0",
         })
         return super()._default_hparams().overwrite(default_dict)
+
+class ACRandMaze0S30Env(MazeEnv):
+    START_POS = np.array([10., 24.])
+    TARGET_POS = np.array([18., 6.])
+
+    def _default_hparams(self):
+        default_dict = ParamDict({
+            'name': "maze2d-randMaze0S30-ac-v0",
+        })
+        return super()._default_hparams().overwrite(default_dict)

@@ -16,7 +16,7 @@ class DQNPolicy(Policy):
         self.tau = self._hp.tau
         self.epsilon = self._hp.epsilon
         self.eps_min = self._hp.eps_end
-        self.eps_dec = self._hp.eps_dec
+        self.eps_decay = self._hp.eps_decay
         self.batch_size = self._hp.batch_size
         self.update_count = 0
         self.action_space = [i for i in range(self._hp.action_dim)]
@@ -34,11 +34,12 @@ class DQNPolicy(Policy):
 
     def _default_hparams(self):
         default_dict = ParamDict({
-            'tau': 0.1,
-            'epsilon': 0.9,
+            'tau': 1.0,
+            'epsilon': 1.0,
             'eps_end': 0.01,
-            'eps_dec': 1e-4,
+            'eps_decay': 0.995,
             'max_size': 50000,
+            'target_update_interval': 16384,
             'batch_size': 256,
             'hidden_layers': [64, 64],
         })
@@ -51,8 +52,10 @@ class DQNPolicy(Policy):
         for q_target_params, q_eval_params in zip(self.q_target.parameters(), self.q_eval.parameters()):
             q_target_params.data.copy_(tau * q_eval_params + (1 - tau) * q_target_params)
 
+        # print('update network parameters')
+
     def decrement_epsilon(self):
-        self.epsilon = self.epsilon - self.eps_dec if self.epsilon > self.eps_min else self.eps_min
+        self.epsilon = self.epsilon * self.eps_decay if self.epsilon > self.eps_min else self.eps_min
 
     def save_parameters(self):
         self.last_q_params = self.q_eval.parameters()
@@ -74,7 +77,9 @@ class DQNPolicy(Policy):
             action = torch.from_numpy(np.array(np.random.choice(self._hp.codebook_K, size))).long()
         return AttrDict(action=self.codebook[action], action_index=action, value=q_vals[index, action])
 
-    def sample_rand(self, obs):
+    def sample_rand(self, obs, prior=False):
+        if prior:
+            return super().forward(obs)
         return self.forward(obs)
 
     def _load_codebook(self):
@@ -106,11 +111,11 @@ class DuelingDeepQNetwork(nn.Module):
         for i in range(len(self.fc_layers)):
             x = T.relu(self.fc_layers[i](x))
 
-        V = self.V(x)
-        A = self.A(x)
-        Q = V + A - T.mean(A, dim=-1, keepdim=True)
+        v = self.V(x)
+        a = self.A(x)
+        q = v + a - T.mean(a, dim=-1, keepdim=True)
 
-        return Q
+        return q
 
     def _build_net(self, config):
         fc_layers = nn.ModuleList([])
@@ -124,6 +129,7 @@ class DuelingDeepQNetwork(nn.Module):
         A = nn.Linear(curr_input_dim, config.codebook_K)
 
         return fc_layers, V, A
+
     # def save_checkpoint(self, checkpoint_file):
     #     T.save(self.state_dict(), checkpoint_file)
     #

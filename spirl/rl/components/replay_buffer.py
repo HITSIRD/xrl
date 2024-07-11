@@ -181,18 +181,25 @@ class RolloutStorage:
     def append(self, rollout):
         """Adds rollout to storage."""
         self.rollouts.append(rollout)
-        print(f'rollout {len(self.rollouts)}')
-        print(np.array(rollout.reward).sum())
+        print(f'rollout {len(self.rollouts)}, reward {np.array(rollout.reward).sum()}')
 
-    def rollout_stats(self):
+    def rollout_stats(self, std=False):
         """Returns AttrDict of average statistics over the rollouts."""
         assert self.rollouts    # rollout storage should not be empty
-        stats = RecursiveAverageMeter()
-        for rollout in self.rollouts:
-            stats.update(AttrDict(
-                avg_reward=np.stack(rollout.reward).sum()
-            ))
-        return stats.avg
+
+        if not std:
+            stats = RecursiveAverageMeter()
+            for rollout in self.rollouts:
+                stats.update(AttrDict(
+                    avg_reward=np.stack(rollout.reward).sum()
+                ))
+            return stats.avg
+        else:
+            episode_rewards = []
+            for rollout in self.rollouts:
+                episode_rewards.append(np.array(rollout.reward).sum())
+            episode_rewards = np.array(episode_rewards)
+            return episode_rewards.mean(), episode_rewards.std()
 
     def evaluate_task(self):
         complete_task = []

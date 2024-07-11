@@ -1,6 +1,7 @@
 from spirl.configs.hrl.calvin.spirl.conf import *
 from spirl.models.closed_loop_vq_spirl_mdl import ClVQSPiRLMdl
 from spirl.rl.policies.cl_model_policies import ClModelPolicy
+from spirl.rl.policies.deterministic_policies import DeterministicPolicy
 from spirl.rl.policies.prior_policies import LearnedVQPriorAugmentedPolicy
 from spirl.rl.agents.prior_discrete_sac_agent import ActionPriorDiscreteSACAgent
 from spirl.rl.agents.discrete_ac_agent import DiscreteSACAgent
@@ -10,15 +11,15 @@ ll_model_params.cond_decode = True
 
 ll_model_params.update(AttrDict(
     codebook_K=8,
-    fixed_codebook=False,
+    # fixed_codebook=False,
 ))
 
 # Q(s) instead of Q(s, a)
-# hl_critic_params.update(AttrDict(
-#     input_dim=hl_policy_params.input_dim,
-#     output_dim=ll_model_params.codebook_K,
-#     action_input=False,
-# ))
+hl_critic_params.update(AttrDict(
+    input_dim=hl_policy_params.input_dim,
+    output_dim=ll_model_params.codebook_K,
+    action_input=False,
+))
 
 # create LL closed-loop policy
 ll_policy_params = AttrDict(
@@ -37,11 +38,11 @@ ll_agent_config = AttrDict(
     critic_params=hl_critic_params
 )
 
-hl_agent_config.policy = LearnedVQPriorAugmentedPolicy
+hl_agent_config.policy = DeterministicPolicy
 
 # update HL policy model params
 hl_policy_params.update(AttrDict(
-    policy=LearnedVQPriorAugmentedPolicy,  # PriorInitializedPolicy PriorAugmentedPolicy
+    policy=DeterministicPolicy,
     prior_model=ll_policy_params.policy_model,
     prior_model_params=ll_policy_params.policy_model_params,
     prior_model_checkpoint=ll_policy_params.policy_model_checkpoint,
@@ -52,15 +53,10 @@ hl_policy_params.update(AttrDict(
 
 # register new LL agent in agent_config and turn off LL agent updates
 agent_config.update(AttrDict(
-    # hl_agent=ActionPriorDiscreteSACAgent,
-    hl_agent=ActionPriorSACAgent,
+    hl_agent=ActionPriorDiscreteSACAgent,
     hl_agent_params=hl_agent_config,
     ll_agent=SACAgent,
     ll_agent_params=ll_agent_config,
     update_ll=False,
 ))
 
-agent_config.hl_agent_params.update(AttrDict(
-    td_schedule_params=AttrDict(p=1.0),
-    # fixed_alpha=True,
-))

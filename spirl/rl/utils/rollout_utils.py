@@ -65,7 +65,7 @@ class HPRolloutSaver(object):
             os.makedirs(save_dir)
         self.save_dir = save_dir
         self.data = None
-        self.counter = 0
+        self.num_episode = 0
 
     def save_rollout(self, episode):
         # if self.data is None:
@@ -79,23 +79,25 @@ class HPRolloutSaver(object):
                                                  axis=0)
             self.data['hl_action_index'] = np.append(self.data['hl_action_index'],
                                                      np.array(episode['hl_action_index'])[index], axis=0)
+        self.num_episode += 1
 
-    def save(self):
-        save_path = os.path.join(self.save_dir, "hp_rollout.h5")
+    def save(self, file_name, save_interval=50):
+        if self.num_episode > 0 and self.num_episode % save_interval == 0:
+            save_path = os.path.join(self.save_dir, f"{file_name}_{self.num_episode}.h5")
 
-        # save rollout to file
-        f = h5py.File(save_path, "w")
-        f.create_dataset("traj_per_file", data=1)
+            # save rollout to file
+            f = h5py.File(save_path, "w")
+            f.create_dataset("traj_per_file", data=1)
 
-        # store trajectory info in traj0 group
-        traj_data = f.create_group("traj")
-        traj_data.create_dataset("states", data=self.data['observation'])
-        # traj_data.create_dataset("actions", data=np.array(episode.action))
-        traj_data.create_dataset("hl_action_index", data=self.data['hl_action_index'])
+            # store trajectory info in traj group
+            traj_data = f.create_group("traj")
+            traj_data.create_dataset("states", data=self.data['observation'])
+            # traj_data.create_dataset("actions", data=np.array(episode.action))
+            traj_data.create_dataset("hl_action_index", data=self.data['hl_action_index'])
 
     def reset(self):
         """Resets counter."""
-        self.counter = 0
+        self.num_episode = 0
 
 
 class SERolloutSaver(object):
@@ -114,8 +116,8 @@ class SERolloutSaver(object):
         self.data['observation'] = np.array(episode['observation'])
         # self.data['hl_action_index'] = np.array(episode['hl_action_index'])[index]
 
-    def save(self):
-        save_path = os.path.join(self.save_dir, f"rollout_k32_{self.counter}.h5")
+    def save(self, file_name):
+        save_path = os.path.join(self.save_dir, f"rollout_{file_name}_{self.counter}.h5")
 
         # save rollout to file
         f = h5py.File(save_path, "w")

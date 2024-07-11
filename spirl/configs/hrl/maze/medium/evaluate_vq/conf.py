@@ -1,4 +1,4 @@
-from spirl.configs.hrl.maze.spirl.conf import *
+from spirl.configs.hrl.maze.medium.spirl.conf import *
 from spirl.models.closed_loop_vq_spirl_mdl import ClVQSPiRLMdl
 from spirl.models.closed_loop_spirl_mdl import ClSPiRLMdl
 from spirl.rl.components.critic import MLPCritic
@@ -12,7 +12,7 @@ ll_model_params.cond_decode = True
 hl_agent_config.policy = DeterministicPolicy
 
 ll_model_params.update(AttrDict(
-    codebook_K=32,
+    codebook_K=8,
 ))
 
 # create LL closed-loop policy
@@ -20,9 +20,7 @@ ll_policy_params = AttrDict(
     policy_model=ClVQSPiRLMdl,
     policy_model_params=ll_model_params,
     policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
-                                         "skill_prior_learning/maze/hierarchical_cl_vq/K_32"),
-    # policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
-    #                                      "skill_prior_learning/maze/hierarchical_cl_vq/K_32"),
+                                         "skill_prior_learning/maze/medium/hierarchical_cl_vq/K_8"),
     # policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
     #                                      "skill_prior_learning/maze/hierarchical_cl"),
 )
@@ -41,11 +39,12 @@ hl_policy_params.update(AttrDict(
     prior_model=ll_policy_params.policy_model,
     prior_model_params=ll_policy_params.policy_model_params,
     prior_model_checkpoint=ll_policy_params.policy_model_checkpoint,
-    codebook_checkpoint=os.path.join(os.environ["EXP_DIR"],
-                                     "skill_prior_learning/maze/hierarchical_cl_vq/K_32/weights/weights_ep199.pth"),
+    # codebook_checkpoint=os.path.join(os.environ["EXP_DIR"],
+    #                                  "skill_prior_learning/maze/hierarchical_cl_vq/K_32/weights/weights_ep199.pth"),
     # codebook_checkpoint=os.path.join(os.environ["EXP_DIR"],
     #                                  "skill_prior_learning/maze/hierarchical_cl/weights/weights_ep199.pth"),
     squash_output_dist=False,
+    load_weights=False,
 ))
 
 # register new LL agent in agent_config and turn off LL agent updates

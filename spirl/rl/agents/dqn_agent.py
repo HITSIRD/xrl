@@ -47,12 +47,13 @@ class DQNAgent(BaseAgent):
                 # done_index = torch.where(experience_batch.done > 0.5)
                 # if not done_index:
                 #     q_[done_index] = 0.0
-                target = experience_batch.reward + self._hp.discount_factor * q_[batch_idx, max_actions]
+                target = experience_batch.reward + self._hp.discount_factor * q_[batch_idx, max_actions] * (
+                            1 - experience_batch.done)
             q = self.policy.q_eval.forward(experience_batch.observation)[
                 batch_idx, experience_batch.action_index.long()]
 
             mse_loss = torch.nn.MSELoss()
-            loss = mse_loss(q, target.detach())
+            loss = torch.nn.functional.smooth_l1_loss(q, target.detach())
             self.policy_opt.zero_grad()
             loss.backward()
             self.policy_opt.step()

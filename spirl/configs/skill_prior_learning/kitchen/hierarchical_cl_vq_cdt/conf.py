@@ -32,15 +32,15 @@ model_config = AttrDict(
     codebook_K=16,
     commitment_beta=0.25,
 
-    feature_learning_depth = -1,
-    num_intermediate_variables = 20,
-    decision_depth = 6,
-    greatest_path_probability = 0,
-    beta_fl = 0,
-    beta_dc = 0,
-    if_smooth = False,
-    if_save = False,
-    tree_name = "skill"
+    feature_learning_depth=-1,
+    num_intermediate_variables=20,
+    decision_depth=6,
+    greatest_path_probability=0,
+    beta_fl=0,
+    beta_dc=0,
+    if_smooth=False,
+    if_save=False,
+    tree_name="skill"
 )
 
 # Dataset

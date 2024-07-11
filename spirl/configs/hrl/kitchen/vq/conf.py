@@ -16,7 +16,7 @@ ll_policy_params = AttrDict(
     policy_model=ClVQSPiRLMdl,
     policy_model_params=ll_model_params,
     policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
-                                         "skill_prior_learning/kitchen/hierarchical_cl_vq/K_16_gumbel_1.0"),
+                                         "skill_prior_learning/kitchen/hierarchical_cl_vq/K_16"),
 )
 ll_policy_params.update(ll_model_params)
 
@@ -35,8 +35,8 @@ hl_policy_params.update(AttrDict(
     prior_model_checkpoint=ll_policy_params.policy_model_checkpoint,
     # codebook_checkpoint=os.path.join(os.environ["EXP_DIR"],
     #                                  "hrl/kitchen/spirl_cl_vq/MKBL_test_1/weights/weights_ep24.pth"),
-    codebook_checkpoint=os.path.join(os.environ["EXP_DIR"],
-                                     "skill_prior_learning/kitchen/hierarchical_cl_vq/K_16_gumbel_1.0/weights/weights_ep99.pth"),
+    # codebook_checkpoint=os.path.join(os.environ["EXP_DIR"],
+    #                                  "skill_prior_learning/kitchen/hierarchical_cl_vq/K_16/weights/weights_ep99.pth"),
 ))
 
 agent_config.update(AttrDict(

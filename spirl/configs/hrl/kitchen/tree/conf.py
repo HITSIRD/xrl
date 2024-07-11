@@ -13,7 +13,7 @@ ll_policy_params = AttrDict(
     policy_model=ClVQSPiRLMdl,
     policy_model_params=ll_model_params,
     policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
-                                         "skill_prior_learning/kitchen/hierarchical_cl_vq_wogoal"),
+                                         "skill_prior_learning/kitchen/hierarchical_cl_vq/K_16"),
 )
 ll_policy_params.update(ll_model_params)
 
@@ -33,7 +33,7 @@ oracle_policy_params.update(AttrDict(
     prior_model_params=ll_policy_params.policy_model_params,
     prior_model_checkpoint=ll_policy_params.policy_model_checkpoint,
     policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
-                                         "hrl/kitchen/spirl_cl_vq_wogoal/kitchen_sequence_seed_18"),
+                                         "hrl/kitchen/spirl_cl_vq/mlsh_s1_k16_inverse_kl"),
 ))
 
 hl_agent_config.policy = CARTPolicy
@@ -41,12 +41,12 @@ hl_agent_config.policy = CARTPolicy
 # update HL policy model params
 hl_policy_params.update(AttrDict(
     policy=CARTPolicy,
-    # policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
-    #                                      "/home/wenyongyan/下载/DAGGER+CART/cart.pickle"),
+    policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
+                                         "/home/wenyongyan/文档/DAGGER+CART/kitchen_mlsh/cart_1000_d8.pkl"),
     codebook_checkpoint=os.path.join(os.environ["EXP_DIR"],
-                                     "hrl/kitchen/spirl_cl_vq_wogoal/kitchen_sequence_seed_18/weights/weights_ep24.pth"),
-    max_depth=10,
-    oracle_policy=LearnedVQPriorAugmentedPolicy,
+                                     "hrl/kitchen/spirl_cl_vq/mlsh_s1_k16_inverse_kl/weights/weights_ep24.pth"),
+    # max_depth=10,
+    # oracle_policy=LearnedVQPriorAugmentedPolicy,
     prior_model=ll_policy_params.policy_model,
     prior_model_params=ll_policy_params.policy_model_params,
     prior_model_checkpoint=ll_policy_params.policy_model_checkpoint,

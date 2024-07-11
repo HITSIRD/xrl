@@ -66,8 +66,8 @@ class OracleVQPolicy(Policy):
             # print(np.argmax(self.rate[:, index_0] * self.rate[:, index_1]))
             prob = self.rate[:, index_0] * self.rate[:, index_1]
             # print(prob)
-            # return self.net.codebook.embedding.weight[torch.IntTensor([np.argmax(prob)])]
-            return self.net.codebook.embedding.weight[torch.IntTensor([9])]
+            return self.net.codebook.embedding.weight[torch.IntTensor([np.argmax(prob)])]
+            # return self.net.codebook.embedding.weight[torch.IntTensor([9])]
 
             index = index_0 * N_TASKS + index_1
             # print(np.argmax(self.sequence_prob[:, index]))

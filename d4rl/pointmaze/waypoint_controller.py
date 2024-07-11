@@ -71,7 +71,7 @@ class WaypointController(object):
         q_values = q_iteration.q_iteration(env=self.env, num_itrs=200, discount=0.99)
 
         if max(q_values[start_idx]) == 0:
-            # no path between start and goal was found!
+            # print('no path between start and goal was found!')
             raise ValueError
 
         # compute waypoints by performing a rollout in the grid

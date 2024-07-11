@@ -1,4 +1,4 @@
-from spirl.configs.hrl.maze.base_conf import *
+from spirl.configs.hrl.maze.medium.base_conf import *
 from spirl.rl.policies.prior_policies import ACLearnedPriorAugmentedPIPolicy
 from spirl.rl.agents.prior_sac_agent import ActionPriorSACAgent
 
@@ -16,5 +16,3 @@ agent_config.hl_agent = ActionPriorSACAgent
 agent_config.hl_agent_params.update(AttrDict(
     td_schedule_params=AttrDict(p=1.),
 ))
-
-

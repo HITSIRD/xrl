@@ -13,7 +13,7 @@ class Categorical:
     """ Represents a categorical distribution """
 
     # TODO: implement a dict conversion function
-    def __init__(self, probs=None, logits=None, codebook=None, fixed=False):
+    def __init__(self, probs=None, logits=None, codebook=None, fixed=True):
         self.prob = torch.distributions.Categorical(probs=probs, logits=logits)
         self.codebook = codebook
 
@@ -31,12 +31,12 @@ class Categorical:
 
     def kl_divergence(self, other):
         """Here self=q and other=p and we compute KL(q, p)"""
-        delta = 1e-15
-        # delta = 0.002
-        # other_double_probs = F.softmax(other.prob.probs, dim=-1)
-        # self_double_probs = F.softmax(self.prob.probs, dim=-1)
-        # return torch.nn.functional.kl_div((other_double_probs + delta).log(), self_double_probs + delta, reduction='none')
-        return torch.nn.functional.kl_div((other.prob.probs + delta).log(), self.prob.probs + delta, reduction='none')
+        delta = 1e-10
+        # log_q = torch.log(self.prob.probs + delta)
+        log_p = torch.log(other.prob.probs + delta)
+
+        # return torch.sum(self.prob.probs * torch.log((self.prob.probs + delta) / (other.prob.probs + delta)), dim=-1)
+        return torch.nn.functional.kl_div(log_p, self.prob.logits, reduction='none', log_target=True)
 
     def wasserstein_distance(self, other):
         u = self.prob.probs.cpu().detach().numpy()

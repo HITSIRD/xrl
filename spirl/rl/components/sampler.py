@@ -96,9 +96,9 @@ class Sampler:
                             reward=reward,
                             done=done,
                             action=agent_output.action,
-                            # hl_action=agent_output.hl_action,
-                            # hl_action_index=agent_output.hl_action_index,
-                            # is_hl_step=agent_output.is_hl_step,
+                            hl_action=agent_output.hl_action,
+                            hl_action_index=agent_output.hl_action_index,
+                            is_hl_step=agent_output.is_hl_step,
                             observation_next=obs,
                             info=obj2np(info),
                         ))
@@ -202,9 +202,11 @@ class HierarchicalSampler(Sampler):
                                     done=done,
                                     action=self.last_hl_action,
                                     observation_next=obs,
+                                    action_index=agent_output.hl_action_index if hasattr(agent_output,
+                                                                                         'hl_action_index') else None,
                                 ))
-                                if hasattr(agent_output, 'hl_action_index'):
-                                    hl_experience_batch[0].action_index=agent_output.hl_action_index
+                                # if hasattr(agent_output, 'hl_action_index'):
+                                #     hl_experience_batch[0].action_index=agent_output.hl_action_index
                                 hl_step += 1
                                 if done:
                                     hl_experience_batch[-1].reward += reward  # add terminal reward

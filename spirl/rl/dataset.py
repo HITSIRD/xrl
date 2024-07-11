@@ -74,18 +74,10 @@ class Collector:
             'seed': None,
             'agent': None,
             'data_dir': None,  # directory where dataset is in
-            'environment': None,
             'sampler': Sampler,     # sampler type used
             'exp_path': None,  # Path to the folder with experiments
-            'num_epochs': 200,
-            'max_rollout_len': 1000,  # maximum length of the performed rollout
-            'n_steps_per_update': 1,     # number of env steps collected per policy update
-            'n_steps_per_epoch': 20000,       # number of env steps per epoch
-            'log_output_per_epoch': 100,  # log the non-image/video outputs N times per epoch
-            'log_images_per_epoch': 4,    # log images/videos N times per epoch
-            'logging_target': 'none',    # where to log results to
-            'n_warmup_steps': 0,    # steps of warmup experience collection before training
             'num_sample': 50,
+            'num_rollout': 1000,
         })
         return default_dict
 
@@ -93,16 +85,18 @@ class Collector:
         """Generate rollouts and save to hdf5 files."""
         if self.args.save_dir is None:
             self.args.save_dir = self._hp.exp_path
-        print("Saving {} rollouts to directory {}...".format(self.args.n_val_samples, self.args.save_dir))
+        print("Saving {} rollouts to directory {}...".format(self._hp.num_rollout, self.args.save_dir))
         saver = HPRolloutSaver(self.args.save_dir)
         n_success = 0
         n_total = 0
 
         reward = 0
         count = 0
+
         with self.agent.val_mode():
             with torch.no_grad():
-                for _ in tqdm(range(100)):
+                # for _ in tqdm(range(self._hp.num_rollout)):
+                while count < self._hp.num_rollout:
                     while True:  # keep producing rollouts until we get a valid one
                         episode = self.sampler.sample_episode(is_train=False, render=False)
                         valid = not hasattr(self.agent, 'rollout_valid') or self.agent.rollout_valid
@@ -111,15 +105,16 @@ class Collector:
                             n_success += 1
                             break
 
-                    print(sum(episode['reward']))
-                    if sum(episode['reward']) > 3:
+                    # print(sum(episode['reward']))
+                    if sum(episode['reward']) > 2:
                         saver.save_rollout(episode)
                         count += 1
-                        break
-                    reward += sum(episode['reward'])
 
-        saver.save()
-        print("Success rate: {:d} / {:d} = {:.3f}%".format(n_success, n_total, float(n_success) / n_total * 100))
+                    reward += sum(episode['reward'])
+                    print(f'count/total: {count}/{n_total}')
+
+                    saver.save(f'fine_{self._hp.num_rollout}')
+        # print("Success rate: {:d} / {:d} = {:.3f}%".format(n_success, n_total, float(n_success) / n_total * 100))
         print("Saved Episode: {:d}".format(count))
         print("Avg Reward: {:.3f}".format(reward / n_total))
 
