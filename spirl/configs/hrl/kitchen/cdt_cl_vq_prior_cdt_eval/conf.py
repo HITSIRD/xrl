@@ -20,10 +20,11 @@ ll_model_params.update(AttrDict(
     beta_dc = 0,
     if_smooth = False,
     if_save = False,
-    tree_name = "mlsh_cdtk162_-1+60+5_n+b_s9_1"
+    tree_name = "mlsh_cdtk162_-1+60+5_n+b_s9_1",
     # if_freeze=False,
     # cdt_embedding_checkpoint=os.path.join(os.environ["EXP_DIR"], 
                                         #   f"skill_prior_learning/kitchen/hierarchical_cl_vq_cdt/{prior_model_name}/weights"), // 其它组件的位置
+    if_discrete = True # 评估需要离散化
 ))
 
 # create LL closed-loop policy

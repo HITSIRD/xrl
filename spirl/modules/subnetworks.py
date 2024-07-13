@@ -99,6 +99,8 @@ class VQCDTPredictor(nn.Module):
         self.forward_num = 0 # 用来保存模型
         self.model_name = os.path.join(os.environ["EXP_DIR"], f"cdt_model/{self.tree_name}.pth")
 
+        self.if_discrete = getattr(hp, 'if_discrete', False)
+
     def feature_learning_init(self):
         if self.feature_learning_depth < 0:  # 特征树深度小于0时不需要特征树
             print('use SDT')
@@ -197,6 +199,34 @@ class VQCDTPredictor(nn.Module):
 
         return mu
 
+    def discrete_decision_forward(self):
+        if self.feature_learning_depth >= 0:
+            self.intermediate_features_construct()  # 计算中间特征self.features: (batch_size*num_fl_leaves, num_intermediate_variables)
+        else:
+            self.features = self.data  # (batch_size, input_dim)
+
+        aug_features = self._data_augment_(self.features)
+        path_prob = self.sigmoid(self.beta_dc * self.dc_inner_nodes(aug_features))
+        feature_batch_size = self.features.shape[0]
+
+        path_prob = torch.unsqueeze(path_prob, dim=2)
+        path_prob = torch.cat((path_prob, 1 - path_prob), dim=2)
+        path_prob = torch.where(path_prob > 0.5, torch.tensor(1.0), torch.tensor(0.0)) # 大于0.5设置为1
+        _mu = aug_features.data.new(feature_batch_size, 1, 1).fill_(1.)
+
+        begin_idx = 0
+        end_idx = 1
+        for layer_idx in range(0, self.decision_depth):
+            _path_prob = path_prob[:, begin_idx:end_idx, :]
+
+            _mu = _mu.view(feature_batch_size, -1, 1).repeat(1, 1, 2)
+            _mu = _mu * _path_prob
+            begin_idx = end_idx  # index for each layer
+            end_idx = begin_idx + 2 ** (layer_idx + 1)
+        mu = _mu.view(feature_batch_size, self.num_dc_leaves)  # (batch_size*num_fl_leaves, num_dc_leaves)
+
+        return mu
+
     def intermediate_features_construct(self):
         """
         Construct the intermediate features for decision making, with learned feature combinations from feature learning module.
@@ -230,7 +260,10 @@ class VQCDTPredictor(nn.Module):
         if self.feature_learning_depth >= 0:
             self.aug_data = self._data_augment_(data)
             fl_probs = self.feature_learning_forward()  # (batch_size, num_fl_leaves), 在该特征下到达不同中间特征叶子的概率
-            dc_probs = self.decision_forward()  # (batch_size*num_fl_leaves, num_dc_leaves)
+            if self.if_discrete:
+                dc_probs = self.discrete_decision_forward()  # (batch_size*num_fl_leaves, num_dc_leaves)
+            else:
+                dc_probs = self.decision_forward()
             dc_probs = dc_probs.view(self.batch_size, self.num_fl_leaves,
                                      -1)  # (batch_size, num_fl_leaves, num_dc_leaves), 在不同中间特征叶子的特征下到达不同动作叶子的概率
 
@@ -264,7 +297,10 @@ class VQCDTPredictor(nn.Module):
                 prediction = torch.log(prediction)  # 根据最优路径得到的输出
 
         else:
-            dc_probs = self.decision_forward()  # (batch_size, num_dc_leaves)
+            if self.if_discrete:
+                dc_probs = self.discrete_decision_forward()  # (batch_size, num_dc_leaves)
+            else:
+                dc_probs = self.decision_forward()
             _mu = dc_probs
             output = self.decision_leaves(_mu)
 
@@ -285,7 +321,7 @@ class VQCDTPredictor(nn.Module):
 
         return prediction
 
-    def _data_augment_(self, input):
+    def _data_augment_(self, input):    # 在前边加上偏置项
         batch_size = input.size()[0]
         input = input.view(batch_size, -1)
         bias = torch.ones(batch_size, 1).to(self.device)
