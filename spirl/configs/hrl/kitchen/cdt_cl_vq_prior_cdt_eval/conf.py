@@ -8,6 +8,7 @@ from spirl.rl.policies.prior_policies import LearnedVQPriorAugmentedPolicy, Lear
 ll_model_params.cond_decode = True
 
 prior_model_name = "cdt_k16_s1_-1+60+6+0_1"
+hl_model_name = "discrete_mkbl_cdtk161_-1+60+6_n+b_s9_1"
 
 # CDT config
 ll_model_params.update(AttrDict(
@@ -20,11 +21,12 @@ ll_model_params.update(AttrDict(
     beta_dc = 0,
     if_smooth = False,
     if_save = False,
-    tree_name = "mlsh_cdtk162_-1+60+5_n+b_s9_1",
+    tree_name = "mkbl_cdtk161_-1+60+6_n+b_s9_1",
+    # if_discrete = False
+    if_discrete = True
     # if_freeze=False,
     # cdt_embedding_checkpoint=os.path.join(os.environ["EXP_DIR"], 
                                         #   f"skill_prior_learning/kitchen/hierarchical_cl_vq_cdt/{prior_model_name}/weights"), // 其它组件的位置
-    if_discrete = True # 评估需要离散化
 ))
 
 # create LL closed-loop policy
@@ -51,9 +53,9 @@ hl_policy_params.update(AttrDict(
     policy=LearnedVQPriorAugmentedPolicy, # PriorInitializedPolicy PriorAugmentedPolicy 
     load_weights = True,
     policy_model_checkpoint = os.path.join(os.environ["EXP_DIR"], 
-                                           "hrl/kitchen/cdt_cl_vq_prior_cdt/mkbl_cdtk161_-1+60+6_n+b_s7_1"),
+                                           f"hrl/kitchen/cdt_cl_vq_prior_cdt/{hl_model_name}"),
     codebook_checkpoint=os.path.join(os.environ["EXP_DIR"],
-                                     "hrl/kitchen/cdt_cl_vq_prior_cdt/mkbl_cdtk161_-1+60+6_n+b_s7_1"),
+                                     f"hrl/kitchen/cdt_cl_vq_prior_cdt/{hl_model_name}"),
     prior_model=ll_policy_params.policy_model, 
     prior_model_params=ll_policy_params.policy_model_params,
     prior_model_checkpoint=ll_policy_params.policy_model_checkpoint,    

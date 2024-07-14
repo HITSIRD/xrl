@@ -211,7 +211,7 @@ class VQCDTPredictor(nn.Module):
 
         path_prob = torch.unsqueeze(path_prob, dim=2)
         path_prob = torch.cat((path_prob, 1 - path_prob), dim=2)
-        path_prob = torch.where(path_prob > 0.5, torch.tensor(1.0), torch.tensor(0.0)) # 大于0.5设置为1
+        path_prob = torch.where(path_prob > 0.5, torch.tensor(1.0, device=self.device), torch.tensor(0.0, device=self.device)) # 大于0.5设置为1
         _mu = aug_features.data.new(feature_batch_size, 1, 1).fill_(1.)
 
         begin_idx = 0
