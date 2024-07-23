@@ -50,12 +50,12 @@ class CalvinEnv(PlayTableSimEnv):
         self.tasks_to_complete = copy.deepcopy(self.target_tasks)
         self.completed_tasks = []
         self.solved_subtasks = defaultdict(lambda: 0)
+        self.completed_tasks_set = set(self.completed_tasks)
         self._t = 0
         self.sequential = True
 
     def _default_hparams(self):
         return super()._default_hparams().overwrite(ParamDict({
-            # 'name': "kitchen-mlsh-v0",
         }))
 
     def reset(self):
@@ -110,6 +110,10 @@ class CalvinEnv(PlayTableSimEnv):
             self.solved_subtasks[task] = (
                 1 if task in self.completed_tasks or self.solved_subtasks[task] else 0
             )
+
+        new_completed_tasks = set(self.completed_tasks)
+        info['completed_task'] = list(new_completed_tasks - self.completed_tasks_set)
+        self.completed_tasks_set = new_completed_tasks
         return info
 
     def step(self, action):

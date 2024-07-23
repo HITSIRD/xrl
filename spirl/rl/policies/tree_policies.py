@@ -59,6 +59,7 @@ class CARTPolicy(Policy):
 
     def _load_codebook(self):
         weight = torch.load(self._hp.codebook_checkpoint)
+        print('loading codebook from {}'.format(self._hp.codebook_checkpoint))
 
         # return weight['state_dict']['hl_agent']['policy.prior_net.codebook.embedding.weight']
         return weight['state_dict']['hl_agent']['policy.net.codebook.embedding.weight']

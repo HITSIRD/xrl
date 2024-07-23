@@ -8,7 +8,7 @@ from spirl.rl.components.critic import SplitObsMLPCritic, MLPCritic
 from spirl.rl.components.sampler import ACMultiImageAugmentedHierarchicalSampler, HierarchicalSampler
 from spirl.rl.components.replay_buffer import UniformReplayBuffer
 from spirl.rl.policies.prior_policies import ACLearnedPriorAugmentedPIPolicy, LearnedPriorAugmentedPIPolicy
-from spirl.rl.envs.maze import ACRandMaze0S40Env
+from spirl.rl.envs.maze import ACRandMaze0S30Env
 from spirl.rl.agents.ac_agent import SACAgent
 from spirl.rl.policies.cl_model_policies import ACClModelPolicy, ClModelPolicy
 from spirl.data.maze.src.maze_agents import MazeACActionPriorSACAgent
@@ -23,11 +23,11 @@ notes = 'hierarchical RL on the maze env'
 configuration = {
     'seed': 42,
     'agent': FixedIntervalHierarchicalAgent,
-    'environment': ACRandMaze0S40Env,
+    'environment': ACRandMaze0S30Env,
     # 'sampler': ACMultiImageAugmentedHierarchicalSampler,
     'sampler': HierarchicalSampler,
     'data_dir': '.',
-    'num_epochs': 30,
+    'num_epochs': 25,
     'max_rollout_len': 2000,
     'n_steps_per_epoch': 100000,
     'n_warmup_steps': 1000,

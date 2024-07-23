@@ -13,6 +13,7 @@ class DeterministicPolicy(Policy):
         self.update_model_params(self._hp.prior_model_params)
         super().__init__()
         self.steps_since_hl, self.last_z = np.Inf, None
+        self._t = 0
 
     def _default_hparams(self):
         default_dict = ParamDict({
@@ -24,8 +25,8 @@ class DeterministicPolicy(Policy):
         })
         return super()._default_hparams().overwrite(default_dict)
 
-    def forward(self, obs, index):
-        # index = np.random.randint(self.net.codebook.embedding.weight.shape[0])
+    def forward(self, obs, index, task=None):
+        index = np.random.randint(self.net.codebook.embedding.weight.shape[0])
 
         # if self._hp.policy_model is not None:
         #     with no_batchnorm_update(self):  # BN updates harm the initialized policy
@@ -50,7 +51,7 @@ class DeterministicPolicy(Policy):
         else:
             net = self._hp.prior_model(self._hp.prior_model_params, None)
         if self._hp.load_weights:
-            if self._hp.policy_model is not None:
+            if hasattr(self._hp, 'policy_model_checkpoint'):
                 BaseAgent.load_model_weights(net, self._hp.policy_model_checkpoint, self._hp.prior_model_epoch)
             else:
                 BaseAgent.load_model_weights(net, self._hp.prior_model_checkpoint, 99)

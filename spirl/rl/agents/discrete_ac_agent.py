@@ -29,7 +29,7 @@ class DiscreteSACAgent(ACAgent):
         self._log_alpha = TensorModule(torch.zeros(1, requires_grad=True, device=self._hp.device))
         self.alpha_opt = self._get_optimizer(self._hp.optimizer, self._log_alpha, self._hp.alpha_lr)
         self._target_entropy = self._hp.target_entropy if self._hp.target_entropy is not None \
-            else 0.98 * np.log(self._hp.critic_params.output_dim)
+            else -1 * self._hp.critic_params.output_dim
         print('target entropy:', self._target_entropy)
 
         # build replay buffer

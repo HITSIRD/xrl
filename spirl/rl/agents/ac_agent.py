@@ -10,6 +10,7 @@ from spirl.rl.utils.mpi import sync_networks
 
 class ACAgent(BaseAgent):
     """Implements actor-critic agent. (does not implement update function, this should be handled by RL algo agent)"""
+
     def __init__(self, config):
         BaseAgent.__init__(self, config)
         self._hp = self._default_hparams().overwrite(config)
@@ -19,19 +20,23 @@ class ACAgent(BaseAgent):
 
     def _default_hparams(self):
         default_dict = ParamDict({
-            'policy': None,     # policy class
+            'policy': None,  # policy class
             'policy_params': None,  # parameters for the policy class
             'policy_lr': 3e-4,  # learning rate for policy update
         })
         return super()._default_hparams().overwrite(default_dict)
 
-    def _act(self, obs, index=None, task=None):
+    def _act(self, obs, index=None, task=None, env=None):
         # TODO implement non-sampling validation mode
         obs = map2torch(self._obs_normalizer(obs), self._hp.device)
-        if index is not None:
+        if index is not None and task is None:
             return self.policy(obs, index)
+        if task is not None:
+            return self.policy(obs, index, task)
+        # if env is not None:
+        #     return self.policy(obs, env)
 
-        if len(obs.shape) == 1:     # we need batched inputs for policy
+        if len(obs.shape) == 1:  # we need batched inputs for policy
             policy_output = self._remove_batch(self.policy(obs[None]))
             if 'dist' in policy_output:
                 del policy_output['dist']
@@ -72,6 +77,7 @@ class ACAgent(BaseAgent):
 
 class SACAgent(ACAgent):
     """Implements SAC algorithm."""
+
     def __init__(self, config):
         self.init__ = ACAgent.__init__(self, config)
         self._hp = self._default_hparams().overwrite(config)
@@ -82,33 +88,35 @@ class SACAgent(ACAgent):
         [self._copy_to_target_network(target, source) for target, source in zip(self.critics, self.critic_targets)]
 
         # build optimizers for critics
-        self.critic_opts = [self._get_optimizer(self._hp.optimizer, critic, self._hp.critic_lr) for critic in self.critics]
+        self.critic_opts = [self._get_optimizer(self._hp.optimizer, critic, self._hp.critic_lr) for critic in
+                            self.critics]
 
         # define entropy multiplier alpha
         self._log_alpha = TensorModule(torch.zeros(1, requires_grad=True, device=self._hp.device))
         self.alpha_opt = self._get_optimizer(self._hp.optimizer, self._log_alpha, self._hp.alpha_lr)
-        self._target_entropy = self._hp.target_entropy if self._hp.target_entropy is not None \
-                                        else -1 * self._hp.policy_params.action_dim
+        self._target_entropy = self._hp.target_entropy if self._hp.target_entropy is not None else -1
+            # else -1 * self._hp.ll_agent_params.policy_params.codebook_K
+            # else -1
 
         # build replay buffer
         self.replay_buffer = self._hp.replay(self._hp.replay_params)
 
-        self._update_steps = 0                # counts the number of alpha updates for optional variable schedules
+        self._update_steps = 0  # counts the number of alpha updates for optional variable schedules
 
         self.flag = False
 
     def _default_hparams(self):
         default_dict = ParamDict({
-            'critic': None,           # critic class
-            'critic_params': None,    # parameters for the critic class
-            'replay': None,           # replay buffer class
-            'replay_params': None,    # parameters for replay buffer
-            'critic_lr': 3e-4,        # learning rate for critic update
-            'alpha_lr': 3e-4,         # learning rate for alpha coefficient update
-            'fixed_alpha': None,      # optionally fixed value for alpha
-            'reward_scale': 1.0,      # SAC reward scale
-            'clip_q_target': False,   # if True, clips Q target
-            'target_entropy': None,   # target value for automatic entropy tuning, if None uses -action_dim
+            'critic': None,  # critic class
+            'critic_params': None,  # parameters for the critic class
+            'replay': None,  # replay buffer class
+            'replay_params': None,  # parameters for replay buffer
+            'critic_lr': 3e-4,  # learning rate for critic update
+            'alpha_lr': 3e-4,  # learning rate for alpha coefficient update
+            'fixed_alpha': None,  # optionally fixed value for alpha
+            'reward_scale': 1.0,  # SAC reward scale
+            'clip_q_target': False,  # if True, clips Q target
+            'target_entropy': None,  # target value for automatic entropy tuning, if None uses -action_dim
         })
         return super()._default_hparams().overwrite(default_dict)
 
@@ -134,7 +142,7 @@ class SACAgent(ACAgent):
                 policy_output_next = self._run_policy(experience_batch.observation_next)
                 value_next = self._compute_next_value(experience_batch, policy_output_next)
                 q_target = experience_batch.reward * self._hp.reward_scale + \
-                                (1 - experience_batch.done) * self._hp.discount_factor * value_next
+                           (1 - experience_batch.done) * self._hp.discount_factor * value_next
                 if self._hp.clip_q_target:
                     q_target = self._clip_q_target(q_target)
                 q_target = q_target.detach()
@@ -148,30 +156,31 @@ class SACAgent(ACAgent):
 
             # update critic networks
             [self._perform_update(critic_loss, critic_opt, critic)
-                    for critic_loss, critic_opt, critic in zip(critic_losses, self.critic_opts, self.critics)]
+             for critic_loss, critic_opt, critic in zip(critic_losses, self.critic_opts, self.critics)]
 
             # update target networks
             [self._soft_update_target_network(critic_target, critic)
-                    for critic_target, critic in zip(self.critic_targets, self.critics)]
+             for critic_target, critic in zip(self.critic_targets, self.critics)]
 
             # update alpha
             alpha_loss = self._update_alpha(experience_batch, policy_output)
 
             # logging
-            info = AttrDict(    # losses
+            info = AttrDict(  # losses
                 policy_loss=policy_loss,
                 alpha_loss=alpha_loss,
                 critic_loss_1=critic_losses[0],
                 critic_loss_2=critic_losses[1],
             )
             if self._update_steps % 100 == 0:
-                info.update(AttrDict(       # gradient norms
+                info.update(AttrDict(  # gradient norms
                     policy_grad_norm=avg_grad_norm(self.policy),
                     critic_1_grad_norm=avg_grad_norm(self.critics[0]),
                     critic_2_grad_norm=avg_grad_norm(self.critics[1]),
                 ))
-            info.update(AttrDict(       # misc
+            info.update(AttrDict(  # misc
                 alpha=self.alpha,
+                target_entropy=self._target_entropy,
                 pi_log_prob=policy_output.log_prob.mean(),
                 policy_entropy=policy_output.dist.entropy().mean(),
                 # prior_policy_entropy=policy_output.prior_dist.entropy().mean(),
@@ -218,7 +227,7 @@ class SACAgent(ACAgent):
 
     def _compute_policy_loss(self, experience_batch, policy_output):
         q_est = torch.min(*[critic(experience_batch.observation, self._prep_action(policy_output.action)).q
-                                      for critic in self.critics])
+                            for critic in self.critics])
         policy_loss = -1 * q_est + self.alpha * policy_output.log_prob[:, None]
         check_shape(policy_loss, [self._hp.batch_size, 1])
         return policy_loss.mean()
@@ -238,7 +247,7 @@ class SACAgent(ACAgent):
 
     def _compute_q_estimates(self, experience_batch):
         return [critic(experience_batch.observation, self._prep_action(experience_batch.action.detach())).q.squeeze(-1)
-                    for critic in self.critics]     # no gradient propagation into policy here!
+                for critic in self.critics]  # no gradient propagation into policy here!
 
     def _prep_action(self, action):
         """Preprocessing of action in case of discrete action space."""

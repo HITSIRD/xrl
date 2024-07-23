@@ -47,13 +47,13 @@ hl_policy_params.update(AttrDict(
     prior_model_checkpoint=ll_policy_params.policy_model_checkpoint,
     # policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
     #                                      "hrl/calvin/spirl_cl_vq/k8_s6/weights"),
-    # squash_output_dist=False,
+    squash_output_dist=False,
 ))
 
 # register new LL agent in agent_config and turn off LL agent updates
 agent_config.update(AttrDict(
-    # hl_agent=ActionPriorDiscreteSACAgent,
     hl_agent=ActionPriorSACAgent,
+    # hl_agent=ActionPriorSACAgent,
     hl_agent_params=hl_agent_config,
     ll_agent=SACAgent,
     ll_agent_params=ll_agent_config,
@@ -61,6 +61,6 @@ agent_config.update(AttrDict(
 ))
 
 agent_config.hl_agent_params.update(AttrDict(
-    td_schedule_params=AttrDict(p=1.0),
+    td_schedule_params=AttrDict(p=0.15),
     # fixed_alpha=True,
 ))

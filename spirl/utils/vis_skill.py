@@ -26,11 +26,11 @@ def plot_skill(file_path):
     plt.figure(figsize=(4, 1.8))
     label_size = 5
 
-    x_labels = [i for i in range(len(dataset['traj']['hl_action_index']))]
+    x_labels = [i for i in range(0, len(dataset['traj']['hl_action_index']), 5)]
     y_labels = [i for i in range(K)]
 
     plt.yticks(np.arange(K), size=label_size)
-    plt.xticks(np.arange(len(x_labels)), labels=x_labels, size=label_size)
+    plt.xticks(np.arange(len(x_labels)) * 5, labels=x_labels, size=label_size)
     # plt.title("Skill Evaluation", size=label_size)
 
     # for i in range(K):
@@ -49,5 +49,6 @@ def plot_skill(file_path):
 
 
 if __name__ == '__main__':
-    plot_skill(
-        '/home/wenyongyan/文档/spirl-master/spirl/experiments/hrl/kitchen/spirl_cl_vq/mkbl_s0_k16_inverse_kl/episode_3.h5')
+    # file = '/home/wenyongyan/文档/spirl-master/spirl/experiments/hrl/kitchen/spirl_cl_vq/mkbl_s0_k16_inverse_kl/episode_3.h5'
+    file = '/home/wenyongyan/文档/spirl-master/spirl/experiments/hrl/maze/easy/spirl_cl_vq/test/fine_2000_1.h5'
+    plot_skill(file)

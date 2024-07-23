@@ -1,3 +1,6 @@
+import imp
+import importlib
+
 import matplotlib;
 
 matplotlib.use('Agg')
@@ -6,7 +9,7 @@ import os
 import time
 from shutil import copy
 import datetime
-import imp
+# import imp
 from tensorboardX import SummaryWriter
 import numpy as np
 import random
@@ -137,14 +140,15 @@ class ModelTrainer(BaseTrainer):
         for self.batch_idx, sample_batched in enumerate(self.train_loader):
             data_load_time.update(time.time() - end)
             inputs = AttrDict(map_dict(lambda x: x.to(self.device), sample_batched))
-            inputs.states = inputs.observations
-
+            if not hasattr(inputs, 'states'):
+                inputs.states = inputs.observations
+                
             with self.training_context():
                 self.optimizer.zero_grad()
                 output = self.model(inputs)
                 losses = self.model.loss(output, inputs)
-                # losses.total.backward()
-                losses.total.value.backward()
+                losses.total.backward()
+                # losses.total.value.backward()
                 self.call_hooks(inputs, output, losses, epoch)
 
                 if self.global_step < self._hp.init_grad_clip_step:
@@ -168,7 +172,8 @@ class ModelTrainer(BaseTrainer):
                 print('GPU {}: {}'.format(0, self._hp.exp_path))
                 print(('itr: {} Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                     self.global_step, epoch, self.batch_idx, len(self.train_loader),
-                    100. * self.batch_idx / len(self.train_loader), losses.total.value.item())))
+                    # 100. * self.batch_idx / len(self.train_loader), losses.total.value.item())))
+                    100. * self.batch_idx / len(self.train_loader), losses.total.item())))
 
                 print('avg time for loading: {:.2f}s, logs: {:.2f}s, compute: {:.2f}s, total: {:.2f}s'
                       .format(data_load_time.avg,
@@ -193,7 +198,8 @@ class ModelTrainer(BaseTrainer):
             with autograd.no_grad():
                 for batch_idx, sample_batched in enumerate(self.val_loader):
                     inputs = AttrDict(map_dict(lambda x: x.to(self.device), sample_batched))
-                    inputs.states = inputs.observations
+                    if not hasattr(inputs, 'states'):
+                        inputs.states = inputs.observations
 
                     # run evaluator with val-mode model
                     with self.model_test.val_mode():
@@ -212,8 +218,8 @@ class ModelTrainer(BaseTrainer):
 
                     self.model_test.log_outputs(output, inputs, losses_meter.avg, self.global_step,
                                                 log_images=True, phase='val', **self._logging_kwargs)
-                    # print(('\nTest set: Average loss: {:.4f} in {:.2f}s\n'.format(losses_meter.avg.total.item(), time.time() - start)))
-                    print(('\nTest set: Average loss: {:.4f} in {:.2f}s\n'.format(losses_meter.avg.total.value.item(), time.time() - start)))
+                    print(('\nTest set: Average loss: {:.4f} in {:.2f}s\n'.format(losses_meter.avg.total.item(), time.time() - start)))
+                    # print(('\nTest set: Average loss: {:.4f} in {:.2f}s\n'.format(losses_meter.avg.total.value.item(), time.time() - start)))
             del output
 
     def setup_device(self):

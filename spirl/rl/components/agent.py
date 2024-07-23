@@ -46,12 +46,15 @@ class BaseAgent(nn.Module):
         })
         return default_dict
 
-    def act(self, obs, index=None, task=None):
+    def act(self, obs, index=None, task=None, env=None):
         """Returns policy output dict given observation (random action if self._rand_act_mode is set)."""
         if self._rand_act_mode:
             return self._act_rand(obs)
         else:
-            return self._act(obs, index=index, task=task)
+            if env is None:
+                return self._act(obs, index=index, task=task)
+            else:
+                return self._act(obs, index=index, task=task, env=env)
 
     def _act(self, obs, index=None, info=None):
         """Implements act method in child class."""
@@ -236,12 +239,13 @@ class HierarchicalAgent(BaseAgent):
         })
         return super()._default_hparams().overwrite(default_dict)
 
-    def act(self, obs, index=None, task=None):
+    def act(self, obs, index=None, task=None, env=None):
         """Output dict contains is_hl_step in case high-level action was performed during this action."""
         obs_input = obs[None] if len(obs.shape) == 1 else obs    # need batch input for agents
         output = AttrDict()
         if self._perform_hl_step_now:
             # perform step with high-level policy
+            # self._last_hl_output = self.hl_agent.act(obs_input, index=index, task=task, env=env)
             self._last_hl_output = self.hl_agent.act(obs_input, index=index, task=task)
             output.is_hl_step = True
             if len(obs_input.shape) == 2 and len(self._last_hl_output.action.shape) == 1:

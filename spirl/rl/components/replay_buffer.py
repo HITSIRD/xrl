@@ -61,8 +61,9 @@ class ReplayBuffer:
         self._replay_buffer = AttrDict()
         for key in example_batch:
             example_element = example_batch[key][0]
-            self._replay_buffer[key] = np.empty([int(self._max_capacity)] + list(example_element.shape),
-                                                   dtype=example_element.dtype)
+            if example_element is not None:
+                self._replay_buffer[key] = np.empty([int(self._max_capacity)] + list(example_element.shape),
+                                                       dtype=example_element.dtype)
         self._idx = 0
         self._size = 0
 
@@ -206,8 +207,8 @@ class RolloutStorage:
         for rollout in self.rollouts:
             tasks = []
             for step, task_info in enumerate(rollout['info']):
-                if len(task_info[0]['complete_task']) > 0:
-                    tasks.append((task_info[0]['complete_task'], step))
+                if len(task_info[0]['completed_task']) > 0:
+                    tasks.append((task_info[0]['completed_task'], step))
             if len(tasks) > 0:
                 complete_task.append(tasks)
 

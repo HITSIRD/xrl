@@ -4,10 +4,12 @@ import torch
 import os
 import imp
 import json
+import copy
 
 from tensorboardX import SummaryWriter
 from tqdm import tqdm
 from collections import defaultdict
+import numpy as np
 
 from spirl.rl.components.params import get_args
 from spirl.train import set_seeds, make_path, datetime_str, save_config, get_exp_dir, save_checkpoint
@@ -20,15 +22,17 @@ from spirl.rl.components.sampler import Sampler
 from spirl.rl.components.replay_buffer import RolloutStorage
 from spirl.rl.utils.rollout_utils import SERolloutSaver
 
+
 class DHLEvaluator:
     """Deterministic high level policy evaluator."""
+
     def __init__(self, args):
         self.args = args
         self.setup_device()
 
         # set up params
         self.conf = self.get_config()
-        update_with_mpi_config(self.conf)   # self.conf.mpi = AttrDict(is_chef=True)
+        update_with_mpi_config(self.conf)  # self.conf.mpi = AttrDict(is_chef=True)
         self._hp = self._default_hparams()
         self._hp.overwrite(self.conf.general)  # override defaults with config file
         self._hp.exp_path = make_path(self.conf.exp_dir, args.path, args.prefix, args.new_dir)
@@ -36,7 +40,7 @@ class DHLEvaluator:
         print('using log dir: ', log_dir)
 
         # set seeds, display, worker shutdown
-        if args.seed != -1: self._hp.seed = args.seed   # override from command line if set
+        if args.seed != -1: self._hp.seed = args.seed  # override from command line if set
         set_seeds(self._hp.seed)
         os.environ["DISPLAY"] = ":1"
         set_shutdown_hooks()
@@ -51,10 +55,10 @@ class DHLEvaluator:
 
         # build env
         self.conf.env.seed = self._hp.seed
-        if 'task_params' in self.conf.env: self.conf.env.task_params.seed=self._hp.seed
-        if 'general' in self.conf: self.conf.general.seed=self._hp.seed
-        self.env = self._hp.environment(self.conf.env)
-        self.conf.agent.env_params = self.env.agent_params      # (optional) set params from env for agent
+        if 'task_params' in self.conf.env: self.conf.env.task_params.seed = self._hp.seed
+        if 'general' in self.conf: self.conf.general.seed = self._hp.seed
+        self.env = self._hp.environment(copy.deepcopy(self.conf.env))
+        self.conf.agent.env_params = self.env.agent_params  # (optional) set params from env for agent
         if self.is_chef:
             pretty_print(self.conf)
 
@@ -70,7 +74,7 @@ class DHLEvaluator:
         self.global_step, self.n_update_steps, start_epoch = 0, 0, 0
         if args.resume or self.conf.ckpt_path is not None:
             start_epoch = self.resume(args.resume, self.conf.ckpt_path)
-            self._hp.n_warmup_steps = 0     # no warmup if we reload from checkpoint!
+            self._hp.n_warmup_steps = 0  # no warmup if we reload from checkpoint!
 
         # start training/evaluation
         self.val()
@@ -81,17 +85,17 @@ class DHLEvaluator:
             'agent': None,
             'data_dir': None,  # directory where dataset is in
             'environment': None,
-            'sampler': Sampler,     # sampler type used
+            'sampler': Sampler,  # sampler type used
             'exp_path': None,  # Path to the folder with experiments
             'num_epochs': 200,
             'max_rollout_len': 1000,  # maximum length of the performed rollout
-            'n_steps_per_update': 1,     # number of env steps collected per policy update
-            'n_steps_per_epoch': 20000,       # number of env steps per epoch
+            'n_steps_per_update': 1,  # number of env steps collected per policy update
+            'n_steps_per_epoch': 20000,  # number of env steps per epoch
             'log_output_per_epoch': 100,  # log the non-image/video outputs N times per epoch
-            'log_images_per_epoch': 4,    # log images/videos N times per epoch
-            'logging_target': 'none',    # where to log results to
-            'n_warmup_steps': 0,    # steps of warmup experience collection before training
-            'num_sample': 10,
+            'log_images_per_epoch': 4,  # log images/videos N times per epoch
+            'logging_target': 'none',  # where to log results to
+            'n_warmup_steps': 0,  # steps of warmup experience collection before training
+            'num_sample': 100,
         })
         return default_dict
 
@@ -111,28 +115,39 @@ class DHLEvaluator:
         if self.args.save_dir is None:
             self.args.save_dir = self._hp.exp_path
 
-        for i in range(8):
+        for i in range(1):
             val_rollout_storage = RolloutStorage()
             with self.agent.val_mode():
                 with torch.no_grad():
                     with timing(f"index {i} eval rollout time: "):
                         for _ in range(self._hp.num_sample):
-                            episode = self.sampler.sample_episode(index=i, is_train=False, render=False)
-                            # episode = self.sampler.sample_episode(is_train=False, render=False)
+                            # oracle policy
+                            # episode = self.sampler.sample_episode(index=i, is_train=False, render=False, task=True)
+
+                            # deterministic policy & tree policy
+                            # episode = self.sampler.sample_episode(index=i, is_train=False, render=False, task=False)
+                            # print(episode.hl_action_index)
+
+                            # spirl_cl_vq
+                            episode = self.sampler.sample_episode(is_train=False, render=False, task=False)
+
+                            # env copy
+                            # episode = self.sampler.sample_episode(is_train=False, render=False,
+                            #                                       env_stat=AttrDict(env=self._hp.environment,
+                            #                                                         conf=self.conf.env))
                             val_rollout_storage.append(episode)
-                            # val_rollout_storage.append(self.sampler.sample_episode(index=z[i], is_train=False, render=False))
                             # val_rollout_storage.append(self.sampler.sample_episode(is_train=False, render=False))
                             # saver.save_rollout(episode)
                             # saver.save('k8')
 
             episode_reward_mean, episode_reward_std = val_rollout_storage.rollout_stats(std=True)
-        #     complete_task, count = val_rollout_storage.evaluate_task()
-        #
-        #     success_rate = count.copy()
-        #     for k in success_rate.keys():
-        #         success_rate[k] = success_rate[k] / self._hp.num_sample
-        #     stat[i] = [complete_task, success_rate]
-        #
+            # complete_task, count = val_rollout_storage.evaluate_task()
+
+            # success_rate = count.copy()
+            # for k in success_rate.keys():
+            #     success_rate[k] = success_rate[k] / self._hp.num_sample
+            # stat[i] = [complete_task, success_rate]
+
             if self.is_chef:
                 # with timing(f"index {i} eval log time: "):
                 #     self.agent.log_outputs(rollout_stats, val_rollout_storage,
@@ -141,8 +156,8 @@ class DHLEvaluator:
 
                 print(f"index {i} evaluation Avg_Reward: {episode_reward_mean} ({episode_reward_std})")
 
-        #     del val_rollout_storage
-        #
+            del val_rollout_storage
+
         # now = datetime.datetime.now()
         # formatted_date = now.strftime("%Y%m%d_%H%M%S")
         #
@@ -150,24 +165,6 @@ class DHLEvaluator:
         # path = os.path.join(self._hp.exp_path, 'skill_evaluate_' + formatted_date + '.json')
         # with open(path, "w") as file:
         #     json.dump(stat, file)
-
-            # """Generate rollouts and save to hdf5 files."""
-            # # print("index {} saving {} rollouts to directory {}...".format(i, self.args.n_val_samples, self.args.save_dir))
-            # # saver = RolloutSaver(self.args.save_dir)
-            # n_success = 0
-            # n_total = 0
-            # with self.agent.val_mode():
-            #     with torch.no_grad():
-            #         for _ in tqdm(range(self.args.n_val_samples)):
-            #             while True:  # keep producing rollouts until we get a valid one
-            #                 episode = self.sampler.sample_episode(index=i, is_train=False, render=False)
-            #                 valid = not hasattr(self.agent, 'rollout_valid') or self.agent.rollout_valid
-            #                 n_total += 1
-            #                 if valid:
-            #                     n_success += 1
-            #                     break
-            #             # saver.save_rollout_to_file(episode)
-            # print("index {} success rate: {:d} / {:d} = {:.3f}%".format(i, n_success, n_total, float(n_success) / n_total * 100))
 
     def get_config(self):
         conf = AttrDict()
@@ -188,7 +185,7 @@ class DHLEvaluator:
 
         # environment config
         conf.env = conf_module.env_config
-        conf.env.device = self.device       # add device to env config as it directly returns tensors
+        conf.env.device = self.device  # add device to env config as it directly returns tensors
 
         # sampler config
         conf.sampler = conf_module.sampler_config if hasattr(conf_module, 'sampler_config') else AttrDict({})
@@ -272,13 +269,13 @@ class DHLEvaluator:
     @property
     def log_outputs_now(self):
         return self.n_update_steps % int((self._hp.n_steps_per_epoch / self._hp.n_steps_per_update)
-                                       / self._hp.log_output_per_epoch) == 0 \
-                    or self.log_images_now
+                                         / self._hp.log_output_per_epoch) == 0 \
+            or self.log_images_now
 
     @property
     def log_images_now(self):
         return self.n_update_steps % int((self._hp.n_steps_per_epoch / self._hp.n_steps_per_update)
-                                       / self._hp.log_images_per_epoch) == 0
+                                         / self._hp.log_images_per_epoch) == 0
 
     @property
     def is_chef(self):

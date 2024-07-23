@@ -1,7 +1,6 @@
 import torch
 import os
 import imp
-import json
 
 from tensorboardX import SummaryWriter
 from tqdm import tqdm

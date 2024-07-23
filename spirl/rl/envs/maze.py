@@ -7,6 +7,7 @@ from spirl.utils.general_utils import ParamDict, AttrDict
 
 class MazeEnv(GymEnv):
     """Shallow wrapper around gym env for maze envs."""
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -29,7 +30,7 @@ class MazeEnv(GymEnv):
         # self._env.render(mode='human')
         if rew > 0.5:
             done = True
-        return obs, np.float64(rew), done, info     # casting reward to float64 is important for getting shape later
+        return obs, np.float64(rew), done, info  # casting reward to float64 is important for getting shape later
 
 
 class ACRandMaze0S40Env(MazeEnv):
@@ -42,6 +43,7 @@ class ACRandMaze0S40Env(MazeEnv):
         })
         return super()._default_hparams().overwrite(default_dict)
 
+
 class ACRandMaze0S30Env(MazeEnv):
     START_POS = np.array([10., 24.])
     TARGET_POS = np.array([18., 6.])
@@ -49,5 +51,16 @@ class ACRandMaze0S30Env(MazeEnv):
     def _default_hparams(self):
         default_dict = ParamDict({
             'name': "maze2d-randMaze0S30-ac-v0",
+        })
+        return super()._default_hparams().overwrite(default_dict)
+
+
+class ACRandMaze0S20Env(MazeEnv):
+    START_POS = [6.0, 10.0]
+    TARGET_POS = [16.0, 10.0]
+
+    def _default_hparams(self):
+        default_dict = ParamDict({
+            'name': "maze2d-randMaze0S20-ac-v0",
         })
         return super()._default_hparams().overwrite(default_dict)

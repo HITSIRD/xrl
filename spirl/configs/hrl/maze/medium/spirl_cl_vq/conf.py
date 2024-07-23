@@ -23,6 +23,7 @@ ll_model_params.cond_decode = True
 
 ll_model_params.update(AttrDict(
     codebook_K=8,
+    # fixed_codebook=False,
 ))
 
 # create LL closed-loop policy
@@ -50,7 +51,7 @@ hl_policy_params.update(AttrDict(
     prior_model=ll_policy_params.policy_model,
     prior_model_params=ll_policy_params.policy_model_params,
     prior_model_checkpoint=ll_policy_params.policy_model_checkpoint,
-    squash_output_dist=False,
+    # squash_output_dist=False,
 ))
 
 # register new LL agent in agent_config and turn off LL agent updates
@@ -65,5 +66,5 @@ agent_config.update(AttrDict(
 ))
 
 agent_config.hl_agent_params.update(AttrDict(
-    td_schedule_params=AttrDict(p=1.5),
+    td_schedule_params=AttrDict(p=1.0),
 ))

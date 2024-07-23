@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from funcsigs import signature
+import inspect
 from spirl.modules.layers import BaseProcessingNet, FCBlock
 from spirl.modules.losses import L2Loss
 from spirl.modules.variational_inference import stack
@@ -40,7 +40,7 @@ class CustomLSTM(nn.Module):
             
             self.assert_post(output, inputs, initial_inputs, static_inputs)
             # TODO Test what signature does with *args
-            autoregressive_output = subdict(output, output.keys() & signature(self.cell.forward).parameters)
+            autoregressive_output = subdict(output, output.keys() & inspect.signature(self.cell.forward).parameters)
             step_inputs.update(autoregressive_output)
             lstm_outputs.append(output)
         

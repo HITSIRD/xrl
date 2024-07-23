@@ -36,8 +36,8 @@ oracle_policy_params.update(AttrDict(
     prior_model=ll_policy_params.policy_model,
     prior_model_params=ll_policy_params.policy_model_params,
     prior_model_checkpoint=ll_policy_params.policy_model_checkpoint,
-    policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
-                                         "hrl/calvin/spirl_cl_vq/k8_s6"),
+    # policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
+    #                                      "hrl/calvin/spirl_cl_vq/k8_s6"),
 ))
 
 hl_agent_config.policy = CARTPolicy
@@ -46,7 +46,7 @@ hl_agent_config.policy = CARTPolicy
 hl_policy_params.update(AttrDict(
     policy=CARTPolicy,
     policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
-                                         "/home/wenyongyan/文档/DAGGER+CART/calvin/cart_50_d3.pkl"),
+                                         "/home/wenyongyan/文档/DAGGER+CART/calvin/cart_50_d6.pkl"),
     codebook_checkpoint=os.path.join(os.environ["EXP_DIR"],
                                      "hrl/calvin/spirl_cl_vq/k8_s6/weights/weights_ep24.pth"),
     # max_depth=10,

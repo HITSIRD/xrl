@@ -121,6 +121,9 @@ class KitchenBase(KitchenTaskRelaxV1, OfflineEnv):
     #     # Disable rendering to speed up environment evaluation.
     #     return []
 
+    def get_current_task(self):
+        return self.tasks_to_complete
+
     def get_goal(self):
         """Loads goal state from dataset for goal-conditioned approaches (like RPL)."""
         raise NotImplementedError
@@ -133,8 +136,8 @@ class KitchenBase(KitchenTaskRelaxV1, OfflineEnv):
         for end_idx in seq_end_idxs:
             seqs.append(
                 dict(
-                    states=data["observations"][start : end_idx + 1],
-                    actions=data["actions"][start : end_idx + 1],
+                    states=data["observations"][start: end_idx + 1],
+                    actions=data["actions"][start: end_idx + 1],
                 )
             )
             start = end_idx + 1

@@ -11,12 +11,16 @@ ll_model_params.cond_decode = True
 
 hl_agent_config.policy = OracleVQPolicy
 
+ll_model_params.update(AttrDict(
+    codebook_K=16,
+))
+
 # create LL closed-loop policy
 ll_policy_params = AttrDict(
     policy_model=ClVQSPiRLMdl,
     policy_model_params=ll_model_params,
     policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
-                                         "skill_prior_learning/kitchen/hierarchical_cl_vq"),
+                                         "skill_prior_learning/kitchen/hierarchical_cl_vq/K_16"),
 )
 ll_policy_params.update(ll_model_params)
 
@@ -33,8 +37,11 @@ hl_policy_params.update(AttrDict(
     prior_model=ll_policy_params.policy_model,
     prior_model_params=ll_policy_params.policy_model_params,
     prior_model_checkpoint=ll_policy_params.policy_model_checkpoint,
-    skill_evaluation=os.path.join(os.environ["EXP_DIR"],
-                                         "hrl/kitchen/vq/VQDHL_kitchen_2/skill_evaluate_20240116_165415.json")
+    skill_evaluation=os.path.join(os.environ["EXP_DIR"], "hrl/kitchen/oracle_vq/mkbl/new_reconstruction_loss_"),
+    # codebook_checkpoint=os.path.join(os.environ["EXP_DIR"],
+    #                                  "hrl/kitchen/spirl_cl_vq/mkbl_s0_k16_inverse_kl/weights/weights_ep24.pth")
+    codebook_checkpoint=os.path.join(os.environ["EXP_DIR"],
+                                     "skill_prior_learning/kitchen/hierarchical_cl_vq/weights/weights_ep99.pth")
 ))
 
 agent_config.update(AttrDict(

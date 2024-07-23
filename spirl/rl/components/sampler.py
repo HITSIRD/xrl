@@ -32,8 +32,9 @@ class Sampler:
             with self._agent.val_mode() if not is_train else contextlib.suppress():
                 self._episode_reset()
 
-    def sample_action(self, obs, index=None, task=None):
-        return self._agent.act(obs, index, task)
+    def sample_action(self, obs, index=None, task=None, env_stat=None):
+        # return self._agent.act(obs, index=index, task=task, env=AttrDict(env=self._env, env_stat=env_stat))
+        return self._agent.act(obs, index=index, task=task)
 
     def sample_batch(self, batch_size, is_train=True, global_step=None):
         """Samples an experience batch of the required size."""
@@ -73,7 +74,7 @@ class Sampler:
 
         return listdict2dictlist(experience_batch), step
 
-    def sample_episode(self, is_train, render=False, index=None):
+    def sample_episode(self, is_train, render=False, index=None, task=False, env_stat=None):
         """Samples one episode from the environment."""
         self.init(is_train)
         episode, done = [], False
@@ -82,8 +83,14 @@ class Sampler:
                 with self._agent.rollout_mode():
                     while not done and self._episode_step < self._max_episode_len:
                         # perform one rollout step
-                        # agent_output = self.sample_action(self._obs, index=index, task=self._env._env.unwrapped.get_current_task())
-                        agent_output = self.sample_action(self._obs, index=index, task=None)
+                        if not task:
+                            agent_output = self.sample_action(self._obs, index=index)
+                        else:
+                            agent_output = self.sample_action(self._obs, index=index,
+                                                              task=self._env._env.unwrapped.get_current_task())
+                            # agent_output = self.sample_action(self._obs, index=index,
+                            #                                   task=self._env.tasks_to_complete)
+                        # agent_output = self.sample_action(self._obs, index=index, task=None)
                         if agent_output.action is None:
                             break
                         agent_output = self._postprocess_agent_output(agent_output)
