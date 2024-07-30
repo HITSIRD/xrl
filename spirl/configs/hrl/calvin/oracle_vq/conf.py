@@ -12,7 +12,7 @@ ll_model_params.cond_decode = True
 hl_agent_config.policy = OracleVQPolicy
 
 ll_model_params.update(AttrDict(
-    codebook_K=8,
+    codebook_K=16,
 ))
 
 # create LL closed-loop policy
@@ -20,7 +20,7 @@ ll_policy_params = AttrDict(
     policy_model=ClVQSPiRLMdl,
     policy_model_params=ll_model_params,
     policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
-                                         "skill_prior_learning/calvin/hierarchical_cl_vq/K_8"),
+                                         "skill_prior_learning/calvin/hierarchical_cl_vq/K_16"),
 )
 ll_policy_params.update(ll_model_params)
 
@@ -39,8 +39,8 @@ hl_policy_params.update(AttrDict(
     prior_model_checkpoint=ll_policy_params.policy_model_checkpoint,
 
     codebook_checkpoint=os.path.join(os.environ["EXP_DIR"],
-                                     "hrl/calvin/spirl_cl_vq/k8_s6/weights/weights_ep24.pth"),
-    skill_evaluation=os.path.join(os.environ["EXP_DIR"], "hrl/calvin/oracle_vq/finetune/skill_evaluate_prior_")
+                                     "skill_prior_learning/calvin/hierarchical_cl_vq/K_16/weights/weights_ep99.pth"),
+    skill_evaluation=os.path.join(os.environ["EXP_DIR"], "hrl/calvin/oracle_vq/K_16/skill_evaluate_prior_")
 ))
 
 agent_config.update(AttrDict(

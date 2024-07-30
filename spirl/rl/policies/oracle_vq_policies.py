@@ -10,14 +10,14 @@ from spirl.rl.components.agent import BaseAgent
 from spirl.rl.components.policy import Policy
 
 # kitchen
-TASK_ELEMENTS = {'microwave': 0,
-                 'kettle': 1,
-                 'bottom burner': 2,
-                 'top burner': 3,
-                 'light switch': 4,
-                 'slide cabinet': 5,
-                 'hinge cabinet': 6
-                 }
+# TASK_ELEMENTS = {'microwave': 0,
+#                  'kettle': 1,
+#                  'bottom burner': 2,
+#                  'top burner': 3,
+#                  'light switch': 4,
+#                  'slide cabinet': 5,
+#                  'hinge cabinet': 6
+#                  }
 
 # calvin
 # TASK_ELEMENTS = {'open_drawer': 0,
@@ -25,6 +25,12 @@ TASK_ELEMENTS = {'microwave': 0,
 #                  'move_slider_left': 2,
 #                  'turn_on_led': 3
 #                  }
+
+TASK_ELEMENTS = {'open_drawer': 0,
+                 'move_slider_left': 1,
+                 'turn_on_led': 2,
+                 'turn_on_lightbulb': 3,
+                 }
 
 N_TASKS = len(TASK_ELEMENTS)
 

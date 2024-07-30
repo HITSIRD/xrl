@@ -94,9 +94,8 @@ class SACAgent(ACAgent):
         # define entropy multiplier alpha
         self._log_alpha = TensorModule(torch.zeros(1, requires_grad=True, device=self._hp.device))
         self.alpha_opt = self._get_optimizer(self._hp.optimizer, self._log_alpha, self._hp.alpha_lr)
-        self._target_entropy = self._hp.target_entropy if self._hp.target_entropy is not None else -1
+        self._target_entropy = self._hp.target_entropy if self._hp.target_entropy is not None else -1.0 * self._hp.policy_params.action_dim
             # else -1 * self._hp.ll_agent_params.policy_params.codebook_K
-            # else -1
 
         # build replay buffer
         self.replay_buffer = self._hp.replay(self._hp.replay_params)

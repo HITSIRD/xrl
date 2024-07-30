@@ -48,6 +48,8 @@ hl_policy_params.update(AttrDict(
     prior_model_checkpoint=ll_policy_params.policy_model_checkpoint,
     # policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
     #                                      "hrl/calvin/spirl_cl_vq/k8_s6/weights"),
+    codebook_checkpoint=os.path.join(os.environ["EXP_DIR"],
+                                         "hrl/calvin/spirl_cl_vq/k8_s6/weights/weights_ep24.pth"),
     # squash_output_dist=False,
 ))
 

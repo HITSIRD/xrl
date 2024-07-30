@@ -86,10 +86,10 @@ class Sampler:
                         if not task:
                             agent_output = self.sample_action(self._obs, index=index)
                         else:
-                            agent_output = self.sample_action(self._obs, index=index,
-                                                              task=self._env._env.unwrapped.get_current_task())
                             # agent_output = self.sample_action(self._obs, index=index,
-                            #                                   task=self._env.tasks_to_complete)
+                            #                                   task=self._env._env.unwrapped.get_current_task())
+                            agent_output = self.sample_action(self._obs, index=index,
+                                                              task=self._env.tasks_to_complete)
                         # agent_output = self.sample_action(self._obs, index=index, task=None)
                         if agent_output.action is None:
                             break

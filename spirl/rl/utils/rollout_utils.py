@@ -117,7 +117,7 @@ class SERolloutSaver(object):
         # self.data['hl_action_index'] = np.array(episode['hl_action_index'])[index]
 
     def save(self, file_name):
-        save_path = os.path.join(self.save_dir, f"rollout_{file_name}_{self.counter}.h5")
+        save_path = os.path.join(self.save_dir, f"rollout_{file_name}.h5")
 
         # save rollout to file
         f = h5py.File(save_path, "w")
@@ -128,7 +128,7 @@ class SERolloutSaver(object):
         traj_data.create_dataset("states", data=self.data['observation'])
         # traj_data.create_dataset("actions", data=np.array(episode.action))
         # traj_data.create_dataset("hl_action_index", data=self.data['hl_action_index'])
-        self.counter += 1
+        # self.counter += 1
 
     def reset(self):
         """Resets counter."""

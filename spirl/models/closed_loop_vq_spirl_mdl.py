@@ -18,7 +18,7 @@ class ClVQSPiRLMdl(ClSPiRLMdl):
 
     def _default_hparams(self):
         default_dict = ParamDict({
-            'fixed_codebook': True,
+            'fixed_codebook': False,
         })
         # add new params to parent params
         return super()._default_hparams().overwrite(default_dict)

@@ -11,7 +11,7 @@ configuration = {
     # 'sampler': ACMultiImageAugmentedHierarchicalSampler,
     'sampler': HierarchicalSampler,
     'data_dir': '.',
-    'num_epochs': 25,
+    'num_epochs': 21,
     'max_rollout_len': 2000,
     'n_steps_per_epoch': 100000,
     'n_warmup_steps': 1000,
@@ -26,7 +26,7 @@ ll_model_params.update(AttrDict(
     fixed_codebook=False,
 ))
 
-# prior_model_epoch = 73
+prior_model_epoch = 74
 
 # create LL closed-loop policy
 ll_policy_params = AttrDict(
@@ -34,7 +34,7 @@ ll_policy_params = AttrDict(
     policy_model_params=ll_model_params,
     policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
                                          "skill_prior_learning/maze/easy/hierarchical_cl_vq"),
-    # policy_model_epoch=prior_model_epoch,
+    policy_model_epoch=prior_model_epoch,
 )
 ll_policy_params.update(ll_model_params)
 
@@ -54,7 +54,7 @@ hl_policy_params.update(AttrDict(
     prior_model=ll_policy_params.policy_model,
     prior_model_params=ll_policy_params.policy_model_params,
     prior_model_checkpoint=ll_policy_params.policy_model_checkpoint,
-    # prior_model_epoch=prior_model_epoch,
+    prior_model_epoch=prior_model_epoch,
     # policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
     #                                      "hrl/maze/easy/spirl_cl_vq/k16_s0_r/weights"),
     squash_output_dist=False,
@@ -72,5 +72,5 @@ agent_config.update(AttrDict(
 ))
 
 agent_config.hl_agent_params.update(AttrDict(
-    td_schedule_params=AttrDict(p=1.0),
+    td_schedule_params=AttrDict(p=5.0),
 ))

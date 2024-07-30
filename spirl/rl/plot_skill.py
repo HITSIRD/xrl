@@ -11,13 +11,19 @@ import json
 #                  'hinge cabinet': 6
 #                  }
 
+# TASK_ELEMENTS = {'open_drawer': 0,
+#                  'turn_on_lightbulb': 1,
+#                  'move_slider_left': 2,
+#                  'turn_on_led': 3
+#                  }
+
 TASK_ELEMENTS = {'open_drawer': 0,
-                 'turn_on_lightbulb': 1,
-                 'move_slider_left': 2,
-                 'turn_on_led': 3
+                 'move_slider_left': 1,
+                 'turn_on_led': 2,
+                 'turn_on_lightbulb': 3,
                  }
 
-K = 8
+K = 16
 
 
 def plot_skill(file_path):
@@ -56,7 +62,7 @@ if __name__ == '__main__':
     # file_path = 'hrl/kitchen/oracle_vq/mkbl/skill_evaluate_prior_mkbl_3'
     # file_path = 'hrl/kitchen/oracle_vq/mkbl/new_reconstruction_loss_1'
     # file_path = 'hrl/kitchen/oracle_vq/mlsh_finetune/skill_evaluate_prior_mlsh_3'
-    file_path = 'hrl/calvin/oracle_vq/test/skill_evaluate_prior_3'
+    file_path = 'hrl/calvin/oracle_vq/K_16/skill_evaluate_prior_2'
     # file_path = 'hrl/calvin/oracle_vq/finetune/skill_evaluate_prior_0'
     # file_path = 'hrl/kitchen/oracle_vq/mkbl/new_reconstruction'
     plot_skill(file_path)

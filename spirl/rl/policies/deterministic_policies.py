@@ -13,6 +13,7 @@ class DeterministicPolicy(Policy):
         self.update_model_params(self._hp.prior_model_params)
         super().__init__()
         self.steps_since_hl, self.last_z = np.Inf, None
+        self.codebook = self._load_codebook()
         self._t = 0
 
     def _default_hparams(self):
@@ -26,7 +27,7 @@ class DeterministicPolicy(Policy):
         return super()._default_hparams().overwrite(default_dict)
 
     def forward(self, obs, index, task=None):
-        index = np.random.randint(self.net.codebook.embedding.weight.shape[0])
+        # index = np.random.randint(self.codebook.shape[0])
 
         # if self._hp.policy_model is not None:
         #     with no_batchnorm_update(self):  # BN updates harm the initialized policy
@@ -34,28 +35,20 @@ class DeterministicPolicy(Policy):
         #         result.action = result.action.cpu()
         #         return result
 
-        if self._hp.load_weights:
-            return AttrDict(action=self.net.codebook.embedding.weight[index].detach().cpu().numpy(), action_index=index)
+        return AttrDict(action=self.codebook[index], action_index=index)
 
         # return AttrDict(action=self.net[index].detach().cpu().numpy(), action_index=index)
 
     def _build_network(self):
-        # # net = self._hp.prior_model(self._hp.prior_model_params, None)
-        # weight = torch.load(self._hp.codebook_checkpoint)
-        # # return weight['state_dict']['hl_agent']['policy.prior_net.codebook.embedding.weight']
-        # # return weight['state_dict']['hl_agent']['policy.net.codebook.embedding.weight']
-        # return weight['state_dict']['codebook.embedding.weight']
+        pass
 
-        if self._hp.policy_model is not None:
-            net = self._hp.policy_model(self._hp.policy_model_params, None)
-        else:
-            net = self._hp.prior_model(self._hp.prior_model_params, None)
-        if self._hp.load_weights:
-            if hasattr(self._hp, 'policy_model_checkpoint'):
-                BaseAgent.load_model_weights(net, self._hp.policy_model_checkpoint, self._hp.prior_model_epoch)
-            else:
-                BaseAgent.load_model_weights(net, self._hp.prior_model_checkpoint, 99)
-        return net
+    def _load_codebook(self):
+        weight = torch.load(self._hp.codebook_checkpoint)
+        print('loading codebook from {}'.format(self._hp.codebook_checkpoint))
+
+        # return weight['state_dict']['hl_agent']['policy.prior_net.codebook.embedding.weight'].cpu().numpy()
+        # return weight['state_dict']['hl_agent']['policy.net.codebook.embedding.weight'].cpu().numpy()
+        return weight['state_dict']['codebook.embedding.weight'].cpu().numpy()
 
     def _compute_action_dist(self, obs):
         return self.net.compute_learned_prior(obs, first_only=True)

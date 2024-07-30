@@ -10,7 +10,7 @@ ll_model_params.cond_decode = True
 
 ll_model_params.update(AttrDict(
     codebook_K=8,
-    fixed_codebook=False,
+    # fixed_codebook=False,
 ))
 
 # Q(s) instead of Q(s, a)
@@ -61,6 +61,5 @@ agent_config.update(AttrDict(
 ))
 
 agent_config.hl_agent_params.update(AttrDict(
-    td_schedule_params=AttrDict(p=0.15),
-    # fixed_alpha=True,
+    td_schedule_params=AttrDict(p=0.5),
 ))
