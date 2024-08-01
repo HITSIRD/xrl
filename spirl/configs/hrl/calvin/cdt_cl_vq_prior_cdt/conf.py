@@ -11,6 +11,7 @@ prior_model_name = "cdt_k8_s1_-1+15+6+0_4"
 # CDT config
 ll_model_params.update(AttrDict(
     codebook_K=8,
+    fixed_codebook=False,
     feature_learning_depth=-1,
     num_intermediate_variables=15,
     decision_depth=6,
