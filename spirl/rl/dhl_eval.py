@@ -96,6 +96,7 @@ class DHLEvaluator:
             'logging_target': 'none',  # where to log results to
             'n_warmup_steps': 0,  # steps of warmup experience collection before training
             'num_sample': 20,
+            'save': False,
         })
         return default_dict
 
@@ -115,32 +116,37 @@ class DHLEvaluator:
         if self.args.save_dir is None:
             self.args.save_dir = self._hp.exp_path
 
-        for i in range(16):
+        reward = []
+
+        for i in range(1):
             val_rollout_storage = RolloutStorage()
             with self.agent.val_mode():
                 with torch.no_grad():
                     with timing(f"index {i} eval rollout time: "):
                         for j in range(self._hp.num_sample):
                             # oracle policy
-                            episode = self.sampler.sample_episode(index=i, is_train=False, render=False, task=True)
+                            # episode = self.sampler.sample_episode(index=i, is_train=False, render=False, task=True)
 
                             # deterministic policy & tree policy
                             # episode = self.sampler.sample_episode(index=i, is_train=False, render=False, task=False)
 
                             # spirl_cl_vq
-                            # episode = self.sampler.sample_episode(is_train=False, render=False, task=False)
+                            episode = self.sampler.sample_episode(is_train=False, render=False, task=False)
 
                             # env copy
                             # episode = self.sampler.sample_episode(is_train=False, render=False,
                             #                                       env_stat=AttrDict(env=self._hp.environment,
                             #                                                         conf=self.conf.env))
                             val_rollout_storage.append(episode)
+                            reward.append(np.array(episode.reward).sum())
                             # val_rollout_storage.append(self.sampler.sample_episode(is_train=False, render=False))
                             # saver.save_rollout(episode)
                             # saver.save(f'k16_{i}_{j}')
 
             episode_reward_mean, episode_reward_std = val_rollout_storage.rollout_stats(std=True)
             complete_task, count = val_rollout_storage.evaluate_task()
+
+            print(reward)
 
             success_rate = count.copy()
             for k in success_rate.keys():
@@ -157,13 +163,14 @@ class DHLEvaluator:
 
             del val_rollout_storage
 
-        now = datetime.datetime.now()
-        formatted_date = now.strftime("%Y%m%d_%H%M%S")
+        if self._hp.save:
+            now = datetime.datetime.now()
+            formatted_date = now.strftime("%Y%m%d_%H%M%S")
 
-        print('writing skill evaluation result...')
-        path = os.path.join(self._hp.exp_path, 'skill_evaluate_' + formatted_date + '.json')
-        with open(path, "w") as file:
-            json.dump(stat, file)
+            print('writing skill evaluation result...')
+            path = os.path.join(self._hp.exp_path, 'skill_evaluate_' + formatted_date + '.json')
+            with open(path, "w") as file:
+                json.dump(stat, file)
 
     def get_config(self):
         conf = AttrDict()

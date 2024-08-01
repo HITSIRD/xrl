@@ -15,8 +15,8 @@ configuration = {
     # 'logger': SkillSpaceLogger,
     'logger': Logger,
     'data_dir': os.path.join(os.environ['DATA_DIR'], 'maze/maze2d_20_seed1'),
-    'epoch_cycles_train': 20,
-    'num_epochs': 100,
+    'epoch_cycles_train': 50,
+    'num_epochs': 75,
     'evaluator': TopOfNSequenceEvaluator,
     'top_of_n_eval': 100,
     'top_comp_metric': 'mse',
@@ -39,3 +39,4 @@ data_config = AttrDict()
 data_config.dataset_spec = data_spec
 # data_config.dataset_spec.subseq_len = model_config.n_rollout_steps + model_config.n_input_frames  # flat last action from seq gets cropped
 data_config.dataset_spec.subseq_len = model_config.n_rollout_steps + 1  # flat last action from seq gets cropped
+

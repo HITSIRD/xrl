@@ -14,7 +14,7 @@ configuration = {
     'logger': Logger,
     'data_dir': os.path.join(os.environ['DATA_DIR'], 'maze/maze2d_20_seed1'),
     'epoch_cycles_train': 50,
-    'num_epochs': 100,
+    'num_epochs': 75,
     'evaluator': TopOfNSequenceEvaluator,
     'top_of_n_eval': 100,
     'top_comp_metric': 'mse',

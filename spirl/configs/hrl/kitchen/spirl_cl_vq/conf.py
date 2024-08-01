@@ -60,5 +60,5 @@ agent_config.update(AttrDict(
 ))
 
 agent_config.hl_agent_params.update(AttrDict(
-    td_schedule_params=AttrDict(p=0.1),
+    td_schedule_params=AttrDict(p=0.25),
 ))
