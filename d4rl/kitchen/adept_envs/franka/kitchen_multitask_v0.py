@@ -99,7 +99,7 @@ class KitchenV0(robot_env.RobotEnv):
         obs = self._get_obs()
 
         #rewards
-        reward_dict, score, complete_task = self._get_reward_n_score(self.obs_dict)
+        reward_dict, score, completed_task = self._get_reward_n_score(self.obs_dict)
 
         # termination
         done = False
@@ -110,7 +110,7 @@ class KitchenV0(robot_env.RobotEnv):
             'obs_dict': self.obs_dict,
             'rewards': reward_dict,
             'score': score,
-            'complete_task': complete_task,
+            'completed_task': completed_task,
             'current_task': self.get_current_task(),
             # 'images': np.asarray(self.render(mode='rgb_array'))
         }

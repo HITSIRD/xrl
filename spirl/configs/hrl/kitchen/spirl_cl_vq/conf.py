@@ -2,19 +2,21 @@ from spirl.configs.hrl.kitchen.spirl.conf import *
 from spirl.models.closed_loop_vq_spirl_mdl import ClVQSPiRLMdl
 from spirl.rl.policies.cl_model_policies import ClModelPolicy
 from spirl.rl.policies.prior_policies import LearnedVQPriorAugmentedPolicy
+from spirl.rl.agents.prior_discrete_sac_agent import ActionPriorDiscreteSACAgent
 
 # update model params to conditioned decoder on state
 ll_model_params.cond_decode = True
 
 ll_model_params.update(AttrDict(
     codebook_K=16,
+    fixed_codebook=False,
 ))
 
-hl_critic_params.update(AttrDict(
-    input_dim=hl_policy_params.input_dim,
-    output_dim=ll_model_params.codebook_K,
-    action_input=False,
-))
+# hl_critic_params.update(AttrDict(
+#     input_dim=hl_policy_params.input_dim,
+#     output_dim=ll_model_params.codebook_K,
+#     action_input=False,
+# ))
 
 # create LL closed-loop policy
 ll_policy_params = AttrDict(
@@ -58,5 +60,5 @@ agent_config.update(AttrDict(
 ))
 
 agent_config.hl_agent_params.update(AttrDict(
-    td_schedule_params=AttrDict(p=1.5),
+    td_schedule_params=AttrDict(p=0.25),
 ))

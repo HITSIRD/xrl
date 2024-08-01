@@ -14,7 +14,7 @@ configuration = {
     'model': ClSPiRLMdl,
     # 'logger': SkillSpaceLogger,
     'logger': Logger,
-    'data_dir': os.path.join(os.environ['DATA_DIR'], 'maze'),
+    'data_dir': os.path.join(os.environ['DATA_DIR'], 'maze/maze2d_30_seed3'),
     'epoch_cycles_train': 20,
     'num_epochs': 100,
     'evaluator': TopOfNSequenceEvaluator,

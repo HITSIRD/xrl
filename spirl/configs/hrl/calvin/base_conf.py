@@ -25,9 +25,9 @@ configuration = {
     'data_dir': '.',
     'num_epochs': 25,
     'max_rollout_len': 360,
-    'n_steps_per_epoch': 100000,
-    'n_warmup_steps': 5e3,
-    # 'n_warmup_steps': 512,
+    'n_steps_per_epoch': 10000,
+    # 'n_warmup_steps': 5e3,
+    'n_warmup_steps': 512,
 }
 configuration = AttrDict(configuration)
 
@@ -139,13 +139,18 @@ env_config = AttrDict(
     control_freq=30,
 
     tasks={'_target_': 'calvin_env.envs.tasks.Tasks',
-          'tasks': {
-              'open_drawer': ['move_door_rel', 'base__drawer', 0.12],  # 0 - 0.24
-              'turn_on_lightbulb': ['toggle_light', 'lightbulb', 0, 1],
-              'move_slider_left': ['move_door_rel', 'base__slide', 0.15],  # 0 - 0.56
-              'turn_on_led': ['toggle_light', 'led', 0, 1]
-          },
-    },
+           'tasks': {
+               'open_drawer': ['move_door_rel', 'base__drawer', 0.12],  # 0 - 0.24
+               'turn_on_lightbulb': ['toggle_light', 'lightbulb', 0, 1],  # prob = Nan
+               'move_slider_left': ['move_door_rel', 'base__slide', 0.15],  # 0 - 0.56, prob = 0.163%
+               'turn_on_led': ['toggle_light', 'led', 0, 1]  # prob = 0.147%
+
+               # 'open_drawer': ['move_door_rel', 'base__drawer', 0.12],  # 0 - 0.24, prob = 0.179%
+               # 'move_slider_left': ['move_door_rel', 'base__slide', 0.15],  # 0 - 0.56, prob = 0.130%
+               # 'turn_on_led': ['toggle_light', 'led', 0, 1],
+               # 'turn_on_lightbulb': ['toggle_light', 'lightbulb', 0, 1],  # prob = 0.244%
+           },
+           },
 
     # camera
     cameras={

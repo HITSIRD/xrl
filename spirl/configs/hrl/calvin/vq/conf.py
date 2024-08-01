@@ -15,11 +15,11 @@ ll_model_params.update(AttrDict(
 ))
 
 # Q(s) instead of Q(s, a)
-hl_critic_params.update(AttrDict(
-    input_dim=hl_policy_params.input_dim,
-    output_dim=ll_model_params.codebook_K,
-    action_input=False,
-))
+# hl_critic_params.update(AttrDict(
+#     input_dim=hl_policy_params.input_dim,
+#     output_dim=ll_model_params.codebook_K,
+#     action_input=False,
+# ))
 
 # create LL closed-loop policy
 ll_policy_params = AttrDict(
@@ -48,12 +48,14 @@ hl_policy_params.update(AttrDict(
     prior_model_checkpoint=ll_policy_params.policy_model_checkpoint,
     # policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
     #                                      "hrl/calvin/spirl_cl_vq/k8_s6/weights"),
+    codebook_checkpoint=os.path.join(os.environ["EXP_DIR"],
+                                         "hrl/calvin/spirl_cl_vq/k8_s6/weights/weights_ep24.pth"),
     # squash_output_dist=False,
 ))
 
 # register new LL agent in agent_config and turn off LL agent updates
 agent_config.update(AttrDict(
-    hl_agent=ActionPriorDiscreteSACAgent,
+    hl_agent=ActionPriorSACAgent,
     hl_agent_params=hl_agent_config,
     ll_agent=SACAgent,
     ll_agent_params=ll_agent_config,

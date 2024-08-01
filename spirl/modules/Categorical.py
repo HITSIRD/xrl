@@ -13,7 +13,7 @@ class Categorical:
     """ Represents a categorical distribution """
 
     # TODO: implement a dict conversion function
-    def __init__(self, probs=None, logits=None, codebook=None, fixed=True):
+    def __init__(self, probs=None, logits=None, codebook=None, fixed=False):
         self.prob = torch.distributions.Categorical(probs=probs, logits=logits)
         self.codebook = codebook
 

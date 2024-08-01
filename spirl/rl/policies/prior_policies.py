@@ -101,7 +101,7 @@ class LearnedPriorAugmentedPolicy(PriorAugmentedPolicy):
         BaseAgent.load_model_weights(self.prior_net, self._hp.prior_model_checkpoint, self._hp.prior_model_epoch)
         if hasattr(self._hp, 'policy_model_checkpoint') and self._hp.policy_model_checkpoint is not None:
             print('load high level policy from {}'.format(self._hp.policy_model_checkpoint))
-            BaseAgent.load_model_weights(self.net, self._hp.policy_model_checkpoint, self._hp.prior_model_epoch,
+            BaseAgent.load_model_weights(self.net, self._hp.policy_model_checkpoint, self._hp.policy_model_epoch,
                                      opt='hl_agent')
 
     def _default_hparams(self):

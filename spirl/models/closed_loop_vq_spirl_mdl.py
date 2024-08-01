@@ -7,7 +7,7 @@ from spirl.utils.general_utils import batch_apply, ParamDict, AttrDict
 from spirl.utils.pytorch_utils import get_constant_parameter, ResizeSpatial, RemoveSpatial
 from spirl.models.skill_prior_mdl import SkillPriorMdl, ImageSkillPriorMdl
 from spirl.modules.subnetworks import Predictor, VQPredictor, BaseProcessingLSTM, Encoder
-from spirl.modules.variational_inference import MultivariateGaussian
+from spirl.modules.variational_inference import MultivariateGaussian, Gaussian
 from spirl.components.checkpointer import load_by_key, freeze_modules
 from spirl.modules.vq_vae import VQEmbedding
 from spirl.modules.Categorical import Categorical
@@ -18,7 +18,7 @@ class ClVQSPiRLMdl(ClSPiRLMdl):
 
     def _default_hparams(self):
         default_dict = ParamDict({
-            'fixed_codebook': True,
+            'fixed_codebook': False,
         })
         # add new params to parent params
         return super()._default_hparams().overwrite(default_dict)
@@ -73,7 +73,10 @@ class ClVQSPiRLMdl(ClSPiRLMdl):
         nll_loss = torch.nn.NLLLoss()
 
         # reconstruction loss, assume unit variance model output Gaussian
-        losses.rec_mse = mse_loss(model_output.reconstruction, inputs.actions)
+        losses.rec_mse = mse_loss(model_output.reconstruction, self._regression_targets(inputs))
+        # losses.rec_mse = NLL(self._hp.reconstruction_mse_weight)(
+        #     Gaussian(model_output.reconstruction, torch.zeros_like(model_output.reconstruction)),
+        #     self._regression_targets(inputs)).value
 
         # VQ loss
         losses.vq_loss = mse_loss(model_output.z_q_x, model_output.z_e_x.detach())
@@ -120,9 +123,6 @@ class ClVQSPiRLMdl(ClSPiRLMdl):
 
     def _build_codebook(self):
         return VQEmbedding(self._hp.codebook_K, self._hp.nz_vae)
-
-    def _get_seq_enc(self, inputs):
-        return inputs.states[:, :-1]
 
     def enc_obs(self, obs):
         """Optionally encode observation for decoder."""
@@ -195,7 +195,6 @@ class ImageClSPiRLMdl(ClSPiRLMdl, ImageSkillPriorMdl):
     @property
     def prior_input_size(self):
         return self.enc_size
-
 
 # class ClVQSPiRLMdlExtension(ClVQSPiRLMdl):
 #     def _compute_learned_prior(self, prior_mdl, inputs):
