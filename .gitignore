@@ -9,6 +9,7 @@
 
 /spirl/data/maze/maze2d
 /spirl/data/calvin/calvin.npz
+/spirl/data/maze/maze2d_20_seed1
 
 *.pyc
 .vscode
