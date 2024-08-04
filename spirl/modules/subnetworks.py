@@ -335,6 +335,12 @@ class VQCDTPredictor(nn.Module):
         self.load_state_dict(torch.load(model_path, map_location='cpu'))
         self.eval()
 
+    def load_model_from_hl(self, file_path):
+        # 加载检查点文件
+        checkpoint = torch.load(file_path, map_location='cpu')
+        self.dc_leaves.data = checkpoint['state_dict']['hl_agent']['policy.net.p.0.dc_leaves']
+        self.dc_inner_nodes.weight.data = checkpoint['state_dict']['hl_agent']['policy.net.p.0.dc_inner_nodes.weight']
+
 
 class IBPredictor(Predictor):
     """Predictor network with information bottleneck, additionally outputs mean and log_sigma of IB distribution."""
