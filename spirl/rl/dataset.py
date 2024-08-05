@@ -77,8 +77,8 @@ class Collector:
             'sampler': Sampler,     # sampler type used
             'exp_path': None,  # Path to the folder with experiments
             # 'num_sample': 50,
-            'num_rollout': 1000,
-            'reward_threshold': -1,
+            'num_rollout': 10,
+            'reward_threshold': 3,
         })
         return default_dict
 
@@ -114,7 +114,7 @@ class Collector:
                     reward += sum(episode['reward'])
                     print(f'count/total: {count}/{n_total}')
 
-                    saver.save(f'{self._hp.num_rollout}', save_interval=50)
+                    saver.save(f'{self._hp.num_rollout}', save_interval=1)
         # print("Success rate: {:d} / {:d} = {:.3f}%".format(n_success, n_total, float(n_success) / n_total * 100))
         print("Saved Episode: {:d}".format(count))
         print("Avg Reward: {:.3f}".format(reward / n_total))

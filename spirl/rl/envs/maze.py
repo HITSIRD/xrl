@@ -19,7 +19,8 @@ class MazeEnv(GymEnv):
     def reset(self):
         super().reset()
         if self.TARGET_POS is not None and self.START_POS is not None:
-            self._env.set_target(self.TARGET_POS)
+            noise = np.clip(np.random.normal(0, 1.0), -1, 1)
+            self._env.set_target(self.TARGET_POS + noise)
             self._env.reset_to_location(self.START_POS)
         self._env.render(mode='rgb_array')  # these are necessary to make sure new state is rendered on first frame
         obs, _, _, _ = self._env.step(np.zeros_like(self._env.action_space.sample()))
@@ -56,8 +57,8 @@ class ACRandMaze0S30Env(MazeEnv):
 
 
 class ACRandMaze0S20Env(MazeEnv):
-    START_POS = [6.0, 10.0]
-    TARGET_POS = [16.0, 10.0]
+    START_POS = np.array([6.0, 12.0])
+    TARGET_POS = np.array([19.0, 10.0])
 
     def _default_hparams(self):
         default_dict = ParamDict({

@@ -42,7 +42,7 @@ class PriorInitializedPolicy(Policy):
             net = self._hp.prior_model(self._hp.prior_model_params, None)
         if self._hp.load_weights:
             if self._hp.policy_model is not None:
-                BaseAgent.load_model_weights(net, self._hp.policy_model_checkpoint, self._hp.prior_model_epoch)
+                BaseAgent.load_model_weights(net, self._hp.policy_model_checkpoint, self._hp.policy_model_epoch)
             else:
                 BaseAgent.load_model_weights(net, self._hp.prior_model_checkpoint, self._hp.prior_model_epoch)
         return net

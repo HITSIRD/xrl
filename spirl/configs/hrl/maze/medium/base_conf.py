@@ -134,5 +134,5 @@ from spirl.rl.components.replay_buffer import SplitObsUniformReplayBuffer
 agent_config.ll_agent_params.replay = SplitObsUniformReplayBuffer
 agent_config.ll_agent_params.replay_params.unused_obs_size = ll_model_params.prior_input_res ** 2 * 3 * 2 + \
                                                              hl_agent_config.policy_params.action_dim  # ignore HL action
-agent_config.ll_agent_params.replay_params.dump_replay = False
-agent_config.hl_agent_params.replay_params.dump_replay = False
+agent_config.ll_agent_params.replay_params.dump_replay = True
+agent_config.hl_agent_params.replay_params.dump_replay = True

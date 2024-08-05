@@ -48,9 +48,9 @@ hl_agent_config.policy = CARTPolicy
 hl_policy_params.update(AttrDict(
     policy=CARTPolicy,
     policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
-                                         "/home/wenyongyan/文档/DAGGER+CART/maze/easy/cart_1000_d9.pkl"),
+                                         "/home/wenyongyan/文档/CART/maze/easy/all_cart_1000_d8.pkl"),
     codebook_checkpoint=os.path.join(os.environ["EXP_DIR"],
-                                     "hrl/maze/easy/spirl_cl_vq/k16_s0_r/weights/weights_ep24.pth"),
+                                     "hrl/maze/easy/spirl_cl_vq/k16_s0_p5.0_e74/weights/weights_ep14.pth"),
     # max_depth=10,
     # oracle_policy=LearnedVQPriorAugmentedPolicy,
     prior_model=ll_policy_params.policy_model,

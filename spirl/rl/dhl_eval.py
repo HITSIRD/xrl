@@ -95,7 +95,7 @@ class DHLEvaluator:
             'log_images_per_epoch': 4,  # log images/videos N times per epoch
             'logging_target': 'none',  # where to log results to
             'n_warmup_steps': 0,  # steps of warmup experience collection before training
-            'num_sample': 20,
+            'num_sample': 100,
             'save': False,
         })
         return default_dict
@@ -144,14 +144,14 @@ class DHLEvaluator:
                             # saver.save(f'k16_{i}_{j}')
 
             episode_reward_mean, episode_reward_std = val_rollout_storage.rollout_stats(std=True)
-            complete_task, count = val_rollout_storage.evaluate_task()
+            # complete_task, count = val_rollout_storage.evaluate_task()
 
             print(reward)
 
-            success_rate = count.copy()
-            for k in success_rate.keys():
-                success_rate[k] = success_rate[k] / self._hp.num_sample
-            stat[i] = [complete_task, success_rate]
+            # success_rate = count.copy()
+            # for k in success_rate.keys():
+            #     success_rate[k] = success_rate[k] / self._hp.num_sample
+            # stat[i] = [complete_task, success_rate]
 
             if self.is_chef:
                 # with timing(f"index {i} eval log time: "):
