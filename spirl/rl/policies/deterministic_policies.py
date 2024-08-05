@@ -47,8 +47,8 @@ class DeterministicPolicy(Policy):
         print('loading codebook from {}'.format(self._hp.codebook_checkpoint))
 
         # return weight['state_dict']['hl_agent']['policy.prior_net.codebook.embedding.weight'].cpu().numpy()
-        # return weight['state_dict']['hl_agent']['policy.net.codebook.embedding.weight'].cpu().numpy()
-        return weight['state_dict']['codebook.embedding.weight'].cpu().numpy()
+        return weight['state_dict']['hl_agent']['policy.net.codebook.embedding.weight'].cpu().numpy()
+        # return weight['state_dict']['codebook.embedding.weight'].cpu().numpy()
 
     def _compute_action_dist(self, obs):
         return self.net.compute_learned_prior(obs, first_only=True)

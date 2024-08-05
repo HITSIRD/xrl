@@ -69,16 +69,35 @@ class HPRolloutSaver(object):
 
     def save_rollout(self, episode):
         # if self.data is None:
+        self.data = None
+
         index = np.where(np.array(episode.is_hl_step))
         if self.data is None:
             self.data = {}
             self.data['observation'] = np.array(episode['observation'])[index]
             self.data['hl_action_index'] = np.array(episode['hl_action_index'])[index]
+            complete_task = []
+            ct_step = []
+            for i, t in enumerate(episode['info']):
+                if len(t[0]['completed_task']) > 0:
+                    complete_task.append(list(t[0]['completed_task']))
+                    ct_step.append(i)
+            self.data['complete_task'] = complete_task
+            print(complete_task)
+            self.data['ct_step'] = ct_step
         else:
             self.data['observation'] = np.append(self.data['observation'], np.array(episode['observation'])[index],
                                                  axis=0)
             self.data['hl_action_index'] = np.append(self.data['hl_action_index'],
                                                      np.array(episode['hl_action_index'])[index], axis=0)
+            complete_task = []
+            ct_step = []
+            for i, t in enumerate(episode['info']):
+                if len(t[0]['completed_task']) > 0:
+                    complete_task.append(list(t[0]['completed_task']))
+                    ct_step.append(i)
+            self.data['complete_task'].append(complete_task)
+            self.data['ct_step'].append(ct_step)
         self.num_episode += 1
 
     def save(self, file_name, save_interval=50):
@@ -94,6 +113,8 @@ class HPRolloutSaver(object):
             traj_data.create_dataset("states", data=self.data['observation'])
             # traj_data.create_dataset("actions", data=np.array(episode.action))
             traj_data.create_dataset("hl_action_index", data=self.data['hl_action_index'])
+            traj_data.create_dataset("complete_task", data=self.data['complete_task'])
+            traj_data.create_dataset("ct_step", data=self.data['ct_step'])
 
     def reset(self):
         """Resets counter."""

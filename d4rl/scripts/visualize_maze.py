@@ -15,7 +15,7 @@ from d4rl.pointmaze.semantic_maze_layouts import (
 # START_POS = [10., 24.]
 # TARGET_POS = [18., 6.]
 
-START_POS = [6.0, 10.0]
+START_POS = [6.0, 12.0]
 TARGET_POS = [16.0, 10.0]
 
 if __name__ == "__main__":

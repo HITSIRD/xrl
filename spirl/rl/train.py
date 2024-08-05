@@ -86,7 +86,7 @@ class RLTrainer:
             'environment': None,
             'sampler': Sampler,     # sampler type used
             'exp_path': None,  # Path to the folder with experiments
-            'num_epochs': 200,
+            'num_epochs': 100,
             'max_rollout_len': 1000,  # maximum length of the performed rollout
             'n_steps_per_update': 1,     # number of env steps collected per policy update
             'n_steps_per_epoch': 20000,       # number of env steps per epoch

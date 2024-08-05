@@ -2,14 +2,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import json
 
-# TASK_ELEMENTS = {'microwave': 0,
-#                  'kettle': 1,
-#                  'bottom burner': 2,
-#                  'top burner': 3,
-#                  'light switch': 4,
-#                  'slide cabinet': 5,
-#                  'hinge cabinet': 6
-#                  }
+TASK_ELEMENTS = {'microwave': 0,
+                 'kettle': 1,
+                 'bottom burner': 2,
+                 'top burner': 3,
+                 'light switch': 4,
+                 'slide cabinet': 5,
+                 'hinge cabinet': 6
+                 }
 
 # TASK_ELEMENTS = {'open_drawer': 0,
 #                  'turn_on_lightbulb': 1,
@@ -17,11 +17,11 @@ import json
 #                  'turn_on_led': 3
 #                  }
 
-TASK_ELEMENTS = {'open_drawer': 0,
-                 'move_slider_left': 1,
-                 'turn_on_led': 2,
-                 'turn_on_lightbulb': 3,
-                 }
+# TASK_ELEMENTS = {'open_drawer': 0,
+#                  'move_slider_left': 1,
+#                  'turn_on_led': 2,
+#                  'turn_on_lightbulb': 3,
+#                  }
 
 K = 16
 
@@ -35,7 +35,7 @@ def plot_skill(file_path):
         for k, v in stat[z][1].items():
             rate[int(z)][TASK_ELEMENTS[k]] = v
 
-    plt.figure(figsize=(5, 2))
+    plt.figure(figsize=(4, 1.8))
     label_size = 6
 
     x_labels = [i for i in range(K)]
@@ -43,7 +43,7 @@ def plot_skill(file_path):
 
     plt.xticks(np.arange(K), labels=x_labels, rotation_mode="anchor", ha="right", size=label_size)
     plt.yticks(np.arange(len(TASK_ELEMENTS)), labels=y_labels, size=label_size)
-    plt.title("Skill Evaluation", size=label_size)
+    # plt.title("Skill Evaluation", size=label_size)
 
     # plt.axis.xaxis.
 
@@ -62,7 +62,8 @@ if __name__ == '__main__':
     # file_path = 'hrl/kitchen/oracle_vq/mkbl/skill_evaluate_prior_mkbl_3'
     # file_path = 'hrl/kitchen/oracle_vq/mkbl/new_reconstruction_loss_1'
     # file_path = 'hrl/kitchen/oracle_vq/mlsh_finetune/skill_evaluate_prior_mlsh_3'
-    file_path = 'hrl/calvin/oracle_vq/K_16/skill_evaluate_prior_2'
+    # file_path = 'hrl/calvin/oracle_vq/K_16/skill_evaluate_prior_2'
     # file_path = 'hrl/calvin/oracle_vq/finetune/skill_evaluate_prior_0'
     # file_path = 'hrl/kitchen/oracle_vq/mkbl/new_reconstruction'
+    file_path = '/home/wenyongyan/文档/spirl-master/spirl/experiments/hrl/kitchen/vq/test/skill_evaluate_20240801_223709'
     plot_skill(file_path)

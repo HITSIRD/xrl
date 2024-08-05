@@ -51,6 +51,12 @@ class CheckpointHandler:
                         opt_checkpoint[key] = v
                 model.load_state_dict(opt_checkpoint, strict=strict)
             else:
+                # replace_checkpoint = {}
+                # for k, v in checkpoint['state_dict'].items():
+                #     if 'policy.net' in k:
+                #         key = k.replace('policy.net.', '')
+                #         replace_checkpoint[key] = v
+                # model.load_state_dict(replace_checkpoint, strict=strict)
                 model.load_state_dict(checkpoint['state_dict'], strict=strict)
             if load_step:
                 start_epoch = checkpoint['epoch'] + 1
