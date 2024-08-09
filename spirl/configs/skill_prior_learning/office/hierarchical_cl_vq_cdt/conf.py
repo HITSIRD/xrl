@@ -4,16 +4,17 @@ from spirl.models.closed_loop_vq_spirl_mdl import ClVQSPiRLMdl
 from spirl.models.closed_loop_vq_cdt_mdl import ClVQCDTMdl
 from spirl.components.logger import Logger
 from spirl.utils.general_utils import AttrDict
-from spirl.configs.default_data_configs.kitchen import data_spec
+from spirl.configs.default_data_configs.office import data_spec
 from spirl.components.evaluator import TopOfNSequenceEvaluator
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 
+
 configuration = {
     'model': ClVQCDTMdl,
     'logger': Logger,
-    'data_dir': '.',
-    'epoch_cycles_train': 50,
+    'data_dir': os.path.join(os.environ['DATA_DIR'], 'office', 'office_TA'),
+    'epoch_cycles_train': 400,
     'num_epochs': 100,
     'evaluator': TopOfNSequenceEvaluator,
     'top_of_n_eval': 100,
@@ -25,7 +26,7 @@ model_config = AttrDict(
     state_dim=data_spec.state_dim,
     action_dim=data_spec.n_actions,
     n_rollout_steps=10,
-    nz_enc=128,
+    kl_div_weight=5e-4,
     nz_mid=128,
     n_processing_layers=5,
     cond_decode=True,
@@ -35,7 +36,7 @@ model_config = AttrDict(
 
     feature_learning_depth=-1,
     num_intermediate_variables=20,
-    decision_depth=7,
+    decision_depth=5,
     greatest_path_probability=0,
     beta_fl=0,
     beta_dc=0,

@@ -30,10 +30,11 @@ model_config = AttrDict(
     cond_decode=True,
     codebook_K=8,
     commitment_beta=0.25,
+    fixed_codebook=False,
 
     feature_learning_depth=-1,
     num_intermediate_variables=20,
-    decision_depth=6,
+    decision_depth=3,
     greatest_path_probability=0,
     beta_fl=0,
     beta_dc=0,
