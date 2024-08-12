@@ -86,7 +86,7 @@ class RLTrainer:
             'environment': None,
             'sampler': Sampler,     # sampler type used
             'exp_path': None,  # Path to the folder with experiments
-            'num_epochs': 100,
+            'num_epochs': 200,
             'max_rollout_len': 1000,  # maximum length of the performed rollout
             'n_steps_per_update': 1,     # number of env steps collected per policy update
             'n_steps_per_epoch': 20000,       # number of env steps per epoch
@@ -166,9 +166,9 @@ class RLTrainer:
 
         rollout_stats = val_rollout_storage.rollout_stats()
         if self.is_chef:
-            # with timing("Eval log time: "):
-            #     self.agent.log_outputs(rollout_stats, val_rollout_storage,
-            #                            self.logger, log_images=True, step=self.global_step)
+            with timing("Eval log time: "):
+                self.agent.log_outputs(rollout_stats, val_rollout_storage,
+                                       self.logger, log_images=False, step=self.global_step)
             print("Evaluation Avg_Reward: {}".format(rollout_stats.avg_reward))
         del val_rollout_storage
 

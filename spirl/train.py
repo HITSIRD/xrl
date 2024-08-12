@@ -91,7 +91,7 @@ class ModelTrainer(BaseTrainer):
             'data_dir': None,  # directory where dataset is in
             'batch_size': 128,
             'exp_path': None,  # Path to the folder with experiments
-            'num_epochs': 200,
+            'num_epochs': 100,
             'epoch_cycles_train': 1,
             'optimizer': 'radam',  # supported: 'adam', 'radam', 'rmsprop', 'sgd'
             'lr': 1e-3,
@@ -149,7 +149,7 @@ class ModelTrainer(BaseTrainer):
                 losses = self.model.loss(output, inputs)
                 losses.total.backward()
                 # losses.total.value.backward()
-                self.call_hooks(inputs, output, losses, epoch)
+                # self.call_hooks(inputs, output, losses, epoch)
 
                 if self.global_step < self._hp.init_grad_clip_step:
                     # clip gradients in initial steps to avoid NaN gradients
@@ -217,7 +217,7 @@ class ModelTrainer(BaseTrainer):
                         self.evaluator.dump_results(self.global_step)
 
                     self.model_test.log_outputs(output, inputs, losses_meter.avg, self.global_step,
-                                                log_images=True, phase='val', **self._logging_kwargs)
+                                                log_images=False, phase='val', **self._logging_kwargs)
                     print(('\nTest set: Average loss: {:.4f} in {:.2f}s\n'.format(losses_meter.avg.total.item(), time.time() - start)))
                     # print(('\nTest set: Average loss: {:.4f} in {:.2f}s\n'.format(losses_meter.avg.total.value.item(), time.time() - start)))
             del output

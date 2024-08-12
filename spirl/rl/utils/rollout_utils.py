@@ -69,7 +69,7 @@ class HPRolloutSaver(object):
 
     def save_rollout(self, episode):
         # if self.data is None:
-        self.data = None
+        # self.data = None
 
         index = np.where(np.array(episode.is_hl_step))
         if self.data is None:
@@ -82,6 +82,7 @@ class HPRolloutSaver(object):
                 if len(t[0]['completed_task']) > 0:
                     complete_task.append(list(t[0]['completed_task']))
                     ct_step.append(i)
+            print(ct_step)
             self.data['complete_task'] = complete_task
             print(complete_task)
             self.data['ct_step'] = ct_step

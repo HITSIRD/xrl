@@ -1,5 +1,5 @@
 """
-Defines GripperTester that is used to test the physical properties of various grippers
+Defines GripperTester that is used to mkbl the physical properties of various grippers
 """
 import numpy as np
 import xml.etree.ElementTree as ET
@@ -124,7 +124,7 @@ class GripperTester:
 
     def start_simulation(self):
         """
-            Starts simulation of the test world
+            Starts simulation of the mkbl world
         """
         model = self.world.get_model(mode="mujoco_py")
 
@@ -206,7 +206,7 @@ class GripperTester:
         Args:
             T (int): The interval between two gripper actions
             total_iters (int): Iterations to perform before exiting
-            test_y (bool): test if object is lifted
+            test_y (bool): mkbl if object is lifted
             y_baseline (float): threshold for determining that object is lifted
         """
         seq = [(False, False), (True, False), (True, True), (False, True)]

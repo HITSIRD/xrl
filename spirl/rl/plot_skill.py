@@ -35,7 +35,7 @@ def plot_skill(file_path):
         for k, v in stat[z][1].items():
             rate[int(z)][TASK_ELEMENTS[k]] = v
 
-    plt.figure(figsize=(4, 1.8))
+    plt.figure(figsize=(4.3, 1.6))
     label_size = 6
 
     x_labels = [i for i in range(K)]
@@ -52,9 +52,9 @@ def plot_skill(file_path):
     #         plt.text(i, j, rate[i, j], ha="center", va="center", color="w", size=label_size)
 
     plt.imshow(rate.T)
-    cb = plt.colorbar()
+    cb = plt.colorbar(fraction=0.0204, pad=0.05)
     cb.ax.tick_params(labelsize=label_size)
-    plt.tight_layout()
+    plt.tight_layout(pad=0.2)
     plt.savefig(file_path + '.pdf')
 
 
@@ -65,5 +65,5 @@ if __name__ == '__main__':
     # file_path = 'hrl/calvin/oracle_vq/K_16/skill_evaluate_prior_2'
     # file_path = 'hrl/calvin/oracle_vq/finetune/skill_evaluate_prior_0'
     # file_path = 'hrl/kitchen/oracle_vq/mkbl/new_reconstruction'
-    file_path = '/home/wenyongyan/文档/spirl-master/spirl/experiments/hrl/kitchen/vq/test/skill_evaluate_20240801_223709'
+    file_path = '/home/wenyongyan/文档/spirl-master/spirl/experiments/hrl/kitchen/vq/test/mkbl'
     plot_skill(file_path)

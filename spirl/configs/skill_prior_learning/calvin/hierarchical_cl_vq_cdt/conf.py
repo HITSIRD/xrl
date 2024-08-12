@@ -28,7 +28,7 @@ model_config = AttrDict(
     nz_mid=128,
     n_processing_layers=5,
     cond_decode=True,
-    codebook_K=8,
+    codebook_K=64,
     commitment_beta=0.25,
 
     feature_learning_depth=-1,

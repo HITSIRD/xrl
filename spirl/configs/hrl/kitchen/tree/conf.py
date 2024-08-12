@@ -46,9 +46,9 @@ hl_agent_config.policy = CARTPolicy
 hl_policy_params.update(AttrDict(
     policy=CARTPolicy,
     policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
-                                         "/home/wenyongyan/文档/CART/kitchen_mkbl/cart_1000_d6.pkl"),
+                                         "/home/wenyongyan/文档/CART/kitchen_mlsh/cart_1000_d6.pkl"),
     codebook_checkpoint=os.path.join(os.environ["EXP_DIR"],
-                                     "hrl/kitchen/spirl_cl_vq/mkbl_s0_k16_inverse_kl/weights/weights_ep24.pth"),
+                                     "hrl/kitchen/spirl_cl_vq/mlsh_s1_k16_inverse_kl/weights/weights_ep24.pth"),
     # max_depth=10,
     # oracle_policy=LearnedVQPriorAugmentedPolicy,
     prior_model=ll_policy_params.policy_model,

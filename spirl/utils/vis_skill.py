@@ -4,7 +4,7 @@ import os
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 
-K = 16
+K = 8
 
 # plt.rcParams['text.usetex'] = True
 
@@ -34,7 +34,7 @@ def plot_skill(file_path):
     for i, s in enumerate(dataset['traj']['hl_action_index']):
         skill[i, s] = 1
 
-    plt.figure(figsize=(4, 1.8))
+    plt.figure(figsize=(4, 1.6))
     label_size = 5
 
     interval = 1
@@ -62,7 +62,7 @@ def plot_skill(file_path):
     plt.imshow(skill.T, aspect='auto', cmap=cmap)
     # cb = plt.colorbar()
     # cb.ax.tick_params(labelsize=label_size)
-    plt.tight_layout()
+    plt.tight_layout(pad=0.01)
     # plt.title('')
     # plt.show()
     plt.savefig(file_path + '.pdf')
@@ -71,6 +71,6 @@ def plot_skill(file_path):
 if __name__ == '__main__':
     # file = '/home/wenyongyan/文档/spirl-master/spirl/experiments/hrl/kitchen/spirl_cl_vq/mkbl_s0_k16_inverse_kl/episode_3.h5'
     for i in range(10):
-        # file = f'/home/wenyongyan/文档/spirl-master/spirl/experiments/hrl/kitchen/spirl_cl_vq/test/10_{i+1}.h5'
-        file = f'/home/wenyongyan/文档/spirl-master/spirl/experiments/hrl/kitchen/tree/test/10_{i + 1}.h5'
+        # file = f'/home/wenyongyan/文档/spirl-master/spirl/experiments/hrl/kitchen/spirl_cl_vq/mkbl/10_{i+1}.h5'
+        file = f'spirl/experiments/hrl/calvin/tree/test/fine_10_{i + 1}.h5'
         plot_skill(file)

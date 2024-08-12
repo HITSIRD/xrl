@@ -7,11 +7,11 @@ from spirl.rl.policies.prior_policies import LearnedVQPriorAugmentedPolicy, Lear
 # update model params to conditioned decoder on state
 ll_model_params.cond_decode = True
 
-prior_model_name = "cdt_k16_s1_-1+60+6+0_1"
+prior_model_name = "cdt_k32_s1_-1+6+0_1"
 
 # CDT config
 ll_model_params.update(AttrDict(
-    codebook_K=16,
+    codebook_K=32,
     fixed_codebook=False,
     feature_learning_depth=-1,
     num_intermediate_variables=20,
