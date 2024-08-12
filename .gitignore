@@ -6,9 +6,12 @@
 /requirements.txt
 /spirl.egg-info
 /d4rl.egg-info
+/roboverse
 
 /spirl/data/maze/maze2d
 /spirl/data/calvin/calvin.npz
+/spirl/data/maze/maze2d_20_seed1
+/spirl/data/office/office_TA
 
 *.pyc
 .vscode

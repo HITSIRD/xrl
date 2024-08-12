@@ -102,8 +102,8 @@ class ModelTrainer(BaseTrainer):
             'adam_beta': 0.9,  # beta1 param in Adam
             'top_of_n_eval': 1,  # number of samples used at eval time
             'top_comp_metric': None,  # metric that is used for comparison at eval time (e.g. 'mse')
-            # 'logging_target': 'wandb',
-            'logging_target': None,
+            'logging_target': 'wandb',
+            # 'logging_target': None,
         })
         return default_dict
 
