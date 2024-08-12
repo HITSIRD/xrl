@@ -95,7 +95,7 @@ class DHLEvaluator:
             'log_images_per_epoch': 4,  # log images/videos N times per epoch
             'logging_target': 'none',  # where to log results to
             'n_warmup_steps': 0,  # steps of warmup experience collection before training
-            'num_sample': 100,
+            'num_sample': 20,
             'save': False,
         })
         return default_dict
