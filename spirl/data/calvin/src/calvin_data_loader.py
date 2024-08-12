@@ -20,7 +20,7 @@ class CalvinSequenceSplitDataset(Dataset):
         self.remove_goal = self.spec.remove_goal if 'remove_goal' in self.spec else False
         self.dataset_size = dataset_size
         self.device = data_conf.device
-        self.n_worker = 16
+        self.n_worker = 32
         self.shuffle = shuffle
 
         print('loading files from', self.data_dir)
@@ -113,7 +113,7 @@ class CalvinSequenceSplitDataset(Dataset):
         elif self.phase == 'val':
             start, end = frac['train'], frac['train'] + frac['val']
         else:
-            start, end = frac['train'] + frac['val'], frac['train'] + frac['val'] + frac['test']
+            start, end = frac['train'] + frac['val'], frac['train'] + frac['val'] + frac['mkbl']
         start, end = int(len(filenames) * start), int(len(filenames) * end)
         return filenames[start:end]
 

@@ -24,7 +24,7 @@ configuration = {
     'environment': OfficeEnv,
     'sampler': HierarchicalSampler,
     'data_dir': '.',
-    'num_epochs': 25,
+    'num_epochs': 16,
     'max_rollout_len': 350,
     'n_steps_per_epoch': 1e5,
     'n_warmup_steps': 2e3,
@@ -96,6 +96,9 @@ hl_policy_params = AttrDict(
     prior_model=ll_policy_params.policy_model,
     prior_model_params=ll_policy_params.policy_model_params,
     prior_model_checkpoint=ll_policy_params.policy_model_checkpoint,
+    policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
+                                         "hrl/office/spirl_cl/s3"),
+    policy_model_epoch=14,
 )
 
 # HL Critic

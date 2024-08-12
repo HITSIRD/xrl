@@ -95,8 +95,13 @@ class DHLEvaluator:
             'log_images_per_epoch': 4,  # log images/videos N times per epoch
             'logging_target': 'none',  # where to log results to
             'n_warmup_steps': 0,  # steps of warmup experience collection before training
+<<<<<<< HEAD
             'num_sample': 20,
             'save': False,
+=======
+            'num_sample': 50,
+            'save': True,
+>>>>>>> 0c3cb07d9bb3c5d6b9e55cc1997ee8f0a1becf41
         })
         return default_dict
 
@@ -118,7 +123,7 @@ class DHLEvaluator:
 
         reward = []
 
-        for i in range(1):
+        for i in range(8):
             val_rollout_storage = RolloutStorage()
             with self.agent.val_mode():
                 with torch.no_grad():
@@ -127,11 +132,11 @@ class DHLEvaluator:
                             # oracle policy
                             # episode = self.sampler.sample_episode(index=i, is_train=False, render=False, task=True)
 
-                            # deterministic policy & tree policy
-                            # episode = self.sampler.sample_episode(index=i, is_train=False, render=False, task=False)
+                            # deterministic policy
+                            episode = self.sampler.sample_episode(index=i, is_train=False, render=False, task=False)
 
-                            # spirl_cl_vq
-                            episode = self.sampler.sample_episode(is_train=False, render=False, task=False)
+                            # spirl_cl_vq & tree policy
+                            # episode = self.sampler.sample_episode(is_train=False, render=False, task=False)
 
                             # env copy
                             # episode = self.sampler.sample_episode(is_train=False, render=False,
@@ -144,14 +149,14 @@ class DHLEvaluator:
                             # saver.save(f'k16_{i}_{j}')
 
             episode_reward_mean, episode_reward_std = val_rollout_storage.rollout_stats(std=True)
-            # complete_task, count = val_rollout_storage.evaluate_task()
+            complete_task, count = val_rollout_storage.evaluate_task()
 
             print(reward)
 
-            # success_rate = count.copy()
-            # for k in success_rate.keys():
-            #     success_rate[k] = success_rate[k] / self._hp.num_sample
-            # stat[i] = [complete_task, success_rate]
+            success_rate = count.copy()
+            for k in success_rate.keys():
+                success_rate[k] = success_rate[k] / self._hp.num_sample
+            stat[i] = [complete_task, success_rate]
 
             if self.is_chef:
                 # with timing(f"index {i} eval log time: "):

@@ -27,7 +27,7 @@ class Dataset(data.Dataset):
         self.dataset = self._get_samples_per_file(self.filenames[0])
 
         self.shuffle = shuffle and phase == 'train'
-        self.n_worker = 16 if shuffle else 1  # was 4 before
+        self.n_worker = 32 if shuffle else 1  # was 4 before
 
     def get_data_loader(self, batch_size, n_repeat):
         print('len {} dataset {}'.format(self.phase, len(self)))
@@ -45,7 +45,7 @@ class Dataset(data.Dataset):
         raise NotImplementedError("Needs to be implemented in sub-class!")
 
     def _get_filenames(self):
-        """Loads filenames from self.data_dir, expects subfolders train/val/test, each with hdf5 files"""
+        """Loads filenames from self.data_dir, expects subfolders train/val/mkbl, each with hdf5 files"""
         filenames = sorted(glob.glob(os.path.join(self.data_dir, self.phase + '/*.h5')))
         if not filenames:
             raise RuntimeError('No filenames found in {}'.format(self.data_dir))
@@ -75,7 +75,7 @@ class Dataset(data.Dataset):
 
 
 class GlobalSplitDataset(Dataset):
-    """Splits in train/val/test using global percentages."""
+    """Splits in train/val/mkbl using global percentages."""
 
     def _get_filenames(self):
         filenames = self._load_h5_files(self.data_dir)
@@ -101,7 +101,7 @@ class GlobalSplitDataset(Dataset):
         elif self.phase == 'val':
             start, end = frac['train'], frac['train'] + frac['val']
         else:
-            start, end = frac['train'] + frac['val'], frac['train'] + frac['val'] + frac['test']
+            start, end = frac['train'] + frac['val'], frac['train'] + frac['val'] + frac['mkbl']
         start, end = int(len(filenames) * start), int(len(filenames) * end)
         return filenames[start:end]
 

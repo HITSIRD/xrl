@@ -15,6 +15,7 @@ configuration = {
     'data_dir': os.path.join(os.environ['DATA_DIR'], 'office', 'office_TA'),
     'epoch_cycles_train': 400,
     'evaluator': TopOfNSequenceEvaluator,
+    'num_epochs': 100,
     'top_of_n_eval': 100,
     'top_comp_metric': 'mse',
 }

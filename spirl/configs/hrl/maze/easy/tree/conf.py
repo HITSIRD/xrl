@@ -22,7 +22,7 @@ ll_policy_params = AttrDict(
     policy_model_epoch=prior_model_epoch,
 )
 ll_policy_params.update(ll_model_params)
-0
+
 # create LL SAC agent (by default we will only use it for rolling out decoded skills, not finetuning skill decoder)
 ll_agent_config = AttrDict(
     policy=ClModelPolicy,
