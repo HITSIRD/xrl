@@ -23,11 +23,7 @@ configuration = {
     'environment': CalvinEnv,
     'sampler': HierarchicalSampler,
     'data_dir': '.',
-<<<<<<< HEAD
-    'num_epochs': 20,
-=======
     'num_epochs': 16,
->>>>>>> 0c3cb07d9bb3c5d6b9e55cc1997ee8f0a1becf41
     'max_rollout_len': 360,
     'n_steps_per_epoch': 100000,
     # 'n_warmup_steps': 5e3,

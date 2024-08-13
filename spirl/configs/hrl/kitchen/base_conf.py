@@ -23,7 +23,7 @@ configuration = {
     'environment': KitchenEnv,
     'sampler': HierarchicalSampler,
     'data_dir': '.',
-    'num_epochs': 15,
+    'num_epochs': 16,
     'max_rollout_len': 280,
     'n_steps_per_epoch': 100000,
     # 'n_warmup_steps': 256,
