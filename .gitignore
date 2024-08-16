@@ -1,6 +1,6 @@
-/spirl/experiments/
-/spirl/readme_zuo.md
-/spirl/configs/local.py
+/strl/experiments/
+/strl/readme_zuo.md
+/strl/configs/local.py
 
 /setup.py
 /requirements.txt
@@ -8,10 +8,10 @@
 /d4rl.egg-info
 /roboverse
 
-/spirl/data/maze/maze2d
-/spirl/data/calvin/calvin.npz
-/spirl/data/maze/maze2d_20_seed1
-/spirl/data/office/office_TA
+/strl/data/maze/maze2d
+/strl/data/calvin/calvin.npz
+/strl/data/maze/maze2d_20_seed1
+/strl/data/office/office_TA
 
 *.pyc
 .vscode
