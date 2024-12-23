@@ -186,7 +186,7 @@ class LearnedVQPriorAugmentedPIPolicy(PriorInitializedPolicy, LearnedPriorAugmen
     #     action, index, log_prob = prior_dist.sample()
     #     return AttrDict(action=action, log_prob=log_prob, action_index=index)
 
-class LearnedVQPriorAugmentedPIPolicyCDT(PriorInitializedPolicy, LearnedPriorAugmentedPolicy):
+class LearnedVQPriorAugmentedPICDTPolicy(PriorInitializedPolicy, LearnedPriorAugmentedPolicy):
     def __init__(self, config):
         LearnedPriorAugmentedPolicy.__init__(self, config)
 
@@ -233,6 +233,12 @@ class ACLearnedPriorAugmentedPIPolicy(LearnedPriorAugmentedPIPolicy):
 
 
 class ACLearnedVQPriorAugmentedPIPolicy(LearnedVQPriorAugmentedPIPolicy):
+    def forward(self, obs):
+        if obs.shape[0] == 1:
+            return super().forward(self.net.unflatten_obs(obs).prior_obs)  # use policy_net or batch_size 1 inputs
+        return super().forward(self.prior_net.unflatten_obs(obs).prior_obs)
+
+class ACLearnedVQPriorAugmentedPICDTPolicy(LearnedVQPriorAugmentedPICDTPolicy):
     def forward(self, obs):
         if obs.shape[0] == 1:
             return super().forward(self.net.unflatten_obs(obs).prior_obs)  # use policy_net or batch_size 1 inputs
