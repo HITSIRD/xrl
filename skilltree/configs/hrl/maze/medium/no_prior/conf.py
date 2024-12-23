@@ -1,0 +1,1 @@
+from strl.configs.hrl.maze.base_conf import *
