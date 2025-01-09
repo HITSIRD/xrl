@@ -1,14 +1,14 @@
-from strl.configs.hrl.kitchen.spirl.conf import *
-from strl.models.closed_loop_vq_spirl_mdl import ClVQSPiRLMdl
-from strl.models.closed_loop_vq_cdt_mdl import ClVQCDTMdl
-from strl.rl.policies.cl_model_policies import ClModelPolicy
-from strl.rl.policies.prior_policies import LearnedVQPriorAugmentedPolicy, LearnedVQPriorAugmentedPolicyCDT
+from skilltree.configs.hrl.kitchen.spirl.conf import *
+from skilltree.models.closed_loop_vq_spirl_mdl import ClVQSPiRLMdl
+from skilltree.models.closed_loop_vq_cdt_mdl import ClVQCDTMdl
+from skilltree.rl.policies.cl_model_policies import ClModelPolicy
+from skilltree.rl.policies.prior_policies import LearnedVQPriorAugmentedPolicy, LearnedVQPriorAugmentedPolicyCDT
 
 # update model params to conditioned decoder on state
 ll_model_params.cond_decode = True
 
-prior_model_name = "cdt_k16_s1_-1+60+6+0_1"
-hl_model_name = "mkbl_cdtk161_-1+60+6_n+b_s22_1"
+prior_model_name = ""
+hl_model_name = ""
 
 # CDT config
 ll_model_params.update(AttrDict(
@@ -60,7 +60,7 @@ hl_policy_params.update(AttrDict(
     prior_model=ll_policy_params.policy_model, 
     prior_model_params=ll_policy_params.policy_model_params,
     prior_model_checkpoint=ll_policy_params.policy_model_checkpoint,    
-    squash_output_dist=False,   # TODO fa7475f：保持对数概率的原始值？
+    squash_output_dist=False,
     policy_model_epoch=19,
 ))
 
@@ -73,6 +73,6 @@ agent_config.update(AttrDict(
     update_ll=False,
 ))
 
-agent_config.hl_agent_params.update(AttrDict(   # TODO fa7475f：某个参数？
-    td_schedule_params=AttrDict(p=1.5),
+agent_config.hl_agent_params.update(AttrDict(
+    td_schedule_params=AttrDict(p=1.0),
 ))

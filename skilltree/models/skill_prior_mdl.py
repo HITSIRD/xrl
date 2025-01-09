@@ -24,7 +24,7 @@ from skilltree.modules.layers import LayerBuilderParams
 from skilltree.modules.mdn import MDN, GMM
 from skilltree.modules.Categorical import Categorical
 from skilltree.modules.flow_models import ConditionedFlowModel
-
+from torchviz import make_dot
 
 class SkillPriorMdl(BaseModel, ProbabilisticModel):
     """Skill embedding + prior model for SPIRL algorithm."""

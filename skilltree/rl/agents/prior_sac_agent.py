@@ -5,6 +5,7 @@ from skilltree.rl.agents.ac_agent import SACAgent
 from skilltree.utils.general_utils import ParamDict, ConstantSchedule, AttrDict
 from skilltree.utils.pytorch_utils import check_shape, map2torch
 
+from torchviz import make_dot
 
 class ActionPriorSACAgent(SACAgent):
     """Implements SAC with non-uniform, learned action / skill prior."""
@@ -44,6 +45,7 @@ class ActionPriorSACAgent(SACAgent):
         #     policy_loss = -1 * q_est + self.alpha * policy_output.prior_divergence[:, None]
         policy_loss = -1 * q_est + self.alpha * policy_output.prior_divergence[:, None]
         check_shape(policy_loss, [self._hp.batch_size, 1])
+        # make_dot(policy_loss).render('loss', format='png')
         return policy_loss.mean()
 
     def _compute_next_value(self, experience_batch, policy_output):

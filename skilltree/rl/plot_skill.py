@@ -40,20 +40,24 @@ def plot_skill(file_path):
             rate[int(z)][TASK_ELEMENTS[k]] = v
 
     plt.figure(figsize=(4.3, 1.6))
-    label_size = 6
+    label_size = 7
 
-    x_labels = [i for i in range(K)]
+    x_labels = [str(i) for i in range(K)]
     y_labels = TASK_ELEMENTS.keys()
 
-    plt.xticks(np.arange(K), labels=x_labels, rotation_mode="anchor", ha="right", size=label_size)
+    plt.xticks(np.arange(K), labels=x_labels, rotation_mode="anchor", ha="center", size=label_size)
     plt.yticks(np.arange(len(TASK_ELEMENTS)), labels=y_labels, size=label_size)
     # plt.title("Skill Evaluation", size=label_size)
 
     # plt.axis.xaxis.
 
-    # for i in range(K):
-    #     for j in range(len(TASK_ELEMENTS)):
-    #         plt.text(i, j, rate[i, j], ha="center", va="center", color="w", size=label_size)
+    for i in range(K):
+        for j in range(len(TASK_ELEMENTS)):
+            if rate[i, j] > 0.0001:
+                plt.text(i, j, rate[i, j], ha="center", va="center", color="w", size=label_size - 2)
+            if i == K - 1 and np.sum(rate[:, j]) > 0.0001:
+                plt.text(K, j, np.around(np.sum(rate[:, j]), 2), ha="center", va="center", color="b", size=label_size - 2)
+    print(np.sum(rate))
 
     plt.imshow(rate.T)
     cb = plt.colorbar(fraction=0.0204, pad=0.05)
@@ -181,7 +185,7 @@ if __name__ == '__main__':
     # file_path = 'hrl/calvin/oracle_vq/K_16/skill_evaluate_prior_2'
     # file_path = 'hrl/calvin/oracle_vq/finetune/skill_evaluate_prior_0'
     # file_path = 'hrl/kitchen/oracle_vq/mkbl/new_reconstruction'
-    file_path = ('/home/wenyongyan/文档/skilltree/skilltree/experiments/hrl/kitchen/vq/test/skill_evaluate_20241221_150253')
+    file_path = 'experiments/hrl/kitchen/vq/mkbl_dt/mkbl_d6_s1_avgprob'
     plot_skill(file_path)
     # plot_task_transition(file_path, aggregate=True)
     # test(file_path)

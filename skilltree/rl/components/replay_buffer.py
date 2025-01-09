@@ -190,9 +190,12 @@ class RolloutStorage:
     def __init__(self):
         self.rollouts = []
 
-    def append(self, rollout):
+    def append(self, rollout, reward_only=False):
         """Adds rollout to storage."""
-        self.rollouts.append(rollout)
+        if reward_only:
+            self.rollouts.append(AttrDict(reward=rollout.reward, info=rollout.info))
+        else:
+            self.rollouts.append(rollout)
         print(f'rollout {len(self.rollouts)}, reward {np.array(rollout.reward).sum()}')
 
     def rollout_stats(self, std=False):

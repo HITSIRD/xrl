@@ -7,6 +7,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torchviz import make_dot
+
 from skilltree.modules.layers import BaseProcessingNet, ConvBlockEnc, \
     ConvBlockDec, init_weights_xavier, get_num_conv_layers, ConvBlockFirstDec, ConvBlock, LayerBuilderParams
 from skilltree.modules.recurrent_modules import BaseProcessingLSTM, \
@@ -76,6 +78,7 @@ class VQCDTPredictor(nn.Module):
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.greatest_path_probability = hp.greatest_path_probability
+        self.update_encoder = hp.update_encoder
 
         self.beta_fl = hp.beta_fl
         self.beta_dc = hp.beta_dc
@@ -248,6 +251,9 @@ class VQCDTPredictor(nn.Module):
         return average_distribution  # (batch_size, output_dim) # 各动作的概率
 
     def forward(self, data):
+        if not self.update_encoder:
+            data = data.detach()
+
         if self.if_save:
             self.forward_num = self.forward_num + 1
             if self.forward_num >= 100000:

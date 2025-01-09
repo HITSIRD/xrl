@@ -119,9 +119,10 @@ class ClVQSPiRLMdl(ClSPiRLMdl):
                            num_layers=self._hp.num_prior_net_layers, mid_size=self._hp.nz_mid_prior)
 
     def _compute_learned_prior(self, prior_mdl, inputs):
-        # if inputs.dim() == 3:
-        #     inputs = inputs.unsqueeze(0)
-        return Categorical(probs=prior_mdl(inputs), codebook=self.codebook, fixed=self._hp.fixed_codebook)
+        probs = prior_mdl(inputs)
+        # if not probs.requires_grad:
+        #     print(probs)
+        return Categorical(probs=probs, codebook=self.codebook, fixed=self._hp.fixed_codebook)
 
     def _build_codebook(self):
         return VQEmbedding(self._hp.codebook_K, self._hp.nz_vae)

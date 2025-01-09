@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from torchviz import make_dot
 
 from skilltree.models.closed_loop_spirl_mdl import ClSPiRLMdl
 from skilltree.modules.losses import NLL
@@ -26,7 +27,6 @@ class ClVQCDTMdl(ClSPiRLMdl):
                                  mid_size=self._hp.nz_mid_prior)
         self.p = self._build_prior_ensemble()
         self.codebook = self._build_codebook()
-        self.log_sigma = get_constant_parameter(0., learnable=False)
         self.load_weights_or_freeze()
 
     def forward(self, inputs, use_learned_prior=False):
@@ -55,7 +55,7 @@ class ClVQCDTMdl(ClSPiRLMdl):
         losses = AttrDict()
 
         mse_loss = torch.nn.MSELoss()
-        ce_loss = torch.nn.CrossEntropyLoss()  # softmax + log + NLLLoss
+        # ce_loss = torch.nn.CrossEntropyLoss()  # softmax + log + NLLLoss
         nll_loss = torch.nn.NLLLoss()
 
         # reconstruction loss, assume unit variance model output Gaussian
@@ -103,8 +103,9 @@ class ClVQCDTMdl(ClSPiRLMdl):
         return VQCDTPredictor(self._hp, input_dim=self.prior_input_size, output_dim=self._hp.codebook_K)
 
     def _compute_learned_prior(self, prior_mdl, inputs):
-        return Categorical(probs=prior_mdl(inputs), codebook=self.codebook,
-                           fixed=False)  # 使用probs（经过softmax的值）初始化，那么访问的.logits就是对数概率
+        probs = prior_mdl(inputs)
+        return Categorical(probs=probs, codebook=self.codebook,
+                           fixed=self._hp.fixed_codebook)  # 使用probs（经过softmax的值）初始化，那么访问的.logits就是对数概率
 
     def _build_codebook(self):
         return VQEmbedding(self._hp.codebook_K, self._hp.nz_vae)
@@ -163,15 +164,16 @@ class ImageClVQCDTMdl(ClVQCDTMdl, ImageSkillPriorMdl):
         return super()._default_hparams().overwrite(default_dict)
 
     def _build_prior_net(self):
+        self.img_encoder_p = nn.Sequential(ResizeSpatial(self._hp.prior_input_res),  # encodes image inputs
+                                         Encoder(self._updated_encoder_params()),
+                                         RemoveSpatial(), )
         return nn.Sequential(
-            ResizeSpatial(self._hp.prior_input_res),
-            Encoder(self._updated_encoder_params()),
-            RemoveSpatial(),
+            self.img_encoder_p,
             ClVQCDTMdl._build_prior_net(self),
         )
 
     def _build_inference_net(self):
-        self.img_encoder = nn.Sequential(ResizeSpatial(self._hp.prior_input_res),  # encodes image inputs
+        self.img_encoder_q = nn.Sequential(ResizeSpatial(self._hp.prior_input_res),  # encodes image inputs
                                          Encoder(self._updated_encoder_params()),
                                          RemoveSpatial(), )
         return ClVQCDTMdl._build_inference_net(self)
@@ -181,7 +183,7 @@ class ImageClVQCDTMdl(ClVQCDTMdl, ImageSkillPriorMdl):
         stacked_imgs = torch.cat([inputs.images[:, t:t + inputs.actions.shape[1]]
                                   for t in range(self._hp.n_input_frames)], dim=2)
         # encode stacked seq
-        return batch_apply(stacked_imgs, self.img_encoder)
+        return batch_apply(stacked_imgs, self.img_encoder_q)
 
     def _learned_prior_input(self, inputs):
         return ImageSkillPriorMdl._learned_prior_input(self, inputs)
@@ -191,7 +193,7 @@ class ImageClVQCDTMdl(ClVQCDTMdl, ImageSkillPriorMdl):
 
     def enc_obs(self, obs):
         """Optionally encode observation for decoder."""
-        return self.img_encoder(obs)
+        return self.img_encoder_q(obs)
 
     @property
     def enc_size(self):

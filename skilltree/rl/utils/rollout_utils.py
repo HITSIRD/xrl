@@ -66,7 +66,7 @@ class HPRolloutSaver(object):
         self.save_dir = save_dir
         self.data = None
         self.num_episode = 0
-        self.sample_hl = False
+        self.sample_hl = True
 
     def save_rollout(self, episode):
         # if self.data is None:
@@ -77,8 +77,8 @@ class HPRolloutSaver(object):
             if self.data is None:
                 self.data = {}
                 self.data['observation'] = np.array(episode['observation'])[index]
-                # self.data['hl_action_index'] = np.array(episode['hl_action_index'])[index]
-                self.data['action'] = np.array(episode['action'])[index]
+                self.data['hl_action_index'] = np.array(episode['hl_action_index'])[index]
+                # self.data['action'] = np.array(episode['action'])[index]
                 # complete_task = []
                 # ct_step = []
                 # for i, t in enumerate(episode['info']):
@@ -92,9 +92,9 @@ class HPRolloutSaver(object):
             else:
                 self.data['observation'] = np.append(self.data['observation'], np.array(episode['observation'])[index],
                                                      axis=0)
-                # self.data['hl_action_index'] = np.append(self.data['hl_action_index'],
-                #                                          np.array(episode['hl_action_index'])[index], axis=0)
-                self.data['action'] = np.append(self.data['action'], np.array(episode['action'])[index], axis=0)
+                self.data['hl_action_index'] = np.append(self.data['hl_action_index'],
+                                                         np.array(episode['hl_action_index'])[index], axis=0)
+                # self.data['action'] = np.append(self.data['action'], np.array(episode['action'])[index], axis=0)
                 # complete_task = []
                 # ct_step = []
                 # for i, t in enumerate(episode['info']):
@@ -115,7 +115,7 @@ class HPRolloutSaver(object):
                 self.data['action'] = np.append(self.data['action'], np.array(episode['action']), axis=0)
             self.num_episode += 1
 
-    def save(self, file_name, save_interval=50):
+    def save(self, file_name, save_interval=100):
         if self.num_episode > 0 and self.num_episode % save_interval == 0:
             save_path = os.path.join(self.save_dir, f"{file_name}_{self.num_episode}.h5")
 
@@ -125,9 +125,9 @@ class HPRolloutSaver(object):
 
             # store trajectory info in traj group
             traj_data = f.create_group("traj")
-            traj_data.create_dataset("states", data=self.data['observation'])
-            traj_data.create_dataset("actions", data=self.data['action'])
-            # traj_data.create_dataset("hl_action_index", data=self.data['hl_action_index'])
+            traj_data.create_dataset("states", data=self.data['observation'], compression='gzip', compression_opts=9)
+            # traj_data.create_dataset("actions", data=self.data['action'], compression='gzip', compression_opts=9)
+            traj_data.create_dataset("hl_action_index", data=self.data['hl_action_index'])
             # traj_data.create_dataset("complete_task", data=self.data['complete_task'])
             # traj_data.create_dataset("ct_step", data=self.data['ct_step'])
 

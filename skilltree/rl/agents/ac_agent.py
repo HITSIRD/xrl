@@ -1,6 +1,7 @@
 import torch
 import os
 import numpy as np
+from torchviz import make_dot
 
 from skilltree.rl.components.agent import BaseAgent
 from skilltree.utils.general_utils import ParamDict, map_dict, AttrDict
@@ -132,6 +133,7 @@ class SACAgent(ACAgent):
             experience_batch = self._preprocess_experience(experience_batch)
 
             policy_output = self._run_policy(experience_batch.observation)
+            # make_dot(policy_output.prior_divergence).render('divergence', format='png')
 
             # compute policy loss
             policy_loss = self._compute_policy_loss(experience_batch, policy_output)

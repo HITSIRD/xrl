@@ -23,7 +23,8 @@ class WandBLogger:
         filtered_config = {k: v for k, v in flat_config.items() if (k not in exclude and not inspect.isclass(v))}
         print("INIT WANDB")
         wandb.init(
-            resume=exp_name,
+            name=exp_name,
+            resume='allow',
             project=project_name,
             config=filtered_config,
             dir=path,

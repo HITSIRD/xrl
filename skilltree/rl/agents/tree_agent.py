@@ -1,9 +1,9 @@
 import torch
 import numpy as np
 
-from strl.rl.components.agent import BaseAgent
-from strl.utils.general_utils import ParamDict, ConstantSchedule, AttrDict
-from strl.utils.pytorch_utils import check_shape, map2torch, map2np
+from skilltree.rl.components.agent import BaseAgent
+from skilltree.utils.general_utils import ParamDict, ConstantSchedule, AttrDict
+from skilltree.utils.pytorch_utils import check_shape, map2torch, map2np
 
 
 class CARTAgent(BaseAgent):

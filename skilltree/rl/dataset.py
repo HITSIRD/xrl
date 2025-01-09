@@ -77,8 +77,8 @@ class Collector:
             'sampler': Sampler,     # sampler type used
             'exp_path': None,  # Path to the folder with experiments
             # 'num_sample': 50,
-            'num_rollout': 1000,
-            'reward_threshold': 1,
+            'num_rollout': 500,
+            'reward_threshold': 2,
         })
         return default_dict
 

@@ -8,6 +8,7 @@ from torch.distributions.multivariate_normal import MultivariateNormal
 from skilltree.utils.pytorch_utils import ten2ar
 from skilltree.utils.general_utils import batch_apply
 from scipy.stats import wasserstein_distance
+from torchviz import make_dot
 
 class Categorical:
     """ Represents a categorical distribution """
@@ -34,6 +35,7 @@ class Categorical:
         delta = 1e-10
         # log_q = torch.log(self.prob.probs + delta)
         log_p = torch.log(other.prob.probs + delta)
+        # make_dot(other.prob.probs).render('probs', format='png')
 
         # return torch.sum(self.prob.probs * torch.log((self.prob.probs + delta) / (other.prob.probs + delta)), dim=-1)
         return torch.nn.functional.kl_div(log_p, self.prob.logits, reduction='none', log_target=True)
