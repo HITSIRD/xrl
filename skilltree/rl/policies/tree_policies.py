@@ -96,7 +96,7 @@ class ImageCARTPolicy(CARTPolicy, ACLearnedVQPriorAugmentedPICDTPolicy):
         if self._hp.load_img_encoder:
             with torch.no_grad():
                 img_obs = self.net.unflatten_obs(obs).prior_obs
-                obs = self.net.img_encoder(img_obs).cpu().numpy()
+                obs = self.net.img_encoder_p(img_obs).cpu().numpy()
 
         if isinstance(obs, torch.Tensor):
             obs = obs.cpu().numpy()

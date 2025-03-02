@@ -1,7 +1,9 @@
+import importlib
+import sys
+
 import torch
 import os
 import imp
-
 from tensorboardX import SummaryWriter
 from tqdm import tqdm
 from collections import defaultdict
@@ -28,7 +30,7 @@ class RLTrainer:
 
         # set up params
         self.conf = self.get_config()
-        update_with_mpi_config(self.conf)  # self.conf.mpi = AttrDict(is_chef=True)
+        # update_with_mpi_config(self.conf)  # self.conf.mpi = AttrDict(is_chef=True)
         self._hp = self._default_hparams()
         self._hp.overwrite(self.conf.general)  # override defaults with config file
         self._hp.exp_path = make_path(self.conf.exp_dir, args.path, args.prefix, args.new_dir)
@@ -40,7 +42,7 @@ class RLTrainer:
         set_seeds(self._hp.seed)
         print(f'seed is: {self._hp.seed}')
         os.environ["DISPLAY"] = ":1"
-        set_shutdown_hooks()
+        # set_shutdown_hooks()
 
         # set up logging
         if self.is_chef:
@@ -60,7 +62,7 @@ class RLTrainer:
             pretty_print(self.conf)
 
         # build agent (that holds actor, critic, exposes update method)
-        self.conf.agent.num_workers = self.conf.mpi.num_workers
+        # self.conf.agent.num_workers = self.conf.mpi.num_workers = 1
         self.agent = self._hp.agent(self.conf.agent)
         self.agent.to(self.device)
 
@@ -123,8 +125,8 @@ class RLTrainer:
     def train_epoch(self, epoch):
         """Run inner training loop."""
         # sync network parameters across workers
-        if self.conf.mpi.num_workers > 1:
-            self.agent.sync_networks()
+        # if self.conf.mpi.num_workers > 1:
+        #     self.agent.sync_networks()
 
         # initialize timing
         timers = defaultdict(lambda: AverageTimer())
@@ -141,7 +143,8 @@ class RLTrainer:
                                                                             global_step=self.global_step)
                     if self.use_multiple_workers:
                         experience_batch = mpi_gather_experience(experience_batch)
-                    self.global_step += mpi_sum(env_steps)
+                    # self.global_step += mpi_sum(env_steps)
+                    self.global_step += env_steps
 
                 # update policy
                 with timers['update'].time():
@@ -200,8 +203,9 @@ class RLTrainer:
             print("Warmup data collection for {} steps...".format(self._hp.n_warmup_steps))
         with self.agent.rand_act_mode():
             self.sampler.init(is_train=True)
-            warmup_experience_batch, _ = self.sampler.sample_batch(
-                batch_size=int(self._hp.n_warmup_steps / self.conf.mpi.num_workers))
+            # warmup_experience_batch, _ = self.sampler.sample_batch(
+            #     batch_size=int(self._hp.n_warmup_steps / self.conf.mpi.num_workers))
+            warmup_experience_batch, _ = self.sampler.sample_batch(batch_size=int(self._hp.n_warmup_steps))
             if self.use_multiple_workers:
                 warmup_experience_batch = mpi_gather_experience(warmup_experience_batch)
         if self.is_chef:
@@ -217,7 +221,12 @@ class RLTrainer:
 
         # general and agent configs
         print('loading from the config file {}'.format(conf.conf_path))
-        conf_module = imp.load_source('conf', conf.conf_path)
+        # conf_module = imp.load_source('conf', conf.conf_path)
+        spec = importlib.util.spec_from_file_location('conf', conf.conf_path)
+        conf_module = importlib.util.module_from_spec(spec)
+        sys.modules['conf'] = conf_module
+        spec.loader.exec_module(conf_module)
+
         conf.general = conf_module.configuration
         conf.agent = conf_module.agent_config
         conf.agent.device = self.device
@@ -326,11 +335,13 @@ class RLTrainer:
 
     @property
     def is_chef(self):
-        return self.conf.mpi.is_chef
+        return True
+    #     return self.conf.mpi.is_chef
 
     @property
     def use_multiple_workers(self):
-        return self.conf.mpi.num_workers > 1
+        return False
+        # return self.conf.mpi.num_workers > 1
 
 
 if __name__ == '__main__':

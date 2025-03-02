@@ -1,6 +1,6 @@
 """Helpers for multi-processing."""
 
-from mpi4py import MPI
+# from mpi4py import MPI
 import signal
 import sys
 import numpy as np
@@ -34,7 +34,7 @@ def set_shutdown_hooks():
 
 def mpi_sum(x):
     buf = np.zeros_like(np.array(x))
-    MPI.COMM_WORLD.Allreduce(np.array(x), buf, op=MPI.SUM)
+    # MPI.COMM_WORLD.Allreduce(np.array(x), buf, op=MPI.SUM)
     return buf
 
 

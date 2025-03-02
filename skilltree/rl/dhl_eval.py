@@ -33,7 +33,7 @@ class DHLEvaluator:
 
         # set up params
         self.conf = self.get_config()
-        update_with_mpi_config(self.conf)  # self.conf.mpi = AttrDict(is_chef=True)
+        # update_with_mpi_config(self.conf)  # self.conf.mpi = AttrDict(is_chef=True)
         self._hp = self._default_hparams()
         self._hp.overwrite(self.conf.general)  # override defaults with config file
         self._hp.exp_path = make_path(self.conf.exp_dir, args.path, args.prefix, args.new_dir)
@@ -60,11 +60,10 @@ class DHLEvaluator:
         if 'general' in self.conf: self.conf.general.seed = self._hp.seed
         self.env = self._hp.environment(copy.deepcopy(self.conf.env))
         self.conf.agent.env_params = self.env.agent_params  # (optional) set params from env for agent
-        if self.is_chef:
-            pretty_print(self.conf)
+        pretty_print(self.conf)
 
         # build agent (that holds actor, critic, exposes update method)
-        self.conf.agent.num_workers = self.conf.mpi.num_workers
+        # self.conf.agent.num_workers = self.conf.mpi.num_workers
         self.agent = self._hp.agent(self.conf.agent)
         self.agent.to(self.device)
 
@@ -129,10 +128,10 @@ class DHLEvaluator:
                             # episode = self.sampler.sample_episode(index=i, is_train=False, render=False, task=True)
 
                             # deterministic policy
-                            episode = self.sampler.sample_episode(index=i, is_train=False, render=False, task=False)
+                            # episode = self.sampler.sample_episode(index=i, is_train=False, render=False, task=False)
 
                             # spirl_cl_vq & tree policy
-                            # episode = self.sampler.sample_episode(is_train=False, render=False, task=False)
+                            episode = self.sampler.sample_episode(is_train=False, render=False, task=False)
 
                             # val_rollout_storage.append(episode, reward_only=True)
                             val_rollout_storage.append(episode)
@@ -149,12 +148,7 @@ class DHLEvaluator:
                 success_rate[k] = success_rate[k] / self._hp.num_sample
             stat[i] = [complete_task, success_rate]
 
-            if self.is_chef:
-                # with timing(f"index {i} eval log time: "):
-                #     self.agent.log_outputs(rollout_stats, val_rollout_storage,
-                #                            self.logger, log_images=False, step=i)
-
-                print(f"index {i} evaluation Avg_Reward: {episode_reward_mean} ({episode_reward_std})")
+            print(f"index {i} evaluation Avg_Reward: {episode_reward_mean} ({episode_reward_std})")
 
             del val_rollout_storage
 

@@ -30,7 +30,7 @@ class Collector:
 
         # set up params
         self.conf = self.get_config()
-        update_with_mpi_config(self.conf)   # self.conf.mpi = AttrDict(is_chef=True)
+        # update_with_mpi_config(self.conf)   # self.conf.mpi = AttrDict(is_chef=True)
         self._hp = self._default_hparams()
         self._hp.overwrite(self.conf.general)  # override defaults with config file
         self._hp.exp_path = make_path(self.conf.exp_dir, args.path, args.prefix, args.new_dir)
@@ -51,11 +51,8 @@ class Collector:
         if 'general' in self.conf: self.conf.general.seed=self._hp.seed
         self.env = self._hp.environment(self.conf.env)
         self.conf.agent.env_params = self.env.agent_params      # (optional) set params from env for agent
-        if self.is_chef:
-            pretty_print(self.conf)
 
         # build agent (that holds actor, critic, exposes update method)
-        self.conf.agent.num_workers = self.conf.mpi.num_workers
         self.agent = self._hp.agent(self.conf.agent)
         self.agent.to(self.device)
 
@@ -78,7 +75,7 @@ class Collector:
             'data_dir': None,  # directory where dataset is in
             'sampler': Sampler,     # sampler type used
             'exp_path': None,  # Path to the folder with experiments
-            'dataset_path': 'experiments/hrl/kitchen/cdt_cl_vq_prior_cdt/mkbl_d6_s0/fine_1000_50.h5',
+            'dataset_path': 'experiments/hrl/kitchen/cdt_cl_vq_prior_cdt/mkbl_d6_s1_avgprob/fine_500_50.h5',
         })
         return default_dict
 
@@ -90,7 +87,7 @@ class Collector:
             os.makedirs(self.args.save_dir)
 
         file = self._hp.dataset_path
-        save_path = os.path.join(self.args.save_dir, "encoded_fine_1000_50.h5")
+        save_path = os.path.join(self.args.save_dir, "encoded_fine_500_50.h5")
 
         # save rollout to file
         f = h5py.File(save_path, "w")
@@ -109,7 +106,7 @@ class Collector:
                     for start_idx in range(0, num_samples, batch_size):
                         end_idx = min(start_idx + batch_size, num_samples)
                         batch = self.agent.hl_agent.policy.net.unflatten_obs(image_obs[start_idx:end_idx]).prior_obs
-                        image_embeddings.append(self.agent.hl_agent.policy.net.img_encoder(batch).cpu())
+                        image_embeddings.append(self.agent.hl_agent.policy.net.img_encoder_p(batch).cpu())
 
                     image_embeddings = torch.cat(image_embeddings, dim=0).numpy()
                     traj_data = f.create_group("traj")

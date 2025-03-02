@@ -40,7 +40,7 @@ def plot_skill(file_path):
             rate[int(z)][TASK_ELEMENTS[k]] = v
 
     plt.figure(figsize=(4.3, 1.6))
-    label_size = 7
+    label_size = 6
 
     x_labels = [str(i) for i in range(K)]
     y_labels = TASK_ELEMENTS.keys()
@@ -185,7 +185,7 @@ if __name__ == '__main__':
     # file_path = 'hrl/calvin/oracle_vq/K_16/skill_evaluate_prior_2'
     # file_path = 'hrl/calvin/oracle_vq/finetune/skill_evaluate_prior_0'
     # file_path = 'hrl/kitchen/oracle_vq/mkbl/new_reconstruction'
-    file_path = 'experiments/hrl/kitchen/vq/mkbl_dt/mkbl_d6_s1_avgprob'
+    file_path = ('experiments/hrl/kitchen/vq/mkbl_d6_s1_avgprob/skill_eval')
     plot_skill(file_path)
     # plot_task_transition(file_path, aggregate=True)
     # test(file_path)

@@ -33,12 +33,13 @@ ll_model_params.update(AttrDict(
 
 # create LL closed-loop policy
 ll_policy_params = AttrDict(
-    policy_model=ImageClVQCDTMdl,
+    # policy_model=ImageClVQCDTMdl,
+    policy_model=ImageClVQSPiRLMdl,
     policy_model_params=ll_model_params,
     # policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
     #                                      "skill_prior_learning/kitchen/hierarchical_cl_vq"),
     policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
-                                         "skill_prior_learning/kitchen/hierarchical_cl_vq_cdt"),
+                                         "skill_prior_learning/kitchen/hierarchical_cl_vq"),
 )
 
 ll_policy_params.update(ll_model_params)
@@ -59,7 +60,7 @@ hl_policy_params.update(AttrDict(
     codebook_checkpoint=os.path.join(os.environ["EXP_DIR"],
                                      "hrl/kitchen/cdt_cl_vq_prior_cdt/mkbl_d6_s1_avgprob/weights/weights_ep9.pth"),
     # codebook_checkpoint=os.path.join(os.environ["EXP_DIR"],
-    #                                  "skill_prior_learning/kitchen/hierarchical_cl_vq_cdt/weights/weights_ep99.pth"),
+    #                                  "skill_prior_learning/kitchen/hierarchical_cl_vq/weights/weights_ep99.pth"),
 ))
 
 agent_config.update(AttrDict(

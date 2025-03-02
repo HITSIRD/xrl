@@ -41,7 +41,7 @@ if __name__ == '__main__':
     max_depth = args.depth
     env = 'mkbl'
 
-    file_path = os.path.join(f'skilltree/experiments/hrl/kitchen/cdt_cl_vq_prior_cdt/mkbl_d6_s0/encoded_fine_1000_{dataset_size}.h5')
+    file_path = os.path.join(f'skilltree/experiments/hrl/kitchen/cdt_cl_vq_prior_cdt/mkbl_d6_s1_avgprob/encoded_fine_500_{dataset_size}.h5')
     file = h5py.File(file_path, 'r')
 
     dataset = file['traj']

@@ -33,7 +33,7 @@ class ClVQSPiRLMdl(ClSPiRLMdl):
                                  mid_size=self._hp.nz_mid_prior)
         self.p = self._build_prior_ensemble()
         self.codebook = self._build_codebook()
-        self.log_sigma = get_constant_parameter(0., learnable=False)
+        # self.log_sigma = get_constant_parameter(0., learnable=False)
 
     def forward(self, inputs, use_learned_prior=False):
         """Forward pass of the VQ SPIRL model.
@@ -166,15 +166,16 @@ class ImageClVQSPiRLMdl(ClVQSPiRLMdl, ImageSkillPriorMdl):
         return super()._default_hparams().overwrite(default_dict)
 
     def _build_prior_net(self):
+        self.img_encoder_p = nn.Sequential(ResizeSpatial(self._hp.prior_input_res),  # encodes image inputs
+                                         Encoder(self._updated_encoder_params()),
+                                         RemoveSpatial(), )
         return nn.Sequential(
-            ResizeSpatial(self._hp.prior_input_res),
-            Encoder(self._updated_encoder_params()),
-            RemoveSpatial(),
+            self.img_encoder_p,
             ClVQSPiRLMdl._build_prior_net(self),
         )
 
     def _build_inference_net(self):
-        self.img_encoder = nn.Sequential(ResizeSpatial(self._hp.prior_input_res),  # encodes image inputs
+        self.img_encoder_q = nn.Sequential(ResizeSpatial(self._hp.prior_input_res),  # encodes image inputs
                                          Encoder(self._updated_encoder_params()),
                                          RemoveSpatial(), )
         return ClVQSPiRLMdl._build_inference_net(self)
@@ -184,7 +185,7 @@ class ImageClVQSPiRLMdl(ClVQSPiRLMdl, ImageSkillPriorMdl):
         stacked_imgs = torch.cat([inputs.images[:, t:t + inputs.actions.shape[1]]
                                   for t in range(self._hp.n_input_frames)], dim=2)
         # encode stacked seq
-        return batch_apply(stacked_imgs, self.img_encoder)
+        return batch_apply(stacked_imgs, self.img_encoder_q)
 
     def _learned_prior_input(self, inputs):
         return ImageSkillPriorMdl._learned_prior_input(self, inputs)
@@ -194,7 +195,7 @@ class ImageClVQSPiRLMdl(ClVQSPiRLMdl, ImageSkillPriorMdl):
 
     def enc_obs(self, obs):
         """Optionally encode observation for decoder."""
-        return self.img_encoder(obs)
+        return self.img_encoder_q(obs)
 
     @property
     def enc_size(self):

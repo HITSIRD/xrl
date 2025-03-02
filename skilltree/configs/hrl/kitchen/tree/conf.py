@@ -21,6 +21,7 @@ ll_model_params.update(AttrDict(
     beta_dc=0,
     if_smooth=False,
     if_save=False,
+    update_encoder = False,
     tree_name=""
 
     # if_freeze=False,
@@ -33,7 +34,7 @@ ll_policy_params = AttrDict(
     policy_model=ImageClVQCDTMdl,
     policy_model_params=ll_model_params,
     policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
-                                         "skill_prior_learning/kitchen/hierarchical_cl_vq_cdt"),
+                                         "skill_prior_learning/kitchen/hierarchical_cl_vq_cdt/K_16"),
 )
 ll_policy_params.update(ll_model_params)
 
@@ -64,12 +65,12 @@ hl_agent_config.update(AttrDict(
 hl_policy_params.update(AttrDict(
     policy=ImageCARTPolicy,
     policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
-                                         f"hrl/kitchen/cdt_cl_vq_prior_cdt/mkbl_d6_s0"),
-    policy_model_epoch=19,
+                                         f"hrl/kitchen/cdt_cl_vq_prior_cdt/mkbl_d6_s1_avgprob"),
+    policy_model_epoch=9,
     dt_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
-                                     "hrl/kitchen/tree/mkbl/cart_fine_50_d8.pkl"),
+                                     "hrl/kitchen/tree/mkbl/cart_fine_200_d6.pkl"),
     codebook_checkpoint=os.path.join(os.environ["EXP_DIR"],
-                                     "hrl/kitchen/cdt_cl_vq_prior_cdt/mkbl_d6_s0/weights/weights_ep19.pth"),
+                                     "hrl/kitchen/cdt_cl_vq_prior_cdt/mkbl_d6_s1_avgprob/weights/weights_ep9.pth"),
     # max_depth=10,
     # oracle_policy=LearnedVQPriorAugmentedPolicy,
     prior_model=ll_policy_params.policy_model,

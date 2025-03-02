@@ -13,7 +13,7 @@ from skilltree.utils.vis_utils import add_caption_to_img, add_captions_to_seq
 from skilltree.rl.components.normalization import DummyNormalizer
 from skilltree.rl.components.policy import Policy
 from skilltree.components.checkpointer import CheckpointHandler
-from skilltree.rl.utils.mpi import sync_grads
+# from skilltree.rl.utils.mpi import sync_grads
 
 
 class BaseAgent(nn.Module):

@@ -34,7 +34,7 @@ ll_policy_params = AttrDict(
     policy_model=ImageClVQCDTMdl,
     policy_model_params=ll_model_params,
     policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
-                                         f"skill_prior_learning/kitchen/hierarchical_cl_vq_cdt"),
+                                         f"skill_prior_learning/kitchen/hierarchical_cl_vq_cdt/K_16"),
 )
 ll_policy_params.update(ll_model_params)
 
