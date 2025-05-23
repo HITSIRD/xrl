@@ -25,7 +25,7 @@ class KitchenDataset(Dataset):
         self.spec = data_conf.dataset_spec
         # self.subseq_len = self.spec.subseq_len
         self.device = data_conf.device
-        self.n_worker = 8
+        self.n_worker = 16
         self.shuffle = shuffle
 
         print('loading files from', self.data_dir)
@@ -111,7 +111,8 @@ class KitchenDataset(Dataset):
         output = AttrDict(
             images=seq.images[idx],
             actions=seq.actions[idx],
-            skills=self.skill_enc[seq.tasks[idx]].astype(np.float32)
+            skills=self.skill_enc[seq.tasks[idx]].astype(np.float32),
+            complete=True if idx == seq.actions.shape[0] - 1 else seq.tasks[idx] != seq.tasks[idx + 1],
             # pad_mask=np.ones((self.subseq_len,)),
         )
 
@@ -120,8 +121,8 @@ class KitchenDataset(Dataset):
         return output
 
     def _sample_seq(self):
-        # return np.random.choice(self.seqs[self.start:self.end])
-        return np.random.choice(self.dataset)
+        idx = np.random.randint(0, len(self.dataset))
+        return self.dataset[idx]
 
     def __len__(self):
         if self.dataset_size != -1:

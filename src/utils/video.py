@@ -1,0 +1,150 @@
+import os
+import numpy as np
+from PIL import Image
+from torchvision.transforms import Resize
+import fitz  # PyMuPDF
+from PIL import Image, ImageDraw, ImageFont
+import moviepy.editor as mp
+import os
+import textwrap
+
+def ch_first2last(video):
+    return video.transpose((0,2,3,1))
+
+
+def ch_last2first(video):
+    return video.transpose((0,3,1,2))
+    
+
+def resize_video(video, size):
+    if video.shape[1] == 3:
+        video = np.transpose(video, (0,2,3,1))
+    transformed_video = np.stack([np.asarray(Resize(size)(Image.fromarray(im))) for im in video], axis=0)
+    return transformed_video
+
+
+def _make_dir(filename):
+    folder = os.path.dirname(filename)
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+
+
+def save_video(video_frames, filename, fps=60, video_format='mp4'):
+    assert fps == int(fps), fps
+    import skvideo.io
+    _make_dir(filename)
+
+    skvideo.io.vwrite(
+        filename,
+        video_frames,
+        inputdict={
+            '-r': str(int(fps)),
+        },
+        outputdict={
+            '-f': video_format,
+            '-pix_fmt': 'yuv420p', # '-pix_fmt=yuv420p' needed for osx https://github.com/scikit-video/scikit-video/issues/74
+        }
+    )
+
+
+def create_video_grid(col_and_row_frames):
+    video_grid_frames = np.concatenate([
+        np.concatenate(row_frames, axis=-2)
+        for row_frames in col_and_row_frames
+    ], axis=-3)
+
+    return video_grid_frames
+
+
+def create_video_from_pdfs_and_markdowns(
+        pdf_dir="./experiments/",
+        md_dir="./experiments/",
+        output_dir = "./experiments/",
+        output_video="output.mp4",
+        num_files=28,
+        frame_duration=2,
+        fps=30,
+        font_path="NotoSansCJK-Regular.ttc",
+        font_size=18,
+        text_height=150,
+        text_width=64
+):
+    """
+    从 PDF 文件（图片）和 Markdown 文件（文字描述）生成视频。
+
+    参数:
+        pdf_dir (str): PDF 文件所在目录
+        md_dir (str): Markdown 文件所在目录
+        output_video (str): 输出视频文件名
+        num_files (int): 文件数量
+        frame_duration (int): 每帧显示时间（秒）
+        fps (int): 视频帧率
+        font_path (str): 字体文件路径
+        font_size (int): 文字大小
+        text_height (int): 文字区域高度
+        text_width (int): 每行文字最大宽度（字符数）
+
+    返回:
+        None，生成视频文件
+    """
+    # 创建临时帧存储目录
+    os.makedirs(output_dir, exist_ok=True)
+
+    # 存储所有帧路径
+    frames = []
+
+    try:
+        # 遍历 PDF 和 Markdown 文件
+        for i in range(num_files):
+            pdf_path = os.path.join(pdf_dir, f"skill_influence_{i}.pdf")
+            md_path = os.path.join(md_dir, f"explanation_{i}.md")
+
+            # 提取 PDF 中的图片
+            pdf_doc = fitz.open(pdf_path)
+            page = pdf_doc[0]  # 假设每 PDF 只有一页
+            pix = page.get_pixmap()
+            img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+            pdf_doc.close()
+
+            # 读取 Markdown 文件中的文字
+            with open(md_path, "r", encoding="utf-8") as f:
+                text = f.read().strip()
+                # text = text.replace("**", "")
+                # text = text.replace(" **", "")
+                # text = text.replace("** ", "")
+                # text = text.replace("### ", "")
+
+            # 创建新图片：上半部分图片 + 下半部分文字
+            img_width, img_height = img.size
+            new_height = img_height + text_height
+            new_img = Image.new("RGB", (img_width, new_height), color="white")
+            new_img.paste(img, (0, 0))
+
+            # 绘制文字
+            draw = ImageDraw.Draw(new_img)
+            font = ImageFont.truetype(font_path, font_size)
+            wrapped_text = textwrap.fill(text, width=text_width)
+            draw.text((10, img_height + 10), wrapped_text, font=font, fill="black")
+
+            # 保存帧图片
+            frame_path = os.path.join(output_dir, f"frame_{i}.png")
+            new_img.save(frame_path)
+            frames.append(frame_path)
+
+        # 合成视频
+        clip = mp.ImageSequenceClip(frames, durations=[frame_duration] * len(frames))
+        clip.fps = fps
+        clip.write_videofile(os.path.join(output_dir, output_video), codec="libx264")
+
+        print(f"视频已生成：{output_video}")
+
+    except Exception as e:
+        print(f"发生错误：{str(e)}")
+
+    # finally:
+    #     # 清理临时帧文件（可选）
+    #     for frame in frames:
+    #         if os.path.exists(frame):
+    #             os.remove(frame)
+    #     if os.path.exists(output_dir):
+    #         os.rmdir(output_dir)

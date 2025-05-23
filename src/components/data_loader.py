@@ -9,6 +9,8 @@ import itertools
 
 from src.utils.general import (AttrDict, map_dict, maybe_retrieve, shuffle_with_seed)
 from src.utils.pytorch import (RepeatedDataLoader)
+
+
 # from src.utils.video_utils import (resize_video)
 
 
@@ -32,9 +34,7 @@ class Dataset(data.Dataset):
     def get_data_loader(self, batch_size, n_repeat):
         print('len {} dataset {}'.format(self.phase, len(self)))
         assert self.device in ['cuda', 'cpu']  # Otherwise the logic below is wrong
-        return RepeatedDataLoader(self, batch_size=batch_size, shuffle=self.shuffle, num_workers=self.n_worker,
-                                  drop_last=True, n_repeat=n_repeat, pin_memory=True,
-                                  worker_init_fn=lambda x: np.random.seed(np.random.randint(65536) + x))
+        return RepeatedDataLoader(self, batch_size=batch_size, shuffle=self.shuffle, num_workers=self.n_worker, drop_last=True, n_repeat=n_repeat, pin_memory=False, prefetch_factor=2, worker_init_fn = lambda x: np.random.seed(np.random.randint(65536) + x))
 
     def __getitem__(self, index):
         """Load a single sequence from disk according to index."""
@@ -72,7 +72,6 @@ class Dataset(data.Dataset):
         if self.dataset_size != -1:
             return self.dataset_size
         return len(self.filenames) * self.dataset
-
 
 class GlobalSplitDataset(Dataset):
     """Splits in train/val/mkbl using global percentages."""
@@ -112,7 +111,6 @@ class GlobalSplitDataset(Dataset):
         start, end = int(len(filenames) * start), int(len(filenames) * end)
         return filenames[start:end]
 
-
 class VideoDataset(Dataset):
     """Generic video dataset. Assumes that HDF5 file has images/states/actions/pad_mask."""
 
@@ -138,8 +136,9 @@ class VideoDataset(Dataset):
         # Make length consistent
         start_ind = 0
         end_ind = data.images.shape[0] - 1
-        end_ind, data = self._sample_max_len_video(data, end_ind, target_len=self.spec.subseq_len if self.crop_subseq
-        else self.spec.max_seq_len)
+        end_ind, data = self._sample_max_len_video(data, end_ind,
+                                                   target_len=self.spec.subseq_len if self.crop_subseq
+                                                   else self.spec.max_seq_len)
 
         if self.randomize_length:
             end_ind = self._randomize_length(start_ind, end_ind, data)
@@ -228,7 +227,8 @@ class VideoDataset(Dataset):
         if len > target_length:
             return val[:target_length]
         elif len < target_length:
-            return np.concatenate((val, np.zeros([int(target_length - len)] + list(val.shape[1:]), dtype=val.dtype)))
+            return np.concatenate(
+                (val, np.zeros([int(target_length - len)] + list(val.shape[1:]), dtype=val.dtype)))
         else:
             return val
 
@@ -261,7 +261,6 @@ class VideoDataset(Dataset):
         assert images.dtype == np.float32, 'image need to be float32!'
         return images
 
-
 class PreloadVideoDataset(VideoDataset):
     """Loads all sequences into memory for accelerated training (only possible for small datasets)."""
 
@@ -277,14 +276,11 @@ class PreloadVideoDataset(VideoDataset):
     def _get_raw_data(self, index):
         return self._data[index]
 
-
 class GlobalSplitVideoDataset(VideoDataset, GlobalSplitDataset):
     pass
 
-
 class PreloadGlobalSplitVideoDataset(PreloadVideoDataset, GlobalSplitDataset):
     pass
-
 
 class GlobalSplitStateSequenceDataset(GlobalSplitVideoDataset):
     """Outputs observation in data dict, not images."""
@@ -294,7 +290,6 @@ class GlobalSplitStateSequenceDataset(GlobalSplitVideoDataset):
         data.observations = data.pop('states')
         return data
 
-
 class GlobalSplitActionSequenceDataset(GlobalSplitVideoDataset):
     """Outputs observation in data dict, not images."""
 
@@ -302,7 +297,6 @@ class GlobalSplitActionSequenceDataset(GlobalSplitVideoDataset):
         data = super().__getitem__(item)
         data.observations = data.pop('actions')
         return data
-
 
 class MixedVideoDataset(GlobalSplitVideoDataset):
     """Loads filenames from multiple directories and merges them with percentage."""
@@ -316,7 +310,6 @@ class MixedVideoDataset(GlobalSplitVideoDataset):
         filenames = list(itertools.chain.from_iterable(
             [f[:int(total_size * p)] for p, f in zip(self.spec.percentages, files)]))
         return filenames
-
 
 class GeneratedVideoDataset(VideoDataset):
     def __len__(self):
@@ -348,7 +341,6 @@ class GeneratedVideoDataset(VideoDataset):
     def visualize(*args, **kwargs):
         """Enables dataset-specific visualization."""
         pass
-
 
 class RandomVideoDataset(GeneratedVideoDataset):
     def get_sample(self):
