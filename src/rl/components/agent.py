@@ -340,12 +340,6 @@ class FixedIntervalHierarchicalAgent(HierarchicalAgent):
         super().__init__(config)
         self._steps_since_hl = 0  # number of steps since last high-level step
 
-    def _default_hparams(self):
-        default_dict = ParamDict({
-            'hl_interval': 3,  # temporal interval at which high-level actions are executed
-        })
-        return super()._default_hparams().overwrite(default_dict)
-
     def act(self, *args, **kwargs):
         output = super().act(*args, **kwargs)
         self._steps_since_hl += 1

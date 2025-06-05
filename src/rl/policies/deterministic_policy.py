@@ -37,7 +37,7 @@ class DeterministicPolicy(Policy):
         self.steps_since_hl, self.last_z = np.Inf, None
 
     @staticmethod
-    def update_bmodel_params(params):
+    def update_model_params(params):
         params.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
         params.batch_size = 1  # run only single-element batches for forward pass
 

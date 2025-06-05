@@ -91,15 +91,18 @@ class OneHotImagePriorBCModel(OneHotImageBCModel):
         )
 
     def forward(self, input):
-        output = AttrDict()
+        if isinstance(input, AttrDict):
+            output = AttrDict()
 
-        img_embed = self.encoder(input.images)
-        output.reconstruction = self.head(torch.cat([img_embed, input.skills], dim=-1))
-        output.prior = self.prior_head(self.prior_encoder(input.images))
+            img_embed = self.encoder(input.images)
+            output.reconstruction = self.head(torch.cat([img_embed, input.skills], dim=-1))
+            output.prior = self.prior_head(self.prior_encoder(input.images))
 
-        output.prior_probs = torch.exp(output.prior)
-        output.prior_entropy = -torch.sum(output.prior_probs * output.prior, dim=1).mean()
-        return output
+            output.prior_probs = torch.exp(output.prior)
+            output.prior_entropy = -torch.sum(output.prior_probs * output.prior, dim=1).mean()
+            return output
+        else:
+            return self.prior_head(self.prior_encoder(input))
 
     def loss(self, output, inputs):
         losses = AttrDict()
@@ -127,7 +130,8 @@ class OneHotImagePriorBCModel(OneHotImageBCModel):
         :arg phase: 'train' or 'val'
         :arg logger: logger class, visualization functions should be implemented in this class
         """
-        self._logger.log_scalar(model_output.prior_entropy, "prior_entropy", step, phase)
+        # self._logger.log_scalar(model_output.prior_entropy, "prior_entropy", step, phase) # wandb
+        self._logger.add_scalar(f'{phase}/prior_entropy', model_output.prior_entropy, step)
 
         # log videos/gifs in tensorboard
         if log_images:
@@ -208,7 +212,12 @@ class OneHotImagePriorCompleteBCModel(OneHotImagePriorBCModel):
         :arg phase: 'train' or 'val'
         :arg logger: logger class, visualization functions should be implemented in this class
         """
-        self._logger.log_scalar(model_output.prior_entropy, "prior_entropy", step, phase)
-        # self._logger.log_scalar(model_output.precision, "precision", step, phase)
-        # self._logger.log_scalar(model_output.recall, "recall", step, phase)
-        # self._logger.log_scalar(model_output.f1_score, "f1_score", step, phase)
+        # self._logger.log_scalar(model_output.prior_entropy, 'prior_entropy', step, phase)
+        # self._logger.log_scalar(model_output.precision, 'precision', step, phase)
+        # self._logger.log_scalar(model_output.recall, 'recall', step, phase)
+        # self._logger.log_scalar(model_output.f1_score, 'f1_score', step, phase)
+
+        self._logger.add_scalar(f'{phase}/prior_entropy', model_output.prior_entropy, step)
+        # self._logger.add_scalar(f{phase}/precision', model_output.precision, step)
+        # self._logger.add_scalar(f'{phase}/recall', model_output.recall, step)
+        # self._logger.add_scalar(f'{phase}/f1_score', model_output.f1_score, step)

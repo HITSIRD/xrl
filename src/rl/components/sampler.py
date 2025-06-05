@@ -35,8 +35,7 @@ class Sampler:
             with self._agent.val_mode() if not is_train else contextlib.suppress():
                 self._episode_reset()
 
-    def sample_action(self, obs, index=None, task=None, env_stat=None):
-        # return self._agent.act(obs, index=index, task=task, env=AttrDict(env=self._env, env_stat=env_stat))
+    def sample_action(self, obs, index=None, task=None):
         return self._agent.act(obs, index=index, task=task)
 
     def sample_batch(self, batch_size, is_train=True, global_step=None):
@@ -109,7 +108,6 @@ class Sampler:
                             is_hl_step=agent_output.is_hl_step,
                             episode_start=self._episode_start,
                             observation_next=obs,
-
                             info=obj2np(info),
                         ))
                         self._episode_start = False
@@ -124,18 +122,6 @@ class Sampler:
         episode[-1].done = True  # make sure episode is marked as done at final time step
 
         return listdict2dictlist(episode)
-
-    # def sample_z(self, is_train):
-    #     self.init(is_train)
-    #     # with self._env.val_mode() if not is_train else contextlib.suppress():
-    #     #     with self._agent.val_mode() if not is_train else contextlib.suppress():
-    #     #         with self._agent.rollout_mode():
-    #     # agent_output = self.sample_action(self._obs)
-    #     # agent_output = self._agent.hl_agent.policy.sample_rand(torch.from_numpy(self._obs[:30]).to('cuda:0').unsqueeze(0))
-    #     agent_output = self._agent.hl_agent.policy.sample_rand(torch.from_numpy(self._obs).to('cuda:0').unsqueeze(0))
-    #
-    #     return agent_output.action.detach().cpu().numpy()
-    # return agent_output.hl_action
 
     def get_episode_info(self):
         episode_info = AttrDict(episode_reward=self._episode_reward,

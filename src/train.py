@@ -30,7 +30,7 @@ class SkillTrainer:
         self.conf = conf = self.get_config()
         self.conf.exp_path = make_path(conf.exp_dir, args.path, args.prefix, args.new_dir)
         self.log_dir = os.path.join(self.conf.exp_path, 'events')
-        self.logger = self.get_logger(conf, self.log_dir, wandb=True)
+        self.logger = self.get_logger(conf, self.log_dir, wandb=False)
 
         self.model = self.conf.general.model(self.conf.model, self.logger).to(self.device)
         self.optimizer = optim.Adam(self.model.parameters(), lr=conf.general.lr)

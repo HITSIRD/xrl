@@ -131,6 +131,15 @@ checkpoint = "/home/wenyongyan/下载/sam2.1_hiera_large.pt"
 model_cfg = 'configs/sam2.1/sam2.1_hiera_l.yaml'
 predictor = SAM2ImagePredictor(build_sam2(model_cfg, checkpoint))
 
+groundingdino_model = load_model("../groundingdino/config/GroundingDINO_SwinB_cfg.py",
+                                 "../groundingdino/weights/groundingdino_swinb_cogcoor.pth")
+
+res = 512
+env = gym.make('kitchen-all-v0')
+
+frame = 0
+
+
 # 初始化CLIP模型
 def initialize_clip(model_name="openai/clip-vit-base-patch32", device="cuda"):
     model_path = "../clip_model"  # 你的本地模型存放路径
@@ -139,12 +148,13 @@ def initialize_clip(model_name="openai/clip-vit-base-patch32", device="cuda"):
     return model, processor
 
 
-def box_prompt(image):
-    model = load_model("groundingdino/config/GroundingDINO_SwinB_cfg.py", "groundingdino/weights/groundingdino_swinb_cogcoor.pth")
+def groundingdino_box_prompt(image):
     # TEXT_PROMPT = "kettle . microwave ."
-    TEXT_PROMPT = "kettle"
-    BOX_TRESHOLD = 0.1
-    TEXT_TRESHOLD = 0.1
+
+    global frame
+    TEXT_PROMPT = "metallic water kettle"
+    BOX_TRESHOLD = 0.15
+    TEXT_TRESHOLD = 0.15
 
     transform = T.Compose(
         [
@@ -159,7 +169,7 @@ def box_prompt(image):
     image_transformed, _ = transform(image_source, None)
 
     boxes, logits, phrases = predict(
-        model=model,
+        model=groundingdino_model,
         image=image_transformed,
         caption=TEXT_PROMPT,
         box_threshold=BOX_TRESHOLD,
@@ -167,23 +177,56 @@ def box_prompt(image):
     )
 
     print(boxes)
-    print(logits)
-    print(phrases)
+    # print(logits)
+    # print(phrases)
 
-    # if len(boxes) > 0:
-    #     boxes = boxes[0, None]
-    #     logits = logits[0, None]
-    #     phrases = phrases[:1]
+    if len(boxes) > 0:
+        valid_indices = [i for i, box in enumerate(boxes) if box[2] <= 0.3 and box[3] <= 0.3]
+        if len(valid_indices) > 0:
+            boxes = boxes[valid_indices[0], None]
+            logits = logits[valid_indices[0], None]
+
+            frame += 1
+            print(boxes)
+            print(logits)
+
+            annotated_frame = annotate(image_source=np.asarray(image_source), boxes=boxes, logits=logits,
+                                       phrases=phrases)
+            plt.imsave(f'{frame}.png', cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB))  # 转换 BGR 到 RGB
+
+            box = _process_box(boxes[0])
+            return boxes.cpu().numpy()
 
     annotated_frame = annotate(image_source=np.asarray(image_source), boxes=boxes, logits=logits, phrases=phrases)
     plt.imshow(cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB))  # 转换 BGR 到 RGB
 
+    return None
+
+
+def _process_box(box):
+    x, y = box[0], box[1]
+    w, h = box[2], box[3]
+    box[0] = x - w / 2
+    box[1] = y - h / 2
+    box[2] = x + w / 2
+    box[3] = y + h / 2
+    return box
+
 
 # 使用SAM生成分割掩码
-def generate_masks_with_sam(image):
+def generate_masks_with_sam(image, obs):
     """
     使用SAM生成图像中的所有分割掩码
     """
+    ## upscale
+    obs = obs[0].detach().cpu().numpy()
+    env.env.sim.set_state(np.concatenate([obs[:30], np.zeros(29)]))
+    env.env.sim.forward()
+    image_obs = np.array(env.env.render("rgb_array", h=res, w=res))
+
+    # plt.imsave(f'original_image_{frame}.png', image)  # 转换 BGR 到 RGB
+    # plt.imsave(f'upscale_image_{frame}.png', image_obs)  # 转换 BGR 到 RGB
+
     # predictor.set_image(image)
     # masks, _, _ = predictor.predict()
 
@@ -194,23 +237,33 @@ def generate_masks_with_sam(image):
     #                                            crop_n_layers=1, min_mask_region_area=50)
     # masks = mask_generator.generate(image_obs)
 
-    predictor.set_image(image)
+    predictor.set_image(image_obs)
     # masks, _, _ = predictor.predict(point_coords=np.array([[60, 105], [37, 40], [60, 40], [130, 40], [82, 60],
     #                                                        [110, 52], [110, 63], [100, 130]]),
     #                                 point_labels=np.array([1, 1, 1, 1, 1, 1, 1, 1]), multimask_output=True)
 
     # masks, _, _ = predictor.predict(box=np.array([0, 50, 75, 125]), multimask_output=False)
 
-    boxes = [[0, 50, 75, 150], [50, 0, 100, 50], [125, 0, 200, 50], [75, 50, 95, 70],
-             [95, 60, 110, 75], [80, 110, 120, 150]]
+    boxes = [[0, 50, 75, 150], [50, 0, 100, 50], [125, 0, 200, 50], [75, 50, 85, 70], [85, 50, 95, 70],
+             [95, 60, 110, 75]]
     masks = []
+
     for box in boxes:
         # 将边界框转换为 [x_min, y_min, x_max, y_max]
-        bbox_coords = np.array([box])  # 这里bbox_coords是一个二维数组
+        bbox_coords = np.array([box]) * res / 200  # 这里bbox_coords是一个二维数组
         # 使用边界框生成分割掩码
         mask, _, _ = predictor.predict(box=bbox_coords, multimask_output=False)
         if mask.sum() > 0:
-            masks.append(mask)
+            masks.append(cv2.resize(mask[0].astype(np.uint8), (128, 128), interpolation=cv2.INTER_NEAREST))
+
+    box = groundingdino_box_prompt(image_obs)
+    if box is None:
+        box = np.array([80, 110, 120, 150])
+
+    bbox_coords = np.array(box) * 128  # 这里bbox_coords是一个二维数组
+    mask, _, _ = predictor.predict(box=bbox_coords, multimask_output=False)
+    if mask.sum() > 0:
+        masks.append(cv2.resize(mask[0].astype(np.uint8), (128, 128), interpolation=cv2.INTER_NEAREST))
 
     return masks
 
@@ -389,7 +442,7 @@ def main(image):
     # sam_predictor = initialize_sam(device=device)
     # clip_model, clip_processor = initialize_clip(device=device)
 
-    box_prompt(image)
+    groundingdino_box_prompt(image)
 
     # 使用SAM生成分割掩码
     masks = generate_masks_with_sam(image)
@@ -418,7 +471,6 @@ if __name__ == "__main__":
     #     # print(dataset['traj'].keys())
     #     # print(dataset['traj']['states'])
     #     image_obs = dataset['traj']['observations'][150]
-
 
     obs = observations[10000]
     obs_dict = {"qp": obs[:9], "obj_qp": obs[9:30]}

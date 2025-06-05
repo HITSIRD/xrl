@@ -49,7 +49,8 @@ class InstanceInfluence:
                                  "slide cabinet",
                                  "hinge cabinet",
                                  "light switch",
-                                 "burner switch",
+                                 "top burner switch",
+                                 "bottom burner switch",
                                  "kettle"]
 
         client = OpenAI(api_key="<DeepSeek API Key>", base_url="https://api.deepseek.com")
@@ -109,7 +110,9 @@ class InstanceInfluence:
                 obs = episode['observation'][i]
                 with torch.no_grad():
                     obs = torch.from_numpy(obs).to(self.device).unsqueeze(0)
-                    image_obs = self.agent.hl_agent.policy.net.unflatten_obs(obs).prior_obs
+                    obs = self.agent.hl_agent.policy.net.unflatten_obs(obs)
+                    image_obs = obs.prior_obs
+                    state = obs.obs
 
                     # output = policy(obs)
                     # prediction, dist, prob = output['action_index'], output['dist'], output['probs']
@@ -129,18 +132,19 @@ class InstanceInfluence:
                     img = (processed_img * 0.5 + 0.5) * 255.0
                     img = img.cpu().numpy().squeeze(0).transpose(1, 2, 0).astype(np.uint8)
                     # self.save_img(img, index)
-                    masks = generate_masks_with_sam(img)
-                    results = classify_with_clip(clip_model, clip_processor, img, masks, self.candidate_labels)
+
+                    masks = generate_masks_with_sam(img, state)
+                    # results = classify_with_clip(clip_model, clip_processor, img, masks, self.candidate_labels)
 
                     # grads, dist = self.compute_perturbation_saliency(policy.net, processed_img)  # (K, H, W)
                     grads, dist = self.compute_gradient_saliency(policy.net, processed_img)  # (K, H, W)
-                    influence_matrix = self.compute_instance_influence(grads, results)  # (N, K)
+                    influence_matrix = self.compute_instance_influence(grads, masks)  # (N, K)
                     self.visualize_influence(influence_matrix, dist, hl_step)
 
                     # print("influence matrix shape: ", influence_matrix.shape)
                     # print(influence_matrix)
 
-                    self.visualize_dimension_influence(img, results, grads, influence_matrix, dist, num_skill,
+                    self.visualize_dimension_influence(img, masks, grads, influence_matrix, dist, num_skill,
                                                        skill_index, hl_step)
 
                     for i, (label, influence) in enumerate(
@@ -249,45 +253,51 @@ class InstanceInfluence:
 
         # 获取 skill 维度 K
         probs = policy.compute_learned_prior(processed_img).dist.probs
-        K = probs.shape[1]  # K = 16
+        K = probs.shape[1]
 
-        # 存储所有 skill 的 IG 显著性图
+        # # 存储所有 skill 的 IG 显著性图
         saliency_maps = np.zeros((K, processed_img.shape[2], processed_img.shape[3]))  # (K, H, W)
         baseline = torch.zeros_like(processed_img).to(self.device)  # 选择全零图像作为 baseline
         scaled_inputs = [(baseline + (float(i) / steps) * (processed_img - baseline)) for i in range(steps)]
 
         # 对每个 skill 计算 IG
-        # for j in range(K):
-        #     grads = []
-        #     for img in scaled_inputs:
-        #         img.requires_grad_(True)
-        #         probs = policy(img)
-        #         target = probs[0, j]  # 取第 j 维的概率值
-        #
-        #         policy.zero_grad()
-        #         grad = torch.autograd.grad(target, img, retain_graph=True)[0]  # 直接计算梯度
-        #         grads.append(grad.cpu().numpy())
-        #
-        #     avg_grad = np.mean(grads, axis=0)  # 计算平均梯度
-        #     integrated_grads = (processed_img.detach().cpu().numpy() - baseline.detach().cpu().numpy()) * avg_grad  # 计算 IG
-        #
-        #     # 计算 IG 显著性并存储
-        #     saliency_maps[j] = np.abs(integrated_grads).sum(axis=1).squeeze()  # (H, W)
-        #
-        # return saliency_maps, probs.flatten().detach().cpu().numpy()  # (K, H, W)
-
-        ig = IntegratedGradients(policy)
-        gs = GradientShap(policy)
-        baseline = torch.randn(*processed_img.shape).to(self.device)  # 选择全零图像作为 baseline
-
         for j in range(K):
-            saliency = ig.attribute(processed_img, target=j,
-                                            return_convergence_delta=False).detach().cpu().numpy()
-            # saliency = gs.attribute(processed_img, baseline, target=j,
-            #                         return_convergence_delta=False).detach().cpu().numpy()
-            saliency_maps[j] = saliency.sum(axis=1).squeeze()
+            grads = []
+            for img in scaled_inputs:
+                img = img.detach().requires_grad_(True)
+                probs = policy.compute_learned_prior(img).dist.probs
+                target = probs[0, j]  # 取第 j 维的概率值
+
+                policy.zero_grad()
+                # grad_output = torch.zeros_like(probs)
+                # grad_output[0, j] = 1.0
+                target.backward()
+                # grad = torch.autograd.grad(target, img, retain_graph=True)[0]  # 直接计算梯度
+                # grads.append(grad.cpu().numpy())
+
+                grads.append(img.grad.data.detach().cpu().numpy())
+
+            avg_grad = np.mean(grads, axis=0)  # 计算平均梯度
+            integrated_grads = (processed_img.detach().cpu().numpy() - baseline.detach().cpu().numpy()) * avg_grad  # 计算 IG
+
+            # 计算 IG 显著性并存储
+            # saliency_maps[j] = linalg.norm(integrated_grads).mean(axis=1).squeeze()  # (H, W)
+            saliency_maps[j] = np.linalg.norm(integrated_grads, ord=2, axis=1).squeeze()  # (H, W)
 
         return saliency_maps, probs.flatten().detach().cpu().numpy()  # (K, H, W)
+
+        # ig = IntegratedGradients(policy)
+        # # gs = GradientShap(policy)
+        # # baseline = torch.randn(*processed_img.shape).to(self.device)  # 选择全零图像作为 baseline
+        # #
+        # for j in range(K):
+        #     saliency = ig.attribute(processed_img, target=j,
+        #                                     return_convergence_delta=False).detach().cpu().numpy()
+        #     # saliency = gs.attribute(processed_img, baseline, target=j,
+        #     #                         return_convergence_delta=False).detach().cpu().numpy()
+        #     saliency_maps[j] = saliency.sum(axis=1).squeeze()
+        #
+        # return saliency_maps, probs.flatten().detach().cpu().numpy()  # (K, H, W)
 
     def compute_perturbation_saliency(self, policy, processed_img, sigma=3, kernel_size=11, batch_size=4096):
         with torch.no_grad():
@@ -338,7 +348,8 @@ class InstanceInfluence:
         """
         influence_matrix = []
         for mask in instance_masks:
-            mask = mask['mask'].squeeze(0)
+            # mask = mask['mask'].squeeze(0)
+            mask = mask
             area = mask.sum() + 1e-6
             # 计算每个维度的平均梯度响应
             baseline = saliency.mean(axis=(1, 2), keepdims=True)
@@ -399,18 +410,22 @@ class InstanceInfluence:
             plt.subplot(1, 4, 4 * i + 4)
             plt.imshow(img)
             for j, mask in enumerate(masks):
-                mask = mask['mask'].squeeze(0)
-                contours, _ = cv2.findContours(mask.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                flag = True
-                for cnt in contours:
-                    plt.plot(cnt[:, 0, 0], cnt[:, 0, 1], linewidth=2)
-                    if flag:
-                        plt.text(cnt[0, 0, 0], cnt[0, 0, 1],
-                                 f"{influence_matrix[j, skill_index] * 1000:.3f}",
-                                 color='white', fontsize=8,
-                                 backgroundcolor='black')
-                        flag = False
-            plt.title("Instance Contributions (×0.001)")
+                mask = mask
+                mask_colored = img
+                mask_colored[mask > 0] = [255, 0, 0]  # 设置mask区域为红色
+
+                # 叠加mask到图像上
+                plt.imshow(mask_colored, alpha=0.5)  # 调整alpha值以改变透明度
+                # 在mask旁边添加文本标签
+                M = cv2.moments(mask.astype(np.uint8))
+                cx = int(M["m10"] / M["m00"])  # 中心 x 坐标
+                cy = int(M["m01"] / M["m00"])  # 中心 y
+                # y, x = coords[0]
+                plt.text(cx, cy,
+                         f"{self.candidate_labels[j]}: {influence_matrix[j, skill_index] * 1000:.2f}",
+                         color='white', fontsize=8,
+                         backgroundcolor='black')
+            plt.title("Instance Contributions (×0.01)")
             plt.axis('off')
 
         plt.tight_layout()
