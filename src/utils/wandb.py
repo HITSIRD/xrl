@@ -31,7 +31,7 @@ class WandBLogger:
             dir=path,
             entity=entity,
             resume='never',
-            notes=conf.notes if 'notes' in conf else ''
+            notes=conf.notes if 'notes' in conf else '',
         )
 
     def log_scalar_dict(self, d, prefix='', step=None):

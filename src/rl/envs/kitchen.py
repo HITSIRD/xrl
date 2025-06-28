@@ -12,8 +12,8 @@ class KitchenEnv(GymEnv):
     def _default_hparams(self):
         return super()._default_hparams().overwrite(ParamDict({
             # 'name': "kitchen-mlsh-v0",
-            # 'name': "kitchen-mkbl-v0",
-            'name': "kitchen-kbts-v0",
+            'name': "kitchen-mkbl-v0",
+            # 'name': "kitchen-kbts-v0",
             # 'name': "kitchen-all-v0"
         }))
 

@@ -67,9 +67,13 @@ class Policy(nn.Module):
 
     def switch_to_val(self):
         self._is_train = False
+        if self.net:
+            self.net.eval()
 
     def switch_to_train(self):
         self._is_train = True
+        if self.net:
+            self.net.train()
 
     def switch_to_rollout(self):
         self._rollout_mode = True

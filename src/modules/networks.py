@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from torchvision import models
 
 
 class CNNEncoder(nn.Module):
@@ -34,6 +35,20 @@ class CNNEncoder(nn.Module):
     def forward(self, x):
         x = self.conv(x)
         return self.fc(x)
+
+
+class ResNetEncoder(nn.Module):
+    def __init__(self, output_dim):
+        super().__init__()
+        self.resnet = models.resnet18(pretrained=True)
+        self.resnet.fc = nn.Linear(512, output_dim)
+
+        for param in self.resnet.parameters():
+            param.requires_grad = False
+        for param in self.resnet.fc.parameters():
+            param.requires_grad = True
+    def forward(self, x):
+        return self.resnet(x)
 
 
 class MLPEncoder(nn.Module):

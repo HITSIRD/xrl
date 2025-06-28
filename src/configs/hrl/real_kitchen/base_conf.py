@@ -9,7 +9,7 @@ from src.utils.general import AttrDict
 from src.rl.components.agent import FixedIntervalHierarchicalAgent
 from src.rl.envs.kitchen import KitchenEnv
 from src.rl.components.sampler import ACImageAugmentedHierarchicalSampler, HierarchicalSampler
-from src.configs.default.kitchen import data_spec
+from src.configs.default.real_kitchen import data_spec
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 

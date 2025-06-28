@@ -45,28 +45,12 @@ class InstanceInfluence:
         self.agent.to(self.device)
         self.sampler = self._hp.sampler(self.conf.sampler, self.env, self.agent, None, self._hp.max_rollout_len)
 
-        self.candidate_labels = ["microwave",
-                                 "slide cabinet",
-                                 "hinge cabinet",
-                                 "light switch",
-                                 "top burner switch",
-                                 "bottom burner switch",
-                                 "kettle"]
+        self.candidate_labels = self.conf.env.labels
+        self.boxes = self.conf.env.boxes
 
         client = OpenAI(api_key="<DeepSeek API Key>", base_url="https://api.deepseek.com")
 
         self.analyze()
-
-    def _default_hparams(self):
-        default_dict = ParamDict({
-            'seed': None,
-            'agent': None,
-            'data_dir': None,  # directory where dataset is in
-            'sampler': Sampler,  # sampler type used
-            'exp_path': None,  # Path to the folder with experiments
-            'dataset_path': 'experiments/hrl/kitchen/cdt_cl_vq_prior_cdt/mkbl_d6_s1_avgprob/fine_500_50.h5',
-        })
-        return default_dict
 
     def analyze(self):
         """Generate rollouts and save to hdf5 files."""
@@ -88,13 +72,10 @@ class InstanceInfluence:
                     val_rollout_storage.append(episode)
                     reward = np.array(episode.reward).sum()
 
-                # episode_reward_mean, episode_reward_std = val_rollout_storage.rollout_stats(std=True)
-                # complete_task, count = val_rollout_storage.evaluate_task()
-
                 print(reward)
 
         # initialize clip model
-        clip_model, clip_processor = initialize_clip(device=self.device)
+        # clip_model, clip_processor = initialize_clip(device=self.device)
 
         # encoder = self.agent.hl_agent.policy.net.img_encoder_p
         policy = self.agent.hl_agent.policy
@@ -112,12 +93,7 @@ class InstanceInfluence:
                     obs = torch.from_numpy(obs).to(self.device).unsqueeze(0)
                     obs = self.agent.hl_agent.policy.net.unflatten_obs(obs)
                     image_obs = obs.prior_obs
-                    state = obs.obs
 
-                    # output = policy(obs)
-                    # prediction, dist, prob = output['action_index'], output['dist'], output['probs']
-                    # print(f"Prediction: Skill {prediction}")
-                    # print(f"Dist: {dist}")
                     print(f"Skill Index: {skill_index}")
 
                 influence_str = ""
@@ -133,7 +109,7 @@ class InstanceInfluence:
                     img = img.cpu().numpy().squeeze(0).transpose(1, 2, 0).astype(np.uint8)
                     # self.save_img(img, index)
 
-                    masks = generate_masks_with_sam(img, state)
+                    masks = generate_masks_with_sam(img, self.boxes)
                     # results = classify_with_clip(clip_model, clip_processor, img, masks, self.candidate_labels)
 
                     # grads, dist = self.compute_perturbation_saliency(policy.net, processed_img)  # (K, H, W)
@@ -278,7 +254,8 @@ class InstanceInfluence:
                 grads.append(img.grad.data.detach().cpu().numpy())
 
             avg_grad = np.mean(grads, axis=0)  # 计算平均梯度
-            integrated_grads = (processed_img.detach().cpu().numpy() - baseline.detach().cpu().numpy()) * avg_grad  # 计算 IG
+            integrated_grads = (
+                                           processed_img.detach().cpu().numpy() - baseline.detach().cpu().numpy()) * avg_grad  # 计算 IG
 
             # 计算 IG 显著性并存储
             # saliency_maps[j] = linalg.norm(integrated_grads).mean(axis=1).squeeze()  # (H, W)

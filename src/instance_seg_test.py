@@ -214,16 +214,10 @@ def _process_box(box):
 
 
 # 使用SAM生成分割掩码
-def generate_masks_with_sam(image, obs):
+def generate_masks_with_sam(image, boxes=None):
     """
     使用SAM生成图像中的所有分割掩码
     """
-    ## upscale
-    obs = obs[0].detach().cpu().numpy()
-    env.env.sim.set_state(np.concatenate([obs[:30], np.zeros(29)]))
-    env.env.sim.forward()
-    image_obs = np.array(env.env.render("rgb_array", h=res, w=res))
-
     # plt.imsave(f'original_image_{frame}.png', image)  # 转换 BGR 到 RGB
     # plt.imsave(f'upscale_image_{frame}.png', image_obs)  # 转换 BGR 到 RGB
 
@@ -244,8 +238,8 @@ def generate_masks_with_sam(image, obs):
 
     # masks, _, _ = predictor.predict(box=np.array([0, 50, 75, 125]), multimask_output=False)
 
-    boxes = [[0, 50, 75, 150], [50, 0, 100, 50], [125, 0, 200, 50], [75, 50, 85, 70], [85, 50, 95, 70],
-             [95, 60, 110, 75]]
+    # boxes = [[0, 50, 75, 150], [50, 0, 100, 50], [125, 0, 200, 50], [75, 50, 85, 70], [85, 50, 95, 70],
+    #          [95, 60, 110, 75]]
     masks = []
 
     for box in boxes:

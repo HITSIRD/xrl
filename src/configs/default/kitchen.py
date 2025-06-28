@@ -9,7 +9,7 @@ data_spec = AttrDict(
     n_skills=7,
     env_name="kitchen-mkbl-v0",
     split=AttrDict(train=0.99, val=0.01, test=0.0),
-    res=128,
+    res=256,
     # crop_rand_subseq=True,
     # max_seq_len = 100,
 )

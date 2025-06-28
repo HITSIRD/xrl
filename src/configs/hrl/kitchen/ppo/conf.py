@@ -14,7 +14,7 @@ epoch = 9
 
 configuration.update(AttrDict(
     sampler=ACImageAugmentedHierarchicalSampler,
-    n_steps_per_update=1024,
+    n_steps_per_update=1000,
     n_val_sample=10,
     n_warmup_steps=0,
 ))
@@ -52,9 +52,9 @@ ll_agent_config.update(AttrDict(
 # update HL policy model params
 hl_policy_params.update(AttrDict(
     load_weights=True,
-    policy_model_epoch=1,
+    # policy_model_epoch=1,
     # policy_model_params=ll_policy_params.policy_model_params,
-    policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"], "hrl/kitchen/ppo/kbts_s0_hi10/weights"),
+    # policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"], "hrl/kitchen/ppo/kbts_s0_hi10/weights"),
 
     prior_model_epoch=epoch,
     prior_model=ll_policy_params.policy_model,
@@ -82,13 +82,13 @@ hl_agent_config.update(AttrDict(
     replay=RolloutBuffer,
     replay_params=replay_params,
     update_iterations=10,
-    policy_lr=3e-4,
+    policy_lr=2e-4,
 
     gae_lambda=replay_params.gae_lambda,
     batchsize=128,
     clip_epsilon=0.2,
     vf_coef=0.5,
-    entropy_coef=0.01,
+    entropy_coef=0,
     normalize_advantage=True,
 ))
 

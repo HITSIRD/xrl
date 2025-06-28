@@ -62,8 +62,8 @@ class BaseModel(nn.Module):
 
     def _log_losses(self, losses, step, log_images, phase):
         for name, loss in losses.items():
-            # self._logger.log_scalar(loss.item(), name + '_loss', step, phase) # for wandb
-            self._logger.add_scalar(f'{phase}/{name}_loss',loss.item(), step)
+            self._logger.log_scalar(loss.item(), name + '_loss', step, phase) # for wandb
+            # self._logger.add_scalar(f'{phase}/{name}_loss',loss.item(), step)
             # if 'breakdown' in loss and log_images:
             #     self._logger.log_graph(loss.breakdown, name + '_breakdown', step, phase)
 
@@ -103,11 +103,11 @@ class BaseModel(nn.Module):
             return
         grad_norms = torch.stack(grad_norms)
 
-        # self._logger.log_scalar(grad_norms.mean(), 'gradients/mean_norm', step, phase) # wandb
-        # self._logger.log_scalar(grad_norms.max(), 'gradients/max_norm', step, phase) # wandb
+        self._logger.log_scalar(grad_norms.mean(), 'gradients/mean_norm', step, phase) # wandb
+        self._logger.log_scalar(grad_norms.max(), 'gradients/max_norm', step, phase) # wandb
 
-        self._logger.add_scalar(f'{phase}/gradients/mean_norm', grad_norms.mean(), step)
-        self._logger.add_scalar(f'{phase}/gradients/max_norm', grad_norms.max(), step)
+        # self._logger.add_scalar(f'{phase}/gradients/mean_norm', grad_norms.mean(), step)
+        # self._logger.add_scalar(f'{phase}/gradients/max_norm', grad_norms.max(), step)
 
     @staticmethod
     def _compute_total_loss(losses):
