@@ -17,6 +17,7 @@ model_config = AttrDict(
     # n_input_frames=1,
     img_enc_dim=128,
     prior_input_res=data_spec.res,
+    use_resnet=True
 )
 
 # Dataset

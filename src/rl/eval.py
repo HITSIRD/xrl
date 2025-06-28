@@ -54,7 +54,7 @@ class Evaluator:
         # load from checkpoint
         self.global_step, self.n_update_steps, start_epoch = 0, 0, 0
         self.save_rollout = True
-        self.save_evaluation = False
+        self.save_evaluation = True
 
         self.val()
 
@@ -66,8 +66,6 @@ class Evaluator:
         if self.args.save_dir is None:
             self.args.save_dir = self._hp.exp_path
         saver = HPRolloutSaver(self.args.save_dir)
-        if self.args.save_dir is None:
-            self.args.save_dir = self._hp.exp_path
 
         for i in range(1):
             reward = []

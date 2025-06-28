@@ -3,7 +3,7 @@ import torch.nn as nn
 import copy
 
 from src.utils.general import ParamDict, AttrDict
-from src.modules.networks import MLPEncoder, CNNEncoder
+from src.modules.networks import MLPEncoder, CNNEncoder, ResNetEncoder
 
 
 class Critic(nn.Module):
@@ -54,7 +54,10 @@ class CNNCritic(Critic):
             nn.Linear(self._hp.nz_mid, self._hp.output_dim),
         )
 
-        self.encoder = CNNEncoder(3, self._hp.input_res, self._hp.img_enc_dim)
+        if hasattr(self._hp, 'use_resnet') and self._hp.use_resnet:
+            self.encoder = ResNetEncoder(self._hp.img_enc_dim)
+        else:
+            self.encoder = CNNEncoder(3, self._hp.input_res, self._hp.img_enc_dim)
 
     def forward(self, obs, actions=None):
         image = obs.reshape(-1, 3, self._hp.input_res, self._hp.input_res)

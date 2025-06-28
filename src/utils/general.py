@@ -1,3 +1,6 @@
+import os
+import pickle
+
 import numpy as np
 import torch
 import torch.optim as optim
@@ -15,6 +18,61 @@ import itertools
 from functools import partial, reduce
 import collections
 from collections import OrderedDict
+
+
+class TopKMetricAverageMeter:
+    def __init__(self):
+        self.metrics = {}  # key: metric name, value: list of values
+
+    def update(self, result_dict):
+        """
+        更新当前 step 的 top-k metric 结果。
+
+        Args:
+            result_dict (dict): 比如 {"top1": 1.0, "top4": 0.75}
+        """
+        for key, value in result_dict.items():
+            if key not in self.metrics:
+                self.metrics[key] = []
+            self.metrics[key].append(value)
+
+    def compute(self):
+        """
+        计算每个 top-k 指标的平均值。
+
+        Returns:
+            dict: 平均结果，比如 {"top1": 0.92, "top4": 0.75}
+        """
+        return {
+            key: sum(values) / len(values) if values else 0.0
+            for key, values in self.metrics.items()
+        }
+
+    def reset(self):
+        """
+        重置所有记录。
+        """
+        self.metrics = {}
+
+    def load_from_cache(self, data_dir, ext="pkl"):
+        """
+        从缓存文件中加载记录到 self.metrics
+        """
+        for fname in sorted(os.listdir(data_dir)):
+            if not fname.endswith(f".{ext}"):
+                continue
+            path = os.path.join(data_dir, fname)
+            print(f'load result: {path}')
+            if ext == "pkl":
+                with open(path, "rb") as f:
+                    data = pickle.load(f)
+            else:
+                raise ValueError("Unsupported extension")
+
+            for d in data:
+                self.update(d)
+            return True
+        return False
 
 
 class AverageMeter(object):

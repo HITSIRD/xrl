@@ -5,12 +5,24 @@ from src.components.data_loader import Dataset
 import numpy as np
 from src.utils.general import AttrDict
 
+# TASKS_DICT = {
+#     'open_fridge': 0,
+#     'close_fridge': 1,
+#     'open_cab': 2,
+#     'store_mango': 3,
+#     'store_jello': 4,
+# }
+
 TASKS_DICT = {
     'open_fridge': 0,
     'close_fridge': 1,
     'open_cab': 2,
-    'store_mango': 3,
-    'store_jello': 4,
+    'close_cab': 3,
+    'store_mango': 4,
+    'store_lemon': 5,
+    'store_orange': 6,
+    'store_cheezit': 7,
+    'store_jello': 8
 }
 
 
@@ -23,7 +35,7 @@ class RealKitchenDataset(Dataset):
         self.spec = data_conf.dataset_spec
         # self.subseq_len = self.spec.subseq_len
         self.device = data_conf.device
-        self.n_worker = 16
+        self.n_worker = 0
         self.shuffle = shuffle
 
         print('loading files from', self.data_dir)

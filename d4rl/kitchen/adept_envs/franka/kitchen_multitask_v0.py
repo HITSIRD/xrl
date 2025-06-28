@@ -199,12 +199,12 @@ class KitchenTaskRelaxV1(KitchenV0):
         score = 0.
         return reward_dict, score
 
-    def render(self, mode='human', h=128, w=128):
+    def render(self, mode='human', h=256, w=256, segmentation=False):
         if mode =='rgb_array':
             camera = engine.MovableCamera(self.sim, h, w)
             # camera.set_pose(distance=2.2, lookat=[-0.2, .5, 2.], azimuth=70, elevation=-35) # default
             camera.set_pose(distance=1.86, lookat=[-0.3, .5, 2.], azimuth=90, elevation=-60) # dataset and train
-            img = camera.render()
+            img = camera.render(segmentation=segmentation)
             return img
         else:
             super(KitchenTaskRelaxV1, self).render()

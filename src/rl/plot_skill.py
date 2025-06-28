@@ -261,5 +261,5 @@ if __name__ == '__main__':
 
     # file = '/home/wenyongyan/文档/spirl-master/spirl/experiments/hrl/kitchen/spirl_cl_vq/mkbl_s0_k16_inverse_kl/episode_3.h5'
     for i in range(10):
-        file = f'experiments/hrl/kitchen/ppo/kbts_s0_hi10/rollout_{i}.h5'
+        file = f'src/experiments/hrl/kitchen/ppo/mix-kbts_s0/rollout_{i}.h5'
         plot_episode(file)

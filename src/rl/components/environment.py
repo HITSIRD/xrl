@@ -58,8 +58,8 @@ class GymEnv(BaseEnvironment):
         self._hp = self._default_hparams().overwrite(config)
         self._env = self._make_env(self._hp.name)
 
-        from mujoco_py.builder import MujocoException
-        self._mj_except = MujocoException
+        # from mujoco_py.builder import MujocoException
+        # self._mj_except = MujocoException
 
     def _default_hparams(self):
         default_dict = ParamDict({
@@ -77,16 +77,8 @@ class GymEnv(BaseEnvironment):
 
     def step(self, action):
         if isinstance(action, torch.Tensor): action = ten2ar(action)
-        try:
-            obs, reward, done, info = self._env.step(action)
-            reward = reward / self._hp.reward_norm
-        except self._mj_except:
-            # this can happen when agent drives simulation to unstable region (e.g. very fast speeds)
-            print("Catch env exception!")
-            obs = self.reset()
-            reward = self._hp.punish_reward  # this avoids that the agent is going to these states again
-            done = np.array(True)  # terminate episode (observation will get overwritten by env reset)
-            info = {}
+        obs, reward, done, info = self._env.step(action)
+        reward = reward / self._hp.reward_norm
 
         return self._wrap_observation(obs), reward, np.array(done), info
 

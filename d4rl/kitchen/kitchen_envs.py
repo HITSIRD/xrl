@@ -47,7 +47,7 @@ class KitchenBase(KitchenTaskRelaxV1, OfflineEnv):
     ENFORCE_TASK_ORDER = True
 
     def __init__(
-        self, dataset_url=None, ref_max_score=None, ref_min_score=None, **kwargs
+            self, dataset_url=None, ref_max_score=None, ref_min_score=None, **kwargs
     ):
         self.tasks_to_complete = list(self.TASK_ELEMENTS)
         super(KitchenBase, self).__init__(**kwargs)
@@ -118,7 +118,7 @@ class KitchenBase(KitchenTaskRelaxV1, OfflineEnv):
         env_info["completed_tasks"] = set(self.TASK_ELEMENTS) - set(
             self.tasks_to_complete
         )
-        env_info["current_task"] = self.tasks_to_complete[0] if len(self.tasks_to_complete) > 0 else None
+        # env_info["current_task"] = self.tasks_to_complete[0]
         return obs, reward, done, env_info
 
     # def render(self, mode='human'):
@@ -165,10 +165,15 @@ class KitchenMicrowaveLightSliderHingeV0(KitchenBase):
 class KitchenMicrowaveKettleLightSliderV0(KitchenBase):
     TASK_ELEMENTS = ["microwave", "kettle", "light switch", "slide cabinet"]
 
-    def get_goal(self):
-        data = self.get_dataset()
-        seqs = self._split_data_into_seqs(data)
-        return seqs[1]["states"][-1]
+
+class KitchenMicrowaveBottomLightSliderV0(KitchenBase):
+    TASK_ELEMENTS = ["microwave", "bottom burner", "light switch", "slide cabinet"]
+
+
+    # def get_goal(self):
+    #     data = self.get_dataset()
+    #     seqs = self._split_data_into_seqs(data)
+    #     return seqs[1]["states"][-1]
 
 
 class KitchenAllTasksV0(KitchenBase):

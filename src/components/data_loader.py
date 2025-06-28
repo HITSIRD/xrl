@@ -33,8 +33,7 @@ class Dataset(data.Dataset):
 
     def get_data_loader(self, batch_size, n_repeat):
         print('len {} dataset {}'.format(self.phase, len(self)))
-        assert self.device in ['cuda', 'cpu']  # Otherwise the logic below is wrong
-        return RepeatedDataLoader(self, batch_size=batch_size, shuffle=self.shuffle, num_workers=self.n_worker, drop_last=True, n_repeat=n_repeat, pin_memory=False, prefetch_factor=2, worker_init_fn = lambda x: np.random.seed(np.random.randint(65536) + x))
+        return RepeatedDataLoader(self, batch_size=batch_size, shuffle=self.shuffle, num_workers=self.n_worker, drop_last=True, n_repeat=n_repeat, pin_memory=False, prefetch_factor=None, worker_init_fn = lambda x: np.random.seed(np.random.randint(65536) + x))
 
     def __getitem__(self, index):
         """Load a single sequence from disk according to index."""

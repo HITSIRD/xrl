@@ -14,7 +14,7 @@ epoch = 9
 
 configuration.update(AttrDict(
     sampler=ACImageAugmentedHierarchicalSampler,
-    n_steps_per_update=1024,
+    n_steps_per_update=1000,
     n_val_sample=10,
     n_warmup_steps=0,
 ))
@@ -39,7 +39,7 @@ ll_policy_params = AttrDict(
     initial_log_sigma=-50,
     policy_model=OneHotImagePriorBCModel,
     policy_model_params=ll_model_params,
-    policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"], "skill/kitchen/prior_bc"),
+    policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"], "skill/kitchen/prior_bc/resnet-mix"),
 )
 
 ll_policy_params.update(ll_model_params)
@@ -52,9 +52,9 @@ ll_agent_config.update(AttrDict(
 # update HL policy model params
 hl_policy_params.update(AttrDict(
     load_weights=True,
-    policy_model_epoch=1,
-    # policy_model_params=ll_policy_params.policy_model_params,
-    policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"], "hrl/kitchen/ppo/kbts_s0_hi10/weights"),
+    policy_model_epoch=0,
+    policy_model_params=ll_policy_params.policy_model_params,
+    policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"], "hrl/kitchen/ppo/mix-kbts_s0/weights"),
 
     prior_model_epoch=epoch,
     prior_model=ll_policy_params.policy_model,
@@ -72,6 +72,7 @@ hl_critic_params.update(AttrDict(
     img_enc_dim=128,
     nz_mid=256,
     unused_obs_size=60,
+    use_resnet=ll_model_params.use_resnet,
 ))
 
 hl_agent_config.update(AttrDict(
@@ -82,13 +83,13 @@ hl_agent_config.update(AttrDict(
     replay=RolloutBuffer,
     replay_params=replay_params,
     update_iterations=10,
-    policy_lr=3e-4,
+    policy_lr=2e-4,
 
     gae_lambda=replay_params.gae_lambda,
     batchsize=128,
     clip_epsilon=0.2,
     vf_coef=0.5,
-    entropy_coef=0.01,
+    entropy_coef=0,
     normalize_advantage=True,
 ))
 

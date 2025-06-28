@@ -47,7 +47,6 @@ def get_args():
     parser.add_argument('--debug', default=False, type=int,
                         help='if True, runs in debug mode')
 
-    # add kl_div_weight
     parser.add_argument('--save2mp4', default=False, type=bool,
                         help='if set, videos will be saved locally')
 

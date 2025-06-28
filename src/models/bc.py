@@ -3,7 +3,7 @@ import torch.nn as nn
 
 from src.components.model import BaseModel
 from src.modules.distributions import Categorical
-from src.modules.networks import CNNEncoder
+from src.modules.networks import CNNEncoder, ResNetEncoder
 from src.utils.general import AttrDict
 import torch.nn.functional as F
 
@@ -45,7 +45,10 @@ class OneHotImageBCModel(BCModel):
         )
 
     def build_encoder(self):
-        return CNNEncoder(3, self._hp.prior_input_res, self._hp.img_enc_dim)
+        if hasattr(self._hp, 'use_resnet') and self._hp.use_resnet:
+            return ResNetEncoder(self._hp.img_enc_dim)
+        else:
+            return CNNEncoder(3, self._hp.prior_input_res, self._hp.img_enc_dim)
 
     def forward(self, input):
         output = AttrDict()
@@ -87,7 +90,7 @@ class OneHotImagePriorBCModel(OneHotImageBCModel):
             nn.Linear(256, 256),
             nn.ReLU(),
             nn.Linear(256, hp.skill_dim),
-            nn.LogSoftmax()
+            nn.LogSoftmax(dim=1)
         )
 
     def forward(self, input):
@@ -102,6 +105,7 @@ class OneHotImagePriorBCModel(OneHotImageBCModel):
             output.prior_entropy = -torch.sum(output.prior_probs * output.prior, dim=1).mean()
             return output
         else:
+            # only prior output
             return self.prior_head(self.prior_encoder(input))
 
     def loss(self, output, inputs):
@@ -109,9 +113,13 @@ class OneHotImagePriorBCModel(OneHotImageBCModel):
 
         mse_loss = torch.nn.MSELoss()
         nll_loss = torch.nn.NLLLoss()
+        # kl_loss = torch.nn.KLDivLoss(reduction='batchmean')
 
         losses.rec_mse = mse_loss(output.reconstruction, inputs.actions)
         losses.prior = nll_loss(output.prior, inputs.skills.argmax(dim=-1))
+        # losses.prior = kl_loss(output.prior, self._smooth_one_hot(inputs.skills.argmax(dim=-1),
+        #                                                           n_classes=self._hp.skill_dim,
+        #                                                           smoothing=0.05))
 
         losses.total = losses.rec_mse + losses.prior
         return losses
@@ -119,6 +127,14 @@ class OneHotImagePriorBCModel(OneHotImageBCModel):
     def compute_learned_prior(self, obs):
         logits = self.prior_head(self.prior_encoder(obs))
         return Categorical(logits=logits)
+
+    def _smooth_one_hot(self, targets, n_classes, smoothing=0.1):
+        assert 0 <= smoothing < 1
+        with torch.no_grad():
+            true_dist = torch.zeros(size=(targets.size(0), n_classes), device=targets.device)
+            true_dist.fill_(smoothing / (n_classes - 1))
+            true_dist.scatter_(1, targets.unsqueeze(1), 1.0 - smoothing)
+        return true_dist
 
     def _log_outputs(self, model_output, inputs, losses, step, log_images, phase, logger, **logging_kwargs):
         """Optionally visualizes outputs of SPIRL model.
@@ -130,8 +146,8 @@ class OneHotImagePriorBCModel(OneHotImageBCModel):
         :arg phase: 'train' or 'val'
         :arg logger: logger class, visualization functions should be implemented in this class
         """
-        # self._logger.log_scalar(model_output.prior_entropy, "prior_entropy", step, phase) # wandb
-        self._logger.add_scalar(f'{phase}/prior_entropy', model_output.prior_entropy, step)
+        self._logger.log_scalar(model_output.prior_entropy, "prior_entropy", step, phase) # wandb
+        # self._logger.add_scalar(f'{phase}/prior_entropy', model_output.prior_entropy, step)
 
         # log videos/gifs in tensorboard
         if log_images:
@@ -212,12 +228,12 @@ class OneHotImagePriorCompleteBCModel(OneHotImagePriorBCModel):
         :arg phase: 'train' or 'val'
         :arg logger: logger class, visualization functions should be implemented in this class
         """
-        # self._logger.log_scalar(model_output.prior_entropy, 'prior_entropy', step, phase)
+        self._logger.log_scalar(model_output.prior_entropy, 'prior_entropy', step, phase)
         # self._logger.log_scalar(model_output.precision, 'precision', step, phase)
         # self._logger.log_scalar(model_output.recall, 'recall', step, phase)
         # self._logger.log_scalar(model_output.f1_score, 'f1_score', step, phase)
 
-        self._logger.add_scalar(f'{phase}/prior_entropy', model_output.prior_entropy, step)
+        # self._logger.add_scalar(f'{phase}/prior_entropy', model_output.prior_entropy, step)
         # self._logger.add_scalar(f{phase}/precision', model_output.precision, step)
         # self._logger.add_scalar(f'{phase}/recall', model_output.recall, step)
         # self._logger.add_scalar(f'{phase}/f1_score', model_output.f1_score, step)

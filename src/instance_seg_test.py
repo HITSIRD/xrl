@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 from sympy.logic.inference import valid
 import groundingdino.datasets.transforms as T
 
-device = torch.device('cuda')
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # def show_anns(anns):
 #     if len(anns) == 0:
@@ -131,24 +131,20 @@ checkpoint = "/home/wenyongyan/下载/sam2.1_hiera_large.pt"
 model_cfg = 'configs/sam2.1/sam2.1_hiera_l.yaml'
 predictor = SAM2ImagePredictor(build_sam2(model_cfg, checkpoint))
 
-groundingdino_model = load_model("../groundingdino/config/GroundingDINO_SwinB_cfg.py",
-                                 "../groundingdino/weights/groundingdino_swinb_cogcoor.pth")
-
-res = 512
-env = gym.make('kitchen-all-v0')
-
+groundingdino_model = load_model("groundingdino/config/GroundingDINO_SwinB_cfg.py",
+                                 "groundingdino/weights/groundingdino_swinb_cogcoor.pth")
 frame = 0
 
 
 # 初始化CLIP模型
 def initialize_clip(model_name="openai/clip-vit-base-patch32", device="cuda"):
-    model_path = "../clip_model"  # 你的本地模型存放路径
+    model_path = "clip_model"  # 你的本地模型存放路径
     model = CLIPModel.from_pretrained(model_path)
     processor = CLIPProcessor.from_pretrained(model_path)
     return model, processor
 
 
-def groundingdino_box_prompt(image):
+def groundingdino_box_prompt(image, save_dir):
     # TEXT_PROMPT = "kettle . microwave ."
 
     global frame
@@ -176,29 +172,33 @@ def groundingdino_box_prompt(image):
         text_threshold=TEXT_TRESHOLD
     )
 
-    print(boxes)
+    # print(boxes)
     # print(logits)
     # print(phrases)
 
+    frame += 1
+
     if len(boxes) > 0:
         valid_indices = [i for i, box in enumerate(boxes) if box[2] <= 0.3 and box[3] <= 0.3]
+        print(valid_indices)
         if len(valid_indices) > 0:
-            boxes = boxes[valid_indices[0], None]
-            logits = logits[valid_indices[0], None]
+            box = boxes[valid_indices[0]]
+            logits = logits[valid_indices[0]]
 
-            frame += 1
-            print(boxes)
-            print(logits)
+            # print(boxes)
+            # print(logits)
 
-            annotated_frame = annotate(image_source=np.asarray(image_source), boxes=boxes, logits=logits,
+            annotated_frame = annotate(image_source=np.asarray(image_source), boxes=box.unsqueeze(0),
+                                       logits=logits.unsqueeze(0),
                                        phrases=phrases)
-            plt.imsave(f'{frame}.png', cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB))  # 转换 BGR 到 RGB
+            plt.imsave(f'{save_dir}/{frame}.png', cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB))  # 转换 BGR 到 RGB
 
-            box = _process_box(boxes[0])
-            return boxes.cpu().numpy()
+            # box = _process_box(boxes[0])
+            box = box * 200
+            return box.cpu().numpy().tolist()
 
-    annotated_frame = annotate(image_source=np.asarray(image_source), boxes=boxes, logits=logits, phrases=phrases)
-    plt.imshow(cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB))  # 转换 BGR 到 RGB
+    # annotated_frame = annotate(image_source=np.asarray(image_source), boxes=boxes, logits=logits, phrases=phrases)
+    # plt.imshow(cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB))  # 转换 BGR 到 RGB
 
     return None
 
@@ -214,16 +214,10 @@ def _process_box(box):
 
 
 # 使用SAM生成分割掩码
-def generate_masks_with_sam(image, obs):
+def generate_masks_with_sam(image, boxes=None, save_dir=None):
     """
     使用SAM生成图像中的所有分割掩码
     """
-    ## upscale
-    obs = obs[0].detach().cpu().numpy()
-    env.env.sim.set_state(np.concatenate([obs[:30], np.zeros(29)]))
-    env.env.sim.forward()
-    image_obs = np.array(env.env.render("rgb_array", h=res, w=res))
-
     # plt.imsave(f'original_image_{frame}.png', image)  # 转换 BGR 到 RGB
     # plt.imsave(f'upscale_image_{frame}.png', image_obs)  # 转换 BGR 到 RGB
 
@@ -237,33 +231,32 @@ def generate_masks_with_sam(image, obs):
     #                                            crop_n_layers=1, min_mask_region_area=50)
     # masks = mask_generator.generate(image_obs)
 
-    predictor.set_image(image_obs)
+    predictor.set_image(image)
     # masks, _, _ = predictor.predict(point_coords=np.array([[60, 105], [37, 40], [60, 40], [130, 40], [82, 60],
     #                                                        [110, 52], [110, 63], [100, 130]]),
     #                                 point_labels=np.array([1, 1, 1, 1, 1, 1, 1, 1]), multimask_output=True)
 
     # masks, _, _ = predictor.predict(box=np.array([0, 50, 75, 125]), multimask_output=False)
 
-    boxes = [[0, 50, 75, 150], [50, 0, 100, 50], [125, 0, 200, 50], [75, 50, 85, 70], [85, 50, 95, 70],
-             [95, 60, 110, 75]]
+    # boxes = [[0, 50, 75, 150], [50, 0, 100, 50], [125, 0, 200, 50], [75, 50, 85, 70], [85, 50, 95, 70],
+    #          [95, 60, 110, 75]]
     masks = []
+    boxes = boxes.copy()
+    size = image.shape[0]
+
+    box = groundingdino_box_prompt(image, save_dir)
+    if box is None:
+        box = [80, 110, 120, 150]
+    boxes.append(box)
+
+    print(boxes)
 
     for box in boxes:
         # 将边界框转换为 [x_min, y_min, x_max, y_max]
-        bbox_coords = np.array([box]) * res / 200  # 这里bbox_coords是一个二维数组
+        bbox_coords = np.array([box]) * size / 200  # 这里bbox_coords是一个二维数组
         # 使用边界框生成分割掩码
         mask, _, _ = predictor.predict(box=bbox_coords, multimask_output=False)
-        if mask.sum() > 0:
-            masks.append(cv2.resize(mask[0].astype(np.uint8), (128, 128), interpolation=cv2.INTER_NEAREST))
-
-    box = groundingdino_box_prompt(image_obs)
-    if box is None:
-        box = np.array([80, 110, 120, 150])
-
-    bbox_coords = np.array(box) * 128  # 这里bbox_coords是一个二维数组
-    mask, _, _ = predictor.predict(box=bbox_coords, multimask_output=False)
-    if mask.sum() > 0:
-        masks.append(cv2.resize(mask[0].astype(np.uint8), (128, 128), interpolation=cv2.INTER_NEAREST))
+        masks.append(cv2.resize(mask[0].astype(np.uint8), (size, size), interpolation=cv2.INTER_NEAREST))
 
     return masks
 
@@ -435,9 +428,6 @@ def filter_shadow_masks(masks, image):
 
 
 def main(image):
-    # 初始化设备
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-
     # 初始化模型
     # sam_predictor = initialize_sam(device=device)
     # clip_model, clip_processor = initialize_clip(device=device)

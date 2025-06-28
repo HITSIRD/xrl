@@ -14,6 +14,8 @@ class KitchenEnv(GymEnv):
             # 'name': "kitchen-mlsh-v0",
             # 'name': "kitchen-mkbl-v0",
             'name': "kitchen-kbts-v0",
+            # 'name': "kitchen-mbls-v0"
+            # 'name': "kitchen-mkls-v0",
             # 'name': "kitchen-all-v0"
         }))
 

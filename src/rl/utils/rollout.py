@@ -60,19 +60,17 @@ class RolloutSaver(object):
 class HPRolloutSaver(object):
     """Saves rollout episodes to a target directory."""
 
-    def __init__(self, save_dir):
+    def __init__(self, save_dir, hl_only=True):
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
         self.save_dir = save_dir
         self.data = None
         self.num_episode = 0
-        self.sample_hl = True
+        self.hl_only = hl_only
+        self.has_hl_action_index = False
 
     def save_rollout(self, episode):
-        # if self.data is None:
-        # self.data = None
-
-        if self.sample_hl:
+        if self.hl_only:
             index = np.where(np.array(episode.is_hl_step))
             if self.data is None:
                 self._init(episode, index)
@@ -94,20 +92,31 @@ class HPRolloutSaver(object):
             self.num_episode += 1
         else:
             if self.data is None:
-                self.data = {}
-                self.data['observation'] = np.array(episode['observation'])
-                self.data['action'] = np.array(episode['action'])
+                self._init(episode)
             else:
                 self.data['observation'] = np.append(self.data['observation'], np.array(episode['observation']),
                                                      axis=0)
                 self.data['action'] = np.append(self.data['action'], np.array(episode['action']), axis=0)
+                self.data['is_hl_step'] = np.append(self.data['is_hl_step'], np.array(episode['is_hl_step']), axis=0)
+                if self.has_hl_action_index:
+                    self.data['hl_action_index'] = np.append(self.data['hl_action_index'], np.array(episode['hl_action_index']),
+                                                        axis=0)
             self.num_episode += 1
 
-    def _init(self, episode, index):
+    def _init(self, episode, index=None):
         self.data = {}
-        self.data['observation'] = np.array(episode['observation'])[index]
-        self.data['hl_action_index'] = np.array(episode['hl_action_index'])[index]
-        self.data['action'] = np.array(episode['action'])[index]
+        if index is not None:
+            self.data['observation'] = np.array(episode['observation'])[index]
+            self.data['hl_action_index'] = np.array(episode['hl_action_index'])[index]
+            self.data['action'] = np.array(episode['action'])[index]
+        else:
+            self.data['observation'] = np.array(episode['observation'])
+            self.data['is_hl_step'] = np.array(episode['is_hl_step'])
+            self.data['action'] = np.array(episode['action'])
+            if hasattr(episode, 'hl_action_index'):
+                self.has_hl_action_index = True
+                self.data['hl_action_index'] = np.array(episode['hl_action_index'])
+
         complete_task = []
         ct_step = []
         for i, t in enumerate(episode['info']):
@@ -125,15 +134,17 @@ class HPRolloutSaver(object):
 
             # save rollout to file
             f = h5py.File(save_path, "w")
-            f.create_dataset("traj_per_file", data=1)
+            # f.create_dataset("traj_per_file", data=1)
 
             # store trajectory info in traj group
-            traj_data = f.create_group("traj")
-            # traj_data.create_dataset("states", data=self.data['observation'], compression='gzip', compression_opts=9)
-            # traj_data.create_dataset("actions", data=self.data['action'], compression='gzip', compression_opts=9)
-            traj_data.create_dataset("hl_action_index", data=self.data['hl_action_index'])
-            traj_data.create_dataset("complete_task", data=self.data['complete_task'])
-            traj_data.create_dataset("ct_step", data=self.data['ct_step'])
+            # traj_data = f.create_group("traj")
+            f.create_dataset("states", data=self.data['observation'], compression='gzip', compression_opts=9)
+            f.create_dataset("actions", data=self.data['action'], compression='gzip')
+            f.create_dataset("is_hl_step", data=self.data['is_hl_step'])
+            if self.has_hl_action_index:
+                f.create_dataset("hl_action_index", data=self.data['hl_action_index'])
+            f.create_dataset("complete_task", data=self.data['complete_task'])
+            f.create_dataset("ct_step", data=self.data['ct_step'])
         if reset:
             self.reset()
 

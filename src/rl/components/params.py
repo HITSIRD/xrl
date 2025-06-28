@@ -8,6 +8,11 @@ def get_args():
     # Folder settings
     parser.add_argument("--prefix", help="experiment prefix, if given creates subfolder in experiment directory")
     parser.add_argument('--new_dir', default=False, type=int, help='If True, concat datetime string to exp_dir.')
+    parser.add_argument('--exp_method', default='ig', type=str)
+    parser.add_argument('--episode_idx', default=0, type=int)
+    parser.add_argument('--n_episode', default=1, type=int)
+    parser.add_argument('--overwrite_cache', default=False, type=bool)
+
     # Running protocol
     parser.add_argument('--resume', default='', type=str, metavar='PATH',
                         help='path to latest checkpoint (default: none)')
