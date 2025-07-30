@@ -244,12 +244,12 @@ def generate_masks_with_sam(image, boxes=None, save_dir=None):
     boxes = boxes.copy()
     size = image.shape[0]
 
-    box = groundingdino_box_prompt(image, save_dir)
-    if box is None:
-        box = [80, 110, 120, 150]
-    boxes.append(box)
+    # box = groundingdino_box_prompt(image, save_dir)
+    # if box is None:
+    #     box = [80, 110, 120, 150]
+    # boxes.append(box)
 
-    print(boxes)
+    # print(boxes)
 
     for box in boxes:
         # 将边界框转换为 [x_min, y_min, x_max, y_max]

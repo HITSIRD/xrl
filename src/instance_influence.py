@@ -143,9 +143,11 @@ class InstanceInfluence:
                     img = img.cpu().numpy().squeeze(0).transpose(1, 2, 0).astype(np.uint8)
                     # self.save_img(img, index)
 
-                    # generate masks with names
-                    # masks = generate_masks_with_sam(img, self.boxes, self.args.save_dir)
-                    masks = render_mujoco_object_masks(self.env, state.squeeze().cpu().numpy())
+                    if self.args.real_segmentation:
+                        masks = render_mujoco_object_masks(self.env, state.squeeze().cpu().numpy())
+                    else:
+                        # generate masks with names
+                        masks = generate_masks_with_sam(img, self.boxes, self.args.save_dir)
 
                     # results = classify_with_clip(clip_model, clip_processor, img, masks, self.candidate_labels)
 
