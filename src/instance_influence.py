@@ -484,17 +484,17 @@ class InstanceInfluence:
 
         return np.array(influence)
 
-    # influence = []
-    # for mask in instance_masks:
-    #     mask = mask['mask'].squeeze(0)
-    #     masked_grads = grads * mask[np.newaxis, :, :]  # (K, H, W)
-    #
-    #     valid_values = masked_grads[:, mask > 0]  # 仅选择 mask 位置的梯度值
-    #     influence = np.percentile(valid_values, percentile, axis=1)
-    #
-    #     influence.append(influence)
-    #
-    # return np.array(influence)
+        # influence = []
+        # for mask in instance_masks:
+        #     mask = mask['mask'].squeeze(0)
+        #     masked_grads = grads * mask[np.newaxis, :, :]  # (K, H, W)
+        #
+        #     valid_values = masked_grads[:, mask > 0]  # 仅选择 mask 位置的梯度值
+        #     influence = np.percentile(valid_values, percentile, axis=1)
+        #
+        #     influence.append(influence)
+        #
+        # return np.array(influence)
 
     def visualize_dimension_influence(self, img, masks, saliency, influence, dist, skill_index, hl_step):
         """
