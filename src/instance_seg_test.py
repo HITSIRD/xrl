@@ -7,6 +7,7 @@ import mmcv
 import torch
 from PIL import Image
 
+from groundingdino.util import box_ops
 from groundingdino.util.inference import load_model, load_image, predict, annotate
 from segment_anything import SamPredictor, sam_model_registry, SamAutomaticMaskGenerator
 import h5py
@@ -129,7 +130,7 @@ sam2_path = os.path.dirname(sam2.__file__)
 
 checkpoint = "/home/wenyongyan/下载/sam2.1_hiera_large.pt"
 model_cfg = 'configs/sam2.1/sam2.1_hiera_l.yaml'
-predictor = SAM2ImagePredictor(build_sam2(model_cfg, checkpoint))
+# predictor = SAM2ImagePredictor(build_sam2(model_cfg, checkpoint))
 
 groundingdino_model = load_model("groundingdino/config/GroundingDINO_SwinB_cfg.py",
                                  "groundingdino/weights/groundingdino_swinb_cogcoor.pth")
@@ -144,13 +145,47 @@ def initialize_clip(model_name="openai/clip-vit-base-patch32", device="cuda"):
     return model, processor
 
 
-def groundingdino_box_prompt(image, save_dir):
+def get_image_embedding(image_path, clip_model, preprocess, device):
+    """提取单张图像的 CLIP 特征"""
+    img = preprocess(Image.open(image_path)).unsqueeze(0).to(device)
+    with torch.no_grad():
+        embedding = clip_model.encode_image(img)
+        embedding /= embedding.norm(dim=-1, keepdim=True)
+    return embedding
+
+def get_average_embedding(image_paths, clip_model, preprocess, device):
+    """提取多张参考图的平均特征"""
+    embeddings = [get_image_embedding(p, clip_model, preprocess, device) for p in image_paths]
+    avg_embedding = torch.stack(embeddings).mean(dim=0)
+    avg_embedding /= avg_embedding.norm(dim=-1, keepdim=True)
+    return avg_embedding
+
+def detect_candidates_with_dino(model, image_path, caption="object", box_threshold=0.1, text_threshold=0.1):
+    """用 GroundingDINO 检测候选框"""
+    image_source, image = load_image(image_path)
+    boxes, logits, phrases = predict(
+        model=model,
+        image=image,
+        caption=caption,
+        box_threshold=box_threshold,
+        text_threshold=text_threshold
+    )
+
+    h, w, _ = image_source.shape
+    boxes = box_ops.box_cxcywh_to_xyxy(boxes) * torch.Tensor([w, h, w, h])
+    boxes = boxes.cpu().numpy().astype(int)
+
+    return image_source, boxes
+
+
+
+def groundingdino_box_prompt(image, save_dir=None):
     # TEXT_PROMPT = "kettle . microwave ."
 
     global frame
-    TEXT_PROMPT = "metallic water kettle"
-    BOX_TRESHOLD = 0.15
-    TEXT_TRESHOLD = 0.15
+    TEXT_PROMPT = "object"
+    BOX_TRESHOLD = 0.2
+    TEXT_TRESHOLD = 0.2
 
     transform = T.Compose(
         [
@@ -172,33 +207,32 @@ def groundingdino_box_prompt(image, save_dir):
         text_threshold=TEXT_TRESHOLD
     )
 
-    # print(boxes)
-    # print(logits)
-    # print(phrases)
+    print(boxes)
+    print(logits)
+    print(phrases)
 
     frame += 1
 
     if len(boxes) > 0:
-        valid_indices = [i for i, box in enumerate(boxes) if box[2] <= 0.3 and box[3] <= 0.3]
-        print(valid_indices)
-        if len(valid_indices) > 0:
-            box = boxes[valid_indices[0]]
-            logits = logits[valid_indices[0]]
+        # box = boxes[0]
+        # logits = logits[0]
 
-            # print(boxes)
-            # print(logits)
+        # print(boxes)
+        # print(logits)
 
-            annotated_frame = annotate(image_source=np.asarray(image_source), boxes=box.unsqueeze(0),
-                                       logits=logits.unsqueeze(0),
-                                       phrases=phrases)
-            plt.imsave(f'{save_dir}/{frame}.png', cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB))  # 转换 BGR 到 RGB
+        annotated_frame = annotate(image_source=np.asarray(image_source), boxes=boxes,
+                                   logits=logits,
+                                   phrases=phrases)
+        # plt.imsave(f'{save_dir}/{frame}.png', cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB))  # 转换 BGR 到 RGB
+        plt.imshow(cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB))  # 转换 BGR 到 RGB
+        plt.show()
 
-            # box = _process_box(boxes[0])
-            box = box * 200
-            return box.cpu().numpy().tolist()
+        # box = _process_box(boxes[0])
+        # box = box * 256
+        return box.cpu().numpy().tolist()
 
-    # annotated_frame = annotate(image_source=np.asarray(image_source), boxes=boxes, logits=logits, phrases=phrases)
-    # plt.imshow(cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB))  # 转换 BGR 到 RGB
+    annotated_frame = annotate(image_source=np.asarray(image_source), boxes=boxes, logits=logits, phrases=phrases)
+    plt.imshow(cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB))  # 转换 BGR 到 RGB
 
     return None
 
@@ -214,7 +248,7 @@ def _process_box(box):
 
 
 # 使用SAM生成分割掩码
-def generate_masks_with_sam(image, boxes=None, save_dir=None):
+def generate_masks_with_sam(image, labels, boxes=None, save_dir=None):
     """
     使用SAM生成图像中的所有分割掩码
     """
@@ -240,7 +274,7 @@ def generate_masks_with_sam(image, boxes=None, save_dir=None):
 
     # boxes = [[0, 50, 75, 150], [50, 0, 100, 50], [125, 0, 200, 50], [75, 50, 85, 70], [85, 50, 95, 70],
     #          [95, 60, 110, 75]]
-    masks = []
+    masks = {}
     boxes = boxes.copy()
     size = image.shape[0]
 
@@ -251,12 +285,12 @@ def generate_masks_with_sam(image, boxes=None, save_dir=None):
 
     # print(boxes)
 
-    for box in boxes:
+    for i, box in enumerate(boxes):
         # 将边界框转换为 [x_min, y_min, x_max, y_max]
-        bbox_coords = np.array([box]) * size / 200  # 这里bbox_coords是一个二维数组
+        bbox_coords = np.array([box])  # 这里bbox_coords是一个二维数组
         # 使用边界框生成分割掩码
         mask, _, _ = predictor.predict(box=bbox_coords, multimask_output=False)
-        masks.append(cv2.resize(mask[0].astype(np.uint8), (size, size), interpolation=cv2.INTER_NEAREST))
+        masks[labels[i]] = cv2.resize(mask[0].astype(np.uint8), (size, size), interpolation=cv2.INTER_NEAREST)
 
     return masks
 
@@ -427,7 +461,7 @@ def filter_shadow_masks(masks, image):
     return valid_masks
 
 
-def main(image):
+def main(image, labels):
     # 初始化模型
     # sam_predictor = initialize_sam(device=device)
     # clip_model, clip_processor = initialize_clip(device=device)
@@ -435,7 +469,7 @@ def main(image):
     groundingdino_box_prompt(image)
 
     # 使用SAM生成分割掩码
-    masks = generate_masks_with_sam(image)
+    masks = generate_masks_with_sam(image, labels)
 
     visualize_masks(masks, image)
 
@@ -450,38 +484,26 @@ def main(image):
 
 # 运行主程序
 if __name__ == "__main__":
-    res = 512
-    env = gym.make('kitchen-all-v0')
-    dataset = env.get_dataset()
-    observations = dataset['observations']
+    res = 256
 
-    # file = 'skilltree/data/kitchen/kitchen-mixed-v0/kitchen-mixed-v0_101.h5'
-    #
-    # with h5py.File(file, 'r') as dataset:
-    #     # print(dataset['traj'].keys())
-    #     # print(dataset['traj']['states'])
-    #     image_obs = dataset['traj']['observations'][150]
+    file = 'src/experiments/hrl/real_kitchen/prior_bc/fruits_snacks_top50/sample_rollout_0.h5'
 
-    obs = observations[10000]
-    obs_dict = {"qp": obs[:9], "obj_qp": obs[9:30]}
-    reward_dict, score, completions = env.env._get_reward_n_score(obs_dict)
+    with h5py.File(file, 'r') as dataset:
+        print(dataset.keys())
+        # print(dataset['traj']['states'])
+        image_obs = dataset['states'][0]
 
-    env.env.sim.set_state(np.concatenate([obs[:30], np.zeros(29)]))
-    env.env.sim.forward()
-    image_obs = np.array(env.env.render("rgb_array", h=res, w=res))
+    image_obs = image_obs[7:].reshape(3, res, res) * 255 / 2 + 128
+    image_obs = image_obs.astype(np.uint8)
+    image_obs = np.transpose(image_obs, [1, 2, 0])
 
     # 设置候选类别标签
     # candidate_labels = ["microwave", "kettle", "rotary switch", "slide cabinet", "hinge cabinet",
     #                     "burner",
     #                     "robot arm", "handle"]
 
-    candidate_labels = ["A black kitchen stove with circular burners, located in a kitchen setting.",
-                        # "A robotic arm with white metallic texture",
-                        "A black microwave oven.",
-                        "A dark-colored kitchen cabinet, dark-colored.",
-                        "Stove dials, used to adjust the burners.",
-                        "A toggle switch.",
-                        "A kettle with brown handle."]
+    candidate_labels = ["Fridge"]
+    labels = ['fridge']
 
     # 运行主函数
-    main(image_obs)
+    main(image_obs, labels)

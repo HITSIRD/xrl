@@ -65,8 +65,8 @@ def create_video_from_pdfs_and_markdowns(
         frame_duration=2,
         fps=30,
         font_path="NotoSansCJK-Regular.ttc",
-        font_size=18,
-        text_height=150,
+        font_size=36,
+        text_height=250,
         text_width=64,
         language_output=True,
         clean_tmp=True

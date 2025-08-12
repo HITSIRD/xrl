@@ -4,7 +4,7 @@ import os
 
 configuration = AttrDict(
     model=OneHotImageBCModel,
-    data_dir=os.path.join(os.environ['DATA_DIR'], 'real_kitchen/fruits-snacks-v0'),
+    data_dir=os.path.join(os.environ['DATA_DIR'], 'real_kitchen/fruits-snacks-50-v0'),
     epoch_cycles_train=20,
     num_epochs=10,
 

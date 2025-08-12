@@ -804,3 +804,10 @@ def attr_to_batch(input):
     for key, value in input.items():
         input[key] = value[None]
     return input
+
+def get_depth(lst):
+    if not isinstance(lst, list):
+        return 0
+    if not lst:
+        return 1
+    return 1 + max(get_depth(item) for item in lst)

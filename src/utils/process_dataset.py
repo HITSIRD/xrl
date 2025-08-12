@@ -69,7 +69,7 @@ def process_h5_skills(input_path, output_path, phase_names, phase_lengths, skip_
             skill = f_in['skill'][()]  # (N,)
             image = f_in['rgb'][()]  # (N, H, W, 3)
 
-        new_skill, idx = merge_skills(list(skill), phase_names, phase_lengths, skip_first_opt)
+        new_skill, idx = merge_skills(list(skill), phase_names, phase_lengths, skip_first_opt, max_len=50)
         new_skill = np.array(new_skill, dtype='S')  # 转回 byte string
 
         # 保存新的文件
@@ -147,7 +147,7 @@ if __name__ == "__main__":
     # 替换为你的路径
     INPUT_ROOT = "/home/wenyongyan/下载/dataset/fruits_snacks"
     OUTPUT_ROOT = "/home/wenyongyan/下载/output/fruits_snacks"
-    output_dir = "/home/wenyongyan/文档/xrl/src/data/real_kitchen/fruits-snacks-v0"
+    output_dir = "/home/wenyongyan/文档/xrl/src/data/real_kitchen/fruits-snacks-50-v0"
 
     # process_dataset(INPUT_ROOT, OUTPUT_ROOT)
 
@@ -156,7 +156,7 @@ if __name__ == "__main__":
     # phase_lengths = [1, 6, 1, 1, 6]
     # phase_names = ['open_fridge', 'store_mango', 'close_fridge', 'open_cab', 'store_jello']
 
-    phase_lengths = [1, 7, 7, 6, 2, 2, 7, 7, 2]
+    phase_lengths = [2, 7, 7, 6, 2, 2, 7, 7, 1]
     phase_names = ['open_fridge', 'store_mango', 'store_lemon', 'store_orange', 'close_fridge', 'open_cab', 'store_cheezit', 'store_jello', 'close_cab']
 
     process_h5_skills(OUTPUT_ROOT, output_dir, phase_names, phase_lengths, 'observation_pos')

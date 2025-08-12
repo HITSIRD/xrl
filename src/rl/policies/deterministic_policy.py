@@ -12,7 +12,7 @@ class DeterministicPolicy(Policy):
         # self.update_model_params(self._hp.prior_model_params)
         super().__init__()
         self.steps_since_hl, self.last_z = np.Inf, None
-        self.skill_enc = np.eye(7)
+        self.skill_enc = np.eye(9)
         # self.codebook = self._load_codebook()
 
     def forward(self, obs, index=None):

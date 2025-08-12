@@ -27,7 +27,7 @@ ll_policy_params = AttrDict(
     initial_log_sigma=-50,
     policy_model=OneHotImagePriorBCModel,
     policy_model_params=ll_model_params,
-    policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"], "skill/real_kitchen/prior_bc"),
+    policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"], "skill/real_kitchen/prior_bc/fruits-snacks/top50"),
 )
 
 ll_policy_params.update(ll_model_params)

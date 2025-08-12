@@ -19,7 +19,7 @@ from src.rl.utils.rollout import HPRolloutSaver
 from src.train import set_seeds, make_path
 from src.components.checkpointer import get_config_path
 from src.utils.dist import kl_categorical
-from src.utils.general import AttrDict
+from src.utils.general import AttrDict, get_depth
 from instance_seg_test import generate_masks_with_sam, initialize_clip, classify_with_clip
 from openai import OpenAI
 
@@ -48,24 +48,25 @@ class InstanceInfluence:
         self.sampler = self._hp.sampler(self.conf.sampler, self.env, self.agent, None, self._hp.max_rollout_len)
 
         self.labels = self.conf.data.dataset_spec.labels
+        self.objects = self.conf.data.dataset_spec.objects
         self.boxes = self.conf.data.dataset_spec.boxes
         self.gt_skill_index = self.conf.data.dataset_spec.gt_skill_index
 
-        client = OpenAI(api_key="<DeepSeek API Key>", base_url="https://api.deepseek.com")
-
         self.metric = TopKMetricAverageMeter()
+
+        self.dynamic_objects = get_depth(self.objects) > 1
 
         for i in range(self.args.n_episode):
             self.args.episode_idx = i
             self.init_dir()
 
-            if self.metric.load_from_cache(self.args.save_dir) and not self.args.overwrite_cache:
+            if not self.args.overwrite_cache and self.metric.load_from_cache(self.args.save_dir):
                 continue
             else:
                 episode = self.sample()
                 # create_video_from_pdfs_and_markdowns(num_files=25, pdf_dir=self.args.save_dir, md_dir=self.args.save_dir,
                 #                                      output_dir=self.args.save_dir, output_video='explanation.mp4',
-                #                                      language_output=False, clean_tmp=True)
+                #                                      language_output=True, clean_tmp=True)
                 self.analyze(episode)
 
         print(self.metric.compute())
@@ -143,11 +144,17 @@ class InstanceInfluence:
                     img = img.cpu().numpy().squeeze(0).transpose(1, 2, 0).astype(np.uint8)
                     # self.save_img(img, index)
 
-                    if self.args.real_segmentation:
-                        masks = render_mujoco_object_masks(self.env, state.squeeze().cpu().numpy())
-                    else:
+                    if self.args.sam_segmentation:
                         # generate masks with names
-                        masks = generate_masks_with_sam(img, self.boxes, self.args.save_dir)
+                        objects = self.objects
+                        boxes = self.boxes
+                        if self.dynamic_objects:
+                            objects = self.objects[skill_index]
+                            boxes = self.boxes[skill_index]
+
+                        masks = generate_masks_with_sam(img, objects, boxes, self.args.save_dir)
+                    else:
+                        masks = render_mujoco_object_masks(self.env, state.squeeze().cpu().numpy())
 
                     # results = classify_with_clip(clip_model, clip_processor, img, masks, self.candidate_labels)
 
@@ -159,27 +166,26 @@ class InstanceInfluence:
                 self.visualize_dimension_influence(img, masks, saliency, influence, dist, skill_index, hl_step)
 
                 influence_str = ""
-                for i, (label, obj_influence) in enumerate(
-                        zip(self.labels, influence)):
-                    influence_str += f'Object {i} ({label}): {obj_influence:.3f}\n'
+                for i, (object, obj_influence) in enumerate(
+                        zip(self.objects, influence)):
+                    influence_str += f'Object {i} ({object}): {obj_influence:.3f}\n'
 
                 # print(influence_str)
                 eval = self.evaluate(influence, skill_index, self.gt_skill_index)
                 result.append(eval)
                 self.metric.update(eval)
-                # print(result)
 
-                # explanation = chain.invoke(
-                #     prompt_template.format(skill_index=skill_index, current_task=current_task, score=influence_str))
-                # print(explanation)
-                # self.save_explanation(explanation, hl_step)
+                explanation = chain.invoke(
+                    prompt_template.format(skill_index=skill_index, score=influence_str))
+                print(explanation)
+                self.save_explanation(explanation, hl_step)
 
                 hl_step += 1
 
         self.save_result_to_cache(result)
         create_video_from_pdfs_and_markdowns(num_files=hl_step, pdf_dir=self.args.save_dir, md_dir=self.args.save_dir,
                                              output_dir=self.args.save_dir, output_video='explanation.mp4',
-                                             language_output=False, clean_tmp=True)
+                                             language_output=True, clean_tmp=True)
 
     def save_img(self, img, index):
         # image = cv2.imread(img)
@@ -231,7 +237,10 @@ class InstanceInfluence:
         plt.figure(figsize=(7, 3))
         # K = dist.shape[0]
 
-        plt.bar(self.labels, influence)
+        objects = self.objects
+        if self.dynamic_objects:
+            objects = self.objects[skill_index]
+        plt.bar(objects, influence)
         # plt.colorbar()
         plt.title(f'Instance Influence (Skill {skill_index}, prob={dist[skill_index].item():.2f})')
         plt.xlabel('Attr')
@@ -518,7 +527,7 @@ class InstanceInfluence:
         plt.subplot(2, 4, 2)
         plt.imshow(saliency, cmap='jet')
         plt.colorbar()
-        plt.title(f"Gradient Map (Skill: {self.labels[skill_index]}, p={dist[skill_index].item():.2f})")
+        plt.title(f"Saliency")
         plt.axis('off')
 
         # === 第3列: Overlay ===
@@ -550,15 +559,37 @@ class InstanceInfluence:
         plt.title("Instance Masks (Numbered)")
         plt.axis('off')
 
-        # === 第5–6列: 编号 → 名称对照 ===
-        plt.subplot(2, 4, (5, 6))
+        # === 第5列: 编号 → 名称对照 ===
+        plt.subplot(2, 4, 5)
+        plt.axis('off')
+
+        y = 1.0
+        dy = 1.0 / (len(self.objects) + 1)
+
+        objects = self.objects
+        if self.dynamic_objects:
+            objects = self.objects[skill_index]
+
+        for j, name in enumerate(objects):
+            text = f"{j + 1} {name}"
+
+            plt.text(0, y, text,
+                         fontsize=14, color='black',
+                         va='top', family='monospace')
+
+            y -= dy
+
+        plt.title("Objects", fontsize=14)
+
+        # === 第6列: 选择技能 ===
+        plt.subplot(2, 4, 6)
         plt.axis('off')
 
         y = 1.0
         dy = 1.0 / (len(self.labels) + 1)
 
         for j, name in enumerate(self.labels):
-            text = f"{j + 1} {name}"
+            text = f"{j + 1} {name} ({dist[j].item():.2f})"
 
             if skill_index is not None and j == skill_index:
                 plt.text(0, y, text,
@@ -571,14 +602,14 @@ class InstanceInfluence:
 
             y -= dy
 
-        plt.title("Objects", fontsize=14)
+        plt.title("Skills (Prob)", fontsize=14)
 
         # === 第7–8列: Top-K Influence 柱状图 ===
         plt.subplot(2, 4, (7, 8))
         influence_arr = np.array(influence)
         top_indices = np.argsort(influence_arr)[::-1][:topk]
         top_values = influence_arr[top_indices]
-        top_names = [f"{self.labels[i]}" for i in top_indices]
+        top_names = [f"{objects[i]}" for i in top_indices]
 
         bars = plt.bar(top_names, top_values, color=plt.cm.viridis(np.linspace(0.3, 0.9, topk)))
         plt.title(f"Top {topk} Influential Instances", fontsize=14)
@@ -600,7 +631,7 @@ class InstanceInfluence:
 
         return normalized_saliency
 
-    def evaluate(self, influence, ground_truth, task_gt_objects, topk=4):
+    def evaluate(self, influence, ground_truth, task_gt_objects, topk=3):
         """
         评估 saliency 分布在 top-1 / top-k 情况下对 ground truth 的命中情况
 
@@ -613,7 +644,7 @@ class InstanceInfluence:
         返回:
             dict，包括 top-1 准确率、top-k recall、strict 命中等
         """
-        assert len(influence) == len(self.labels), "影响值和标签数量不一致"
+        # assert len(influence) == len(self.objects), "影响值和标签数量不一致"
 
         # 获取排序后的索引和对应物体
         indices = sorted(range(len(influence)), key=lambda i: -influence[i])

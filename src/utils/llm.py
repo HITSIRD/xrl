@@ -79,52 +79,83 @@ from langchain_core.output_parsers import StrOutputParser
 # - 下炉灶开关
 # - 水壶
 
+# 场景物体：
+# - bottom burner switch
+# - top burner switch
+# - light switch
+# - slide cabinet
+# - hinge cabinet
+# - microwave
+# - kettle
+#
+# 技能与子任务映射：
+# - 技能 0：打开微波炉
+# - 技能 1：打开滑轨壁橱
+# - 技能 2：打开合页壁橱
+# - 技能 3：开灯
+# - 技能 4：打开上炉灶开关
+# - 技能 5：打开下炉灶开关
+# - 技能 6：移动水壶
+
+# 不同技能选择概率：
+# - 技能 0：0.95
+# - 技能 1：0.01
+# - 技能 2：0.01
+# - 技能 3：0.00
+# - 技能 4：0.00
+# - 技能 5：0.00
+# - 技能 6：0.03
+
 template = """
-你是一位智能助理，负责解释一个机械臂的行为。机械臂在一个厨房的视觉环境中执行任务，并从多个技能中选择一个，每个技能对应一个子任务。
+你是一个智能体，负责解释一个机械臂的行为。机械臂在一个厨房的视觉环境中执行任务，机械臂的观测是RGB图像。机械臂需要根据观测从多个技能中选择一个并执行。
 
 现在你获得以下信息：
-1. 场景中出现的所有物体；
+1. 场景中出现的所有相关物体；
 2. 每个物体的显著性分数，表示该物体对机器人决策的重要性；
 3. 每个技能与其对应子任务之间的映射关系。
 
 你的任务是：
-- 根据显著性和物体列表，推测机器人当前执行的是哪个技能（即哪个子任务）；
+- 根据技能索引和显著性列表，解释机器人当前为什么执行该技能；
 - 用简短的语言给出你的推理过程和解释理由；
-- 不要假设你知道机器人实际选择的技能，你只能根据提供的显著性分布进行推断。
+- 如果从显著性推断的技能结果和实际选择的技能有较大偏差，需要给额外解释，用模糊性的语言简短表达。
+
+场景物体：
+- 冰箱
+- 储藏柜
+- 芒果
+- 柠檬
+- 橙子
+- 饼干
+- 草莓固体饮料
+
+技能与子任务映射：
+- 技能 0：打开冰箱
+- 技能 1：关闭冰箱
+- 技能 2：打开储藏柜
+- 技能 3：关闭储藏柜
+- 技能 4：收纳芒果
+- 技能 5：收纳柠檬
+- 技能 6：收纳橙子  
+- 技能 7：收纳饼干
+- 技能 8：收纳草莓固体饮料
 
 输入示例：
 
-场景物体：
-- microwave
-- slide cabinet
-- hinge cabinet
-- light switch
-- top burner switch
-- bottom burner switch
-- kettle
+执行技能：0
 
 显著性分数：
-- Object 0 (microwave): 0.0539
-- Object 1 (slide cabinet): 0.0796
-- Object 2 (hinge cabinet): 0.0552
-
-技能与子任务映射：
-- 技能 0：打开微波炉
-- 技能 1：打开滑轨壁橱
-- 技能 2：打开合页壁橱
-- 技能 3：开灯
-- 技能 4：打开上炉灶开关  
-- 技能 5：打开下炉灶开关
-- 技能 6：移动水壶
-
----
+- Object 0 (冰箱): 0.0539
+- Object 1 (芒果): 0.0796
+- Object 2 (橙子): 0.0552
 
 实例输出格式：
 
-预测技能：0  
-推理过程：微波炉的显著性分数远高于其他物体，表明机械臂当前的注意力主要集中在微波炉上。这表明机器人可能正在执行与杯子相关的任务。
+预测技能：打开冰箱
+推理过程：冰箱的显著性分数远高于其他物体，表明机械臂当前的注意力主要集中在冰箱上。
 
-现在，不同物体的重要性权重为：
+---
+
+现在，机械臂选择了技能索引{skill_index}，并且不同物体的重要性权重为：
 {score}
 """
 
@@ -137,7 +168,7 @@ class FeastPromptTemplate(StringPromptTemplate):
 
 
 # prompt_template = FeastPromptTemplate(input_variables=["decision_path", "score"])
-prompt_template = FeastPromptTemplate(input_variables=["skill_index", "current_task", "score"])
+prompt_template = FeastPromptTemplate(input_variables=["skill_index", "score"])
 
 model = ChatOpenAI(
     api_key="sk-KH82aab3b53176ce707cad1961fcc9491c39d4279cdad5zo",

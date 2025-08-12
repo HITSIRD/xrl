@@ -3,6 +3,7 @@ import panda_py
 from gym import spaces
 import numpy as np
 import cv2
+from traits.trait_types import self
 
 from arm_controller.configs.config import ARM_URL
 from arm_controller.src.controllers.camera import Camera
@@ -34,7 +35,6 @@ class RealRobotSkillEnv(gym.Env):
         )
 
     def reset(self) -> np.ndarray:
-        # 可以加一个复位技能或复位操作
         self._reset_robot_to_initial_state()
         obs = self._get_observation()
         return obs
@@ -43,7 +43,6 @@ class RealRobotSkillEnv(gym.Env):
         raise NotImplementedError
 
     def render(self, mode='human'):
-        # 可选：显示图像
         image = self.camera.get_frame()
         return crop_and_resize(image, self.image_shape[0])
 
@@ -51,12 +50,32 @@ class RealRobotSkillEnv(gym.Env):
         q = self.arm.q
         return q
 
+    def _replay_trajectory(self, file):
+        full_path = f"{self.traj_dir}/{file}.h5"
+        try:
+            replay = Replay(self.arm)
+            replay.replay_trajectory(path=full_path)
+        except Exception as e:
+            print(f"轨迹重播失败: {e}")
+
     def _reset_robot_to_initial_state(self):
         print("Resetting robot to initial position...")
 
         start_pos = [-0.000022460186500366954, -0.7836777044764737, 0.00041195781118179314, -2.3564412297671096,
                      -0.0009421655249574945, 1.5700842435025806, 0.7855311433151364]
-        self.arm.move_to_joint_position(np.array(start_pos))
+        self._move_to(start_pos)
+
+    def _release(self):
+        width = 0.07983950525522232
+        print(f"Grasping to width{width} speed{self.gripper_speed} force{self.gripper_force}")
+        self.gripper.grasp(width, self.gripper_speed, self.gripper_force)
+
+    def _grasp(self, width):
+        print(f"Grasping to width{width} speed{self.gripper_speed} force{self.gripper_force}")
+        self.gripper.grasp(width, self.gripper_speed, self.gripper_force)
+
+    def _move_to(self, pos):
+        self.arm.move_to_joint_position(np.array(pos))
 
 
 class FridgeMangoCabJello(RealRobotSkillEnv):
@@ -68,7 +87,6 @@ class FridgeMangoCabJello(RealRobotSkillEnv):
     def step(self, action: int):
         assert self.action_space.contains(action), f"Invalid action: {action}"
 
-        # 执行对应技能
         skill_fn = self.SKILL_LIBRARY[action]
         print(skill_fn)
 
@@ -94,116 +112,60 @@ class FridgeMangoCabJello(RealRobotSkillEnv):
         return obs, reward, done, info
 
     def _open_fridge(self):
-        file_name = 'open_fridge_20250528160105'
-        full_path = f"{self.traj_dir}/{file_name}.h5"
-
-        try:
-            replay = Replay(self.arm)
-            replay.replay_trajectory(path=full_path)
-        except Exception as e:
-            print(f"轨迹重播失败: {e}")
+        self._replay_trajectory('open_fridge_20250528160105')
 
     def _close_fridge(self):
-        file_name = 'close_fridge_20250528160332'
-        full_path = f"{self.traj_dir}/{file_name}.h5"
-
-        try:
-            replay = Replay(self.arm)
-            replay.replay_trajectory(path=full_path)
-        except Exception as e:
-            print(f"轨迹重播失败: {e}")
+        self._replay_trajectory('close_fridge_20250528160332')
 
     def _open_cab(self):
-        file_name = 'open_cab_20250528155024'
-        full_path = f"{self.traj_dir}/{file_name}.h5"
-        try:
-            replay = Replay(self.arm)
-            replay.replay_trajectory(path=full_path)
-        except Exception as e:
-            print(f"轨迹重播失败: {e}")
+        self._replay_trajectory('open_cab_20250528155024')
 
     def _store_mango(self):
         # approach to mango
         pos = [0.17641643765735898, -0.24476337909280205, -0.1379896167013324, -2.7562025753824333,
                0.029356397736428428, 2.4453264166514073, 0.8679067428583899]
-        self.arm.move_to_joint_position(np.array(pos))
+        self._move_to(pos)
 
         # go to mango grasping
         pos = [0.18807336746600656, 0.08113982689903493, -0.11537806052959966, -2.7579434441523825, 0.02804498908585973,
                2.80727768834432, 0.8052151337936521]
-        self.arm.move_to_joint_position(np.array(pos))
+        self._move_to(pos)
 
         # grasp mango
-        width = 0.06522998213768005
-        print(f"Grasping to width{width} speed{self.gripper_speed} force{self.gripper_force}")
-        self.gripper.grasp(width, self.gripper_speed, self.gripper_force)
+        self._grasp(0.06522998213768005)
 
         # place mango
-        file_name = 'place_mango_20250528160719'
-        full_path = f"{self.traj_dir}/{file_name}.h5"
-        try:
-            replay = Replay(self.arm)
-            replay.replay_trajectory(path=full_path)
-        except Exception as e:
-            print(f"轨迹重播失败: {e}")
-
-        # release
-        width = 0.07983950525522232
-        print(f"Grasping to width{width} speed{self.gripper_speed} force{self.gripper_force}")
-        self.gripper.grasp(width, self.gripper_speed, self.gripper_force)
+        self._replay_trajectory('place_mango_20250528160719')
+        self._release()
 
         # back from fridge
-        file_name = 'leave_fridge_20250528160810'
-        full_path = f"{self.traj_dir}/{file_name}.h5"
-        try:
-            replay = Replay(self.arm)
-            replay.replay_trajectory(path=full_path)
-        except Exception as e:
-            print(f"轨迹重播失败: {e}")
+        self._replay_trajectory('leave_fridge_20250528160810')
 
     def _store_jello(self):
         # approach to jello
         pos = [0.3845410173673113, -0.10737043349927154, 0.14711042294870225, -2.3757319257072838, 0.004609344418204302,
                2.0727093774482546, 0.5630765890752276]
-        self.arm.move_to_joint_position(np.array(pos))
+        self._move_to(pos)
 
         # go to jello grasping
         pos = [0.3821798511488106, 0.22603936531080243, 0.14152096347570634, -2.507338585691338, 0.004422725360012716,
                2.7192444953215906, 1.309928688970705]
-        self.arm.move_to_joint_position(np.array(pos))
+        self._move_to(pos)
 
         # grasp jello
-        width = 0.026925303041934967
-        print(f"Grasping to width{width} speed{self.gripper_speed} force{self.gripper_force}")
-        self.gripper.grasp(width, self.gripper_speed, self.gripper_force)
+        self._grasp(0.026925303041934967)
 
         # place jello
-        file_name = 'place_jelly_20250528161109'
-        full_path = f"{self.traj_dir}/{file_name}.h5"
-        try:
-            replay = Replay(self.arm)
-            replay.replay_trajectory(path=full_path)
-        except Exception as e:
-            print(f"轨迹重播失败: {e}")
-
-        # release
-        width = 0.07983950525522232
-        print(f"Grasping to width{width} speed{self.gripper_speed} force{self.gripper_force}")
-        self.gripper.grasp(width, self.gripper_speed, self.gripper_force)
+        self._replay_trajectory('place_jelly_20250528161109')
+        self._release()
 
         # back from cab
-        file_name = 'leave_cab_20250528161218'
-        full_path = f"{self.traj_dir}/{file_name}.h5"
-        try:
-            replay = Replay(self.arm)
-            replay.replay_trajectory(path=full_path)
-        except Exception as e:
-            print(f"轨迹重播失败: {e}")
+        self._replay_trajectory('leave_cab_20250528161218')
 
 
 class FruitsSnacks(RealRobotSkillEnv):
-    SKILL_LIBRARY = ['open_fridge', 'store_mango', 'store_lemon', 'store_orange', 'close_fridge', 'open_cab',
-                     'store_cheezit', 'store_jello', 'close_cab']
+    SKILL_LIBRARY = ['open_fridge', 'close_fridge', 'open_cab', 'close_cab',
+                     'store_mango', 'store_lemon', 'store_orange', 'store_cheezit', 'store_jello']
 
     def __init__(self):
         super().__init__()
@@ -245,249 +207,127 @@ class FruitsSnacks(RealRobotSkillEnv):
         return obs, reward, done, info
 
     def _open_fridge(self):
-        file_name = 'open_fridge_20250528160105'
-        full_path = f"{self.traj_dir}/{file_name}.h5"
-
-        try:
-            replay = Replay(self.arm)
-            replay.replay_trajectory(path=full_path)
-        except Exception as e:
-            print(f"轨迹重播失败: {e}")
+        self._replay_trajectory('open_fridge_720')
+        self._reset2default_position()
 
     def _close_fridge(self):
-        file_name = 'close_fridge_20250528160332'
-        full_path = f"{self.traj_dir}/{file_name}.h5"
-
-        try:
-            replay = Replay(self.arm)
-            replay.replay_trajectory(path=full_path)
-        except Exception as e:
-            print(f"轨迹重播失败: {e}")
+        self._replay_trajectory('CLOSE_FRIDGE_20250704164844')
+        self._reset2default_position()
 
     def _open_cab(self):
-        file_name = 'open_cab_20250528155024'
-        full_path = f"{self.traj_dir}/{file_name}.h5"
-        try:
-            replay = Replay(self.arm)
-            replay.replay_trajectory(path=full_path)
-        except Exception as e:
-            print(f"轨迹重播失败: {e}")
+        self._replay_trajectory('OPEN_CAB_20250704171418')
+        self._reset2default_position()
 
     def _close_cab(self):
-        file_name = 'close_cab_20250528155024'
-        full_path = f"{self.traj_dir}/{file_name}.h5"
-        try:
-            replay = Replay(self.arm)
-            replay.replay_trajectory(path=full_path)
-        except Exception as e:
-            print(f"轨迹重播失败: {e}")
+        self._replay_trajectory('CLOSE_CAB_20250704171542')
 
     def _store_mango(self):
-        self._reset2default_position()
-
         # approach to mango
         pos = [0.17641643765735898, -0.24476337909280205, -0.1379896167013324, -2.7562025753824333,
                0.029356397736428428, 2.4453264166514073, 0.8679067428583899]
-        self.arm.move_to_joint_position(np.array(pos))
+        self._move_to(pos)
 
         # go to mango grasping
         pos = [0.18807336746600656, 0.08113982689903493, -0.11537806052959966, -2.7579434441523825, 0.02804498908585973,
                2.80727768834432, 0.8052151337936521]
-        self.arm.move_to_joint_position(np.array(pos))
+        self._move_to(pos)
 
         # grasp mango
-        width = 0.06522998213768005
-        print(f"Grasping to width{width} speed{self.gripper_speed} force{self.gripper_force}")
-        self.gripper.grasp(width, self.gripper_speed, self.gripper_force)
+        self._grasp(0.06522998213768005)
 
         # place mango
-        file_name = 'place_mango_20250528160719'
-        full_path = f"{self.traj_dir}/{file_name}.h5"
-        try:
-            replay = Replay(self.arm)
-            replay.replay_trajectory(path=full_path)
-        except Exception as e:
-            print(f"轨迹重播失败: {e}")
-
-        # release
-        width = 0.07983950525522232
-        print(f"Grasping to width{width} speed{self.gripper_speed} force{self.gripper_force}")
-        self.gripper.grasp(width, self.gripper_speed, self.gripper_force)
+        self._replay_trajectory('PLACE_MANGO_20250704165218')
+        self._release()
 
         # back from fridge
-        file_name = 'leave_fridge_20250528160810'
-        full_path = f"{self.traj_dir}/{file_name}.h5"
-        try:
-            replay = Replay(self.arm)
-            replay.replay_trajectory(path=full_path)
-        except Exception as e:
-            print(f"轨迹重播失败: {e}")
+        self._replay_trajectory('LEAVE_FRIDGE_20250704165319')
+
+        self._reset2default_position()
 
     def _store_lemon(self):
-        self._reset2default_position()
+        # approach to lemon
+        pos = [-0.03034798651358537, -0.35328322547561225, -0.28095724243448494, -2.800399724854488,
+               -0.3620582289595172, 2.3662763739404036, 0.8007882299619037]
+        self._move_to(pos)
 
-        # approach to mango
-        pos = [0.17641643765735898, -0.24476337909280205, -0.1379896167013324, -2.7562025753824333,
-               0.029356397736428428, 2.4453264166514073, 0.8679067428583899]
-        self.arm.move_to_joint_position(np.array(pos))
+        # go to lemon grasping
+        pos = [-0.03038732587420153, -0.04969926388574523, -0.3646589120208171, -2.9009254678832184, -0.360250900104458,
+               2.866468754382454, 0.8001443488595927]
+        self._move_to(pos)
 
-        # go to mango grasping
-        pos = [0.18807336746600656, 0.08113982689903493, -0.11537806052959966, -2.7579434441523825, 0.02804498908585973,
-               2.80727768834432, 0.8052151337936521]
-        self.arm.move_to_joint_position(np.array(pos))
+        # grasp lemon
+        self._grasp(0.06427190452814102)
 
-        # grasp mango
-        width = 0.06522998213768005
-        print(f"Grasping to width{width} speed{self.gripper_speed} force{self.gripper_force}")
-        self.gripper.grasp(width, self.gripper_speed, self.gripper_force)
-
-        # place mango
-        file_name = 'place_mango_20250528160719'
-        full_path = f"{self.traj_dir}/{file_name}.h5"
-        try:
-            replay = Replay(self.arm)
-            replay.replay_trajectory(path=full_path)
-        except Exception as e:
-            print(f"轨迹重播失败: {e}")
-
-        # release
-        width = 0.07983950525522232
-        print(f"Grasping to width{width} speed{self.gripper_speed} force{self.gripper_force}")
-        self.gripper.grasp(width, self.gripper_speed, self.gripper_force)
+        # place lemon
+        self._replay_trajectory('place_lemon_20250704182350')
+        self._release()
 
         # back from fridge
-        file_name = 'leave_fridge_20250528160810'
-        full_path = f"{self.traj_dir}/{file_name}.h5"
-        try:
-            replay = Replay(self.arm)
-            replay.replay_trajectory(path=full_path)
-        except Exception as e:
-            print(f"轨迹重播失败: {e}")
+        self._replay_trajectory('leave_lemon_20250704182350')
+
+        self._reset2default_position()
 
     def _store_orange(self):
-        self._reset2default_position()
+        # approach orange
+        self._replay_trajectory('pick_orange_20250704181110')
 
-        # approach to mango
-        pos = [0.17641643765735898, -0.24476337909280205, -0.1379896167013324, -2.7562025753824333,
-               0.029356397736428428, 2.4453264166514073, 0.8679067428583899]
-        self.arm.move_to_joint_position(np.array(pos))
+        # grasp orange
+        self._grasp(0.07438983023166656)
 
-        # go to mango grasping
-        pos = [0.18807336746600656, 0.08113982689903493, -0.11537806052959966, -2.7579434441523825, 0.02804498908585973,
-               2.80727768834432, 0.8052151337936521]
-        self.arm.move_to_joint_position(np.array(pos))
-
-        # grasp mango
-        width = 0.06522998213768005
-        print(f"Grasping to width{width} speed{self.gripper_speed} force{self.gripper_force}")
-        self.gripper.grasp(width, self.gripper_speed, self.gripper_force)
-
-        # place mango
-        file_name = 'place_mango_20250528160719'
-        full_path = f"{self.traj_dir}/{file_name}.h5"
-        try:
-            replay = Replay(self.arm)
-            replay.replay_trajectory(path=full_path)
-        except Exception as e:
-            print(f"轨迹重播失败: {e}")
-
-        # release
-        width = 0.07983950525522232
-        print(f"Grasping to width{width} speed{self.gripper_speed} force{self.gripper_force}")
-        self.gripper.grasp(width, self.gripper_speed, self.gripper_force)
+        # place orange
+        self._replay_trajectory('place_orange_20250704181110')
+        self._release()
 
         # back from fridge
-        file_name = 'leave_fridge_20250528160810'
-        full_path = f"{self.traj_dir}/{file_name}.h5"
-        try:
-            replay = Replay(self.arm)
-            replay.replay_trajectory(path=full_path)
-        except Exception as e:
-            print(f"轨迹重播失败: {e}")
+        self._replay_trajectory('leave_orange_20250704181110')
+
+        self._reset2default_position()
 
     def _store_cheezit(self):
-        self._reset2default_position()
-
         # approach to cheezit
-        pos = [0.3845410173673113, -0.10737043349927154, 0.14711042294870225, -2.3757319257072838, 0.004609344418204302,
-               2.0727093774482546, 0.5630765890752276]
-        self.arm.move_to_joint_position(np.array(pos))
+        pos = [-0.4113092428001848, -0.5238304134217908, -0.3540462238704949, -2.6914061675482497, -0.27266361182813614,
+               2.3656230286642748, -0.6034685147989678]
+        self._move_to(pos)
 
-        # go to jello grasping
-        pos = [0.3821798511488106, 0.22603936531080243, 0.14152096347570634, -2.507338585691338, 0.004422725360012716,
-               2.7192444953215906, 1.309928688970705]
-        self.arm.move_to_joint_position(np.array(pos))
+        # go to cheezit grasping
+        pos = [-0.4269500965005481, -0.15602347311884235, -0.377613943346855, -2.714064571915684, -0.2722122340621771,
+               2.5734913837810005, -0.601038620368474]
+        self._move_to(pos)
 
-        # grasp jello
-        width = 0.026925303041934967
-        print(f"Grasping to width{width} speed{self.gripper_speed} force{self.gripper_force}")
-        self.gripper.grasp(width, self.gripper_speed, self.gripper_force)
+        # grasp cheezit
+        self._grasp(0.04293417930603027)
 
-        # place jello
-        file_name = 'place_jelly_20250528161109'
-        full_path = f"{self.traj_dir}/{file_name}.h5"
-        try:
-            replay = Replay(self.arm)
-            replay.replay_trajectory(path=full_path)
-        except Exception as e:
-            print(f"轨迹重播失败: {e}")
+        # place cheezit
+        self._replay_trajectory('place_cheezit_20250704180357')
+        self._release()
+        self._replay_trajectory('push_cheezit_20250704180513')
 
-        # release
-        width = 0.07983950525522232
-        print(f"Grasping to width{width} speed{self.gripper_speed} force{self.gripper_force}")
-        self.gripper.grasp(width, self.gripper_speed, self.gripper_force)
-
-        # back from cab
-        file_name = 'leave_cab_20250528161218'
-        full_path = f"{self.traj_dir}/{file_name}.h5"
-        try:
-            replay = Replay(self.arm)
-            replay.replay_trajectory(path=full_path)
-        except Exception as e:
-            print(f"轨迹重播失败: {e}")
+        self._reset2default_position()
 
     def _store_jello(self):
-        self._reset2default_position()
-
         # approach to jello
         pos = [0.3845410173673113, -0.10737043349927154, 0.14711042294870225, -2.3757319257072838, 0.004609344418204302,
                2.0727093774482546, 0.5630765890752276]
-        self.arm.move_to_joint_position(np.array(pos))
+        self._move_to(pos)
 
         # go to jello grasping
         pos = [0.3821798511488106, 0.22603936531080243, 0.14152096347570634, -2.507338585691338, 0.004422725360012716,
                2.7192444953215906, 1.309928688970705]
-        self.arm.move_to_joint_position(np.array(pos))
+        self._move_to(pos)
 
         # grasp jello
-        width = 0.026925303041934967
-        print(f"Grasping to width{width} speed{self.gripper_speed} force{self.gripper_force}")
-        self.gripper.grasp(width, self.gripper_speed, self.gripper_force)
+        self._grasp(0.026925303041934967)
 
         # place jello
-        file_name = 'place_jelly_20250528161109'
-        full_path = f"{self.traj_dir}/{file_name}.h5"
-        try:
-            replay = Replay(self.arm)
-            replay.replay_trajectory(path=full_path)
-        except Exception as e:
-            print(f"轨迹重播失败: {e}")
-
-        # release
-        width = 0.07983950525522232
-        print(f"Grasping to width{width} speed{self.gripper_speed} force{self.gripper_force}")
-        self.gripper.grasp(width, self.gripper_speed, self.gripper_force)
+        self._replay_trajectory('PLACE_JELLO_20250704165726')
+        self._release()
 
         # back from cab
-        file_name = 'leave_cab_20250528161218'
-        full_path = f"{self.traj_dir}/{file_name}.h5"
-        try:
-            replay = Replay(self.arm)
-            replay.replay_trajectory(path=full_path)
-        except Exception as e:
-            print(f"轨迹重播失败: {e}")
+        self._replay_trajectory('LEAVE_CAB_20250704165803')
+
+        self._reset2default_position()
 
     def _reset2default_position(self):
-        pos = [0.17641643765735898, -0.24476337909280205, -0.1379896167013324, -2.7562025753824333,
-               0.029356397736428428, 2.4453264166514073, 0.8679067428583899]
-        self.arm.move_to_joint_position(np.array(pos))
+        pos = [0.8024984602915509, -0.7170319747069731, -0.31783231969360565, -1.9078798450397978, -0.1717547503006375,
+               1.3394796582349422, 0.9985520389668511]
+        self._move_to(pos)

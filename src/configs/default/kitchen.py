@@ -13,7 +13,15 @@ data_spec = AttrDict(
     # crop_rand_subseq=True,
     # max_seq_len = 100,
 
-    labels=["bottom burner switch",
+    labels=["turn on bottom burner",
+            "open top burner",
+            "turn on light",
+            "open slide cabinet",
+            "open hinge cabinet",
+            "open microwave",
+            "move kettle"],
+
+    objects=["bottom burner switch",
             "top burner switch",
             "light switch",
             "slide cabinet",
