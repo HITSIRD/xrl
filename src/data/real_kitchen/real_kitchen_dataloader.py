@@ -22,7 +22,8 @@ TASKS_DICT = {
     'store_lemon': 5,
     'store_orange': 6,
     'store_cheezit': 7,
-    'store_jello': 8
+    'store_jello': 8,
+    'end': 9
 }
 
 
@@ -148,3 +149,50 @@ class RealKitchenDataset(Dataset):
     def _preprocess_skills(self, skills):
         str2index = np.vectorize(lambda x: TASKS_DICT[x.decode('utf-8')])
         return str2index(skills)
+
+
+class MultiStepsRealKitchenDataset(RealKitchenDataset):
+    def __getitem__(self, index):
+        seq = self._sample_seq()
+        idx = np.random.randint(0, seq.actions.shape[0] - 1)
+
+        # 当前 skill
+        skill0 = seq.skills[idx]
+
+        output = AttrDict(
+            images=seq.images[idx],
+            actions=seq.actions[idx].astype(np.float32),
+            skills=self.skill_enc[seq.skills[idx]].astype(np.float32),
+            next_skills=self.skill_enc[seq.next_skills[idx]],  # shape [n_future, num_skills]
+        )
+
+        return output
+
+    def _add_future_skills(self, n_future=2):
+        """为每个 sequence 增加 future skills 信息"""
+        assert n_future >= 1
+
+        for data in self.dataset:
+            skills = data.skills  # shape [T]
+            T = len(skills)
+
+            # 存储未来 n_future 个技能
+            next_skills = np.full((T, n_future), TASKS_DICT['end'], dtype=np.int64)
+
+            for i in range(T):
+                current = skills[i]
+                future = []
+                j = i + 1
+                # 找到后续变化的技能
+                while j < T and len(future) < n_future:
+                    if skills[j] != skills[j - 1]:
+                        future.append(skills[j])
+                    j += 1
+
+                # 如果没找到够的，就用 'end' 填充
+                while len(future) < n_future:
+                    future.append(TASKS_DICT['end'])
+
+                next_skills[i] = future
+
+            data.next_skills = next_skills  # shape [T, n_future]

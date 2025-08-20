@@ -9,9 +9,6 @@ import torch
 import os
 import imp
 
-from captum.attr import IntegratedGradients, GradientShap, GuidedGradCam, LayerGradCam, DeepLift, DeepLiftShap, LRP, \
-    Occlusion
-from captum.attr._utils.lrp_rules import EpsilonRule
 from matplotlib import pyplot as plt
 
 from src.rl.components.params import get_args
@@ -26,9 +23,13 @@ from openai import OpenAI
 from src.utils.image import gaussian_blur_perturb, poisson_gaussian_noise_perturb
 from src.utils.llm import chain, prompt_template
 from src.utils.pytorch import no_batchnorm_update
+from src.utils.saliency import compute_integrated_gradient_saliency, compute_gradient_saliency, compute_gradient_shap, \
+    compute_perturbation_saliency, compute_gradCAM_saliency, compute_deeplift_saliency, compute_deepSHAP_saliency, \
+    compute_lrp_saliency, compute_occlusion_saliency, compute_instance_influence, compute_guided_backprop_saliency, \
+    compute_input_x_gradient_saliency
 from src.utils.video import create_video_from_pdfs_and_markdowns
 from src.utils.render import render_mujoco_object_masks
-from src.utils.general import TopKMetricAverageMeter
+from src.utils.general import MetricAverageMeter
 
 
 class InstanceInfluence:
@@ -47,14 +48,16 @@ class InstanceInfluence:
         self.agent.to(self.device)
         self.sampler = self._hp.sampler(self.conf.sampler, self.env, self.agent, None, self._hp.max_rollout_len)
 
-        self.labels = self.conf.data.dataset_spec.labels
+        self.skill_labels = self.conf.data.dataset_spec.skill_labels
         self.objects = self.conf.data.dataset_spec.objects
         self.boxes = self.conf.data.dataset_spec.boxes
-        self.gt_skill_index = self.conf.data.dataset_spec.gt_skill_index
+        self.skill_obj_map = self.conf.data.dataset_spec.skill_obj_map
+        self.multi_skill_obj_map = self.conf.data.dataset_spec.multi_skill_obj_map
 
-        self.metric = TopKMetricAverageMeter()
+        self.metric = MetricAverageMeter()
 
         self.dynamic_objects = get_depth(self.objects) > 1
+        self.lang_exp = True
 
         for i in range(self.args.n_episode):
             self.args.episode_idx = i
@@ -72,7 +75,8 @@ class InstanceInfluence:
         print(self.metric.compute())
 
     def init_dir(self):
-        self.args.save_dir = os.path.join(self.conf.exp_path, 'explanation', self.args.exp_method, f'episode_{self.args.episode_idx}')
+        self.args.save_dir = os.path.join(self.conf.exp_path, 'explanation', self.args.exp_method,
+                                          f'episode_{self.args.episode_idx}')
         if not os.path.exists(self.args.save_dir):
             os.makedirs(self.args.save_dir)
         print(f'save_dir: {self.args.save_dir}')
@@ -158,11 +162,12 @@ class InstanceInfluence:
 
                     # results = classify_with_clip(clip_model, clip_processor, img, masks, self.candidate_labels)
 
-                    saliency, dist = self.compute_saliency(policy.net, processed_img, skill_index)
+                    dist = policy.net(processed_img).flatten().detach().cpu().numpy()
+                    saliency = self.compute_saliency(policy.net, processed_img, skill_index)
                     saliency = self._normalize_saliency(saliency)
-                    influence = self.compute_instance_influence(saliency, masks)  # (N, K)
+                    influence = compute_instance_influence(saliency, masks)  # (N, K)
 
-                self.visualize_influence(influence, dist, hl_step, skill_index)
+                # self.visualize_influence(influence, dist, hl_step, skill_index)
                 self.visualize_dimension_influence(img, masks, saliency, influence, dist, skill_index, hl_step)
 
                 influence_str = ""
@@ -171,21 +176,22 @@ class InstanceInfluence:
                     influence_str += f'Object {i} ({object}): {obj_influence:.3f}\n'
 
                 # print(influence_str)
-                eval = self.evaluate(influence, skill_index, self.gt_skill_index)
+                eval = self._evaluate(influence, skill_index)
                 result.append(eval)
                 self.metric.update(eval)
 
-                explanation = chain.invoke(
-                    prompt_template.format(skill_index=skill_index, score=influence_str))
-                print(explanation)
-                self.save_explanation(explanation, hl_step)
+                if self.lang_exp:
+                    explanation = chain.invoke(
+                        prompt_template.format(skill_index=skill_index, score=influence_str))
+                    print(explanation)
+                    self.save_explanation(explanation, hl_step)
 
                 hl_step += 1
 
         self.save_result_to_cache(result)
         create_video_from_pdfs_and_markdowns(num_files=hl_step, pdf_dir=self.args.save_dir, md_dir=self.args.save_dir,
                                              output_dir=self.args.save_dir, output_video='explanation.mp4',
-                                             language_output=True, clean_tmp=True)
+                                             language_output=self.lang_exp, clean_tmp=True)
 
     def save_img(self, img, index):
         # image = cv2.imread(img)
@@ -254,258 +260,31 @@ class InstanceInfluence:
 
     def compute_saliency(self, policy, processed_img, skill_idx):
         if self.args.exp_method == 'ig':
-            return self.compute_integrated_gradient_saliency(policy, processed_img, skill_idx)
+            return compute_integrated_gradient_saliency(policy, processed_img, skill_idx)
         elif self.args.exp_method == 'gradient':
-            return self.compute_gradient_saliency(policy, processed_img, skill_idx)
+            return compute_gradient_saliency(policy, processed_img, skill_idx)
         elif self.args.exp_method == 'gradient_shap':
-            return self.compute_gradient_shap(policy, processed_img, skill_idx)
+            return compute_gradient_shap(policy, processed_img, skill_idx)
         elif self.args.exp_method == 'gaussian_perturbation':
-            return self.compute_perturbation_saliency(policy, processed_img)
+            return compute_perturbation_saliency(policy, processed_img, skill_idx)
+        elif self.args.exp_method == 'guided_backprop':
+            return compute_guided_backprop_saliency(policy, processed_img, skill_idx)
+        elif self.args.exp_method == 'input_x_gradient':
+            return compute_input_x_gradient_saliency(policy, processed_img, skill_idx)
         elif self.args.exp_method == 'grad_cam':
-            return self.compute_gradCAM_saliency(policy, processed_img, skill_idx)
+            return compute_gradCAM_saliency(policy, processed_img, skill_idx)
         elif self.args.exp_method == 'guided_grad_cam':
-            return self.compute_gradCAM_saliency(policy, processed_img, skill_idx, layer=False)
+            return compute_gradCAM_saliency(policy, processed_img, skill_idx, layer=False)
         elif self.args.exp_method == 'deep_lift':
-            return self.compute_deeplift_saliency(policy, processed_img, skill_idx)
+            return compute_deeplift_saliency(policy, processed_img, skill_idx)
         elif self.args.exp_method == 'deep_shap':
-            return self.compute_deepSHAP_saliency(policy, processed_img, skill_idx)
+            return compute_deepSHAP_saliency(policy, processed_img, skill_idx)
         elif self.args.exp_method == 'lrp':
-            return self.compute_lrp_saliency(policy, processed_img, skill_idx)
+            return compute_lrp_saliency(policy, processed_img, skill_idx)
         elif self.args.exp_method == 'occlusion':
-            return self.compute_occlusion_saliency(policy, processed_img, skill_idx)
+            return compute_occlusion_saliency(policy, processed_img, skill_idx)
         else:
             raise Exception(f'unsupported explanation method {self.args.exp_method}')
-
-    def compute_lrp_saliency(self, policy, processed_img, skill_idx):
-        def remove_logsoftmax(module):
-            """
-            递归地删除模型中的所有 nn.LogSoftmax 层，
-            如果嵌套在 nn.Sequential 中，则直接从序列中移除
-            """
-            for name, child in list(module.named_children()):
-                # 如果是 Sequential，则构造新的子模块列表
-                if isinstance(child, torch.nn.Sequential):
-                    new_layers = []
-                    for sub_child in child.children():
-                        if not isinstance(sub_child, torch.nn.LogSoftmax):
-                            new_layers.append(sub_child)
-                    # 重新赋值
-                    setattr(module, name, torch.nn.Sequential(*new_layers))
-                elif isinstance(child, torch.nn.LogSoftmax):
-                    # 如果不是 Sequential 中的，直接移除（替换为 nn.Identity 或删除）
-                    delattr(module, name)
-                else:
-                    # 递归处理子模块
-                    remove_logsoftmax(child)
-
-        policy = copy.deepcopy(policy)
-        remove_logsoftmax(policy.prior_head)
-        lrp = LRP(policy)
-        attr = lrp.attribute(processed_img, target=skill_idx.item()).squeeze().detach().cpu().numpy().mean(axis=0)
-
-        probs = policy.compute_learned_prior(processed_img).dist.probs
-        return attr, probs.flatten().detach().cpu().numpy()
-
-    def compute_occlusion_saliency(self, policy, processed_img, skill_idx):
-        occ = Occlusion(policy)
-        attr = occ.attribute(processed_img, target=skill_idx.item(),
-                             sliding_window_shapes=(1, 5, 5)).squeeze().detach().cpu().numpy().mean(axis=0)
-
-        probs = policy.compute_learned_prior(processed_img).dist.probs
-        return attr, probs.flatten().detach().cpu().numpy()
-
-    def compute_gradCAM_saliency(self, policy, processed_img, skill_idx, layer=True):
-        if layer:
-            gc = LayerGradCam(policy, policy.prior_encoder.resnet.layer4[-1].conv2)
-            attr = gc.attribute(processed_img, skill_idx.item())
-            attr = torch.nn.functional.interpolate(attr, size=processed_img.shape[-2:], mode='bilinear',
-                                                   align_corners=True)
-            attr = attr.squeeze().detach().cpu().numpy()
-        else:
-            gc = GuidedGradCam(policy, policy.prior_encoder.resnet.layer4[-1].conv2)
-            attr = gc.attribute(processed_img, skill_idx.item()).squeeze().detach().cpu().numpy().mean(axis=0)
-
-        probs = policy.compute_learned_prior(processed_img).dist.probs
-        return attr, probs.flatten().detach().cpu().numpy()
-
-    def compute_deeplift_saliency(self, policy, processed_img, skill_idx):
-        dl = DeepLift(policy)
-        attr = dl.attribute(processed_img, target=skill_idx.item()).squeeze().detach().cpu().numpy().mean(axis=0)
-        probs = policy.compute_learned_prior(processed_img).dist.probs
-
-        return attr, probs.flatten().detach().cpu().numpy()
-
-    def compute_deepSHAP_saliency(self, policy, processed_img, skill_idx):
-        dls = DeepLiftShap(policy)
-
-        baseline1 = torch.zeros_like(processed_img).squeeze()
-        baseline2 = torch.ones_like(processed_img).squeeze()
-        baseline3 = processed_img.mean(dim=0, keepdim=True).expand_as(processed_img).squeeze()
-
-        baselines = torch.stack([baseline1, baseline2, baseline3])
-        attr = dls.attribute(processed_img, baselines=baselines,
-                             target=skill_idx.item()).squeeze().detach().cpu().numpy().mean(axis=0)
-        probs = policy.compute_learned_prior(processed_img).dist.probs
-
-        return attr, probs.flatten().detach().cpu().numpy()
-
-    def compute_gradient_saliency(self, policy, processed_img, skill_index):
-        """
-        计算输入图像对embedding各维度的梯度显著性
-        返回：
-            grads: (K, H, W) 的梯度张量，每个维度对应一个空间梯度图
-        """
-        processed_img.requires_grad_(True)
-
-        probs = policy(processed_img)
-
-        policy.zero_grad()
-        grad_output = torch.zeros_like(probs)
-        grad_output[0, skill_index] = 1.0  # 仅保留目标维度的梯度
-        probs.backward(gradient=grad_output, retain_graph=True)
-        # 提取输入图像的梯度
-        grad = processed_img.grad.data.cpu().numpy()
-        saliency_map = np.linalg.norm(grad, ord=2, axis=1).squeeze()
-
-        return saliency_map, probs.flatten().detach().cpu().numpy()  # (H, W)
-
-    def compute_integrated_gradient_saliency(self, policy, processed_img, skill_index):
-        """
-        计算输入图像对embedding各维度的梯度显著性
-        返回：
-            grads: (K, H, W) 的梯度张量，每个维度对应一个空间梯度图
-        """
-        # processed_img.requires_grad_(True)
-        #
-        # # 计算 Integrated Gradients
-        # steps = 100
-        #
-        probs = policy.compute_learned_prior(processed_img).dist.probs
-        #
-        # # K = probs.shape[1]
-        # # saliency_maps = np.zeros((processed_img.shape[2], processed_img.shape[3]))  # (K, H, W)
-        # baseline = torch.zeros_like(processed_img).to(self.device)  # 选择全零图像作为 baseline
-        # scaled_inputs = [(baseline + (float(i) / steps) * (processed_img - baseline)) for i in range(steps)]
-        #
-        # grads = []
-        # for img in scaled_inputs:
-        #     img = img.detach().requires_grad_(True)
-        #     probs = policy.compute_learned_prior(img).dist.probs
-        #     target = probs[0, skill_index]  # 取第 j 维的概率值
-        #
-        #     policy.zero_grad()
-        #     # grad_output = torch.zeros_like(probs)
-        #     # grad_output[0, j] = 1.0
-        #     target.backward()
-        #     # grad = torch.autograd.grad(target, img, retain_graph=True)[0]  # 直接计算梯度
-        #     # grads.append(grad.cpu().numpy())
-        #
-        #     grads.append(img.grad.data.detach().cpu().numpy())
-        #
-        # avg_grad = np.mean(grads, axis=0)  # 计算平均梯度
-        # integrated_grads = (
-        #                            processed_img.detach().cpu().numpy() - baseline.detach().cpu().numpy()) * avg_grad  # 计算 IG
-        #
-        # # 计算 IG 显著性并存储
-        # saliency_maps = np.linalg.norm(integrated_grads, ord=2, axis=1).squeeze()  # (H, W)
-        #
-        # return saliency_maps, probs.flatten().detach().cpu().numpy()  # (H, W)
-
-        ig = IntegratedGradients(policy)
-        # gs = GradientShap(policy)
-        # baseline = torch.zeros_like(processed_img).to(self.device)  # 选择全零图像作为 baseline
-        #
-        saliency = ig.attribute(processed_img, target=skill_index.item(),
-                                        return_convergence_delta=False).detach().cpu().numpy()
-        # saliency = gs.attribute(processed_img, baseline, target=j,
-        #                         return_convergence_delta=False).detach().cpu().numpy()
-        saliency_maps = np.linalg.norm(saliency, ord=2, axis=1).squeeze().squeeze()
-
-        return saliency_maps, probs.flatten().detach().cpu().numpy()  # (H, W)
-
-    def compute_gradient_shap(self, policy, processed_img, skill_index):
-        probs = policy.compute_learned_prior(processed_img).dist.probs
-
-        gs = GradientShap(policy)
-        baseline = torch.randn_like(processed_img).to(self.device)  # 选择全零图像作为 baseline
-        #
-        saliency = gs.attribute(processed_img, target=skill_index.item(), baselines=baseline,
-                                return_convergence_delta=False).detach().cpu().numpy()
-        saliency_maps = np.linalg.norm(saliency, ord=2, axis=1).squeeze().squeeze()
-
-        return saliency_maps, probs.flatten().detach().cpu().numpy()  # (H, W)
-
-    def compute_perturbation_saliency(self, policy, processed_img, sigma=3, kernel_size=11, batch_size=1024):
-        with torch.no_grad():
-            # processed_img = processed_img.clone().to(self.device)
-            H, W = processed_img.shape[2], processed_img.shape[3]
-
-            probs_original_logits = policy.compute_learned_prior(processed_img).dist.logits  # (1, K)
-            K = probs_original_logits.shape[1]
-
-            saliency_maps = torch.zeros((H, W), device=self.device)  # (K, H, W)
-
-            all_pixels = [(i, j) for i in range(H) for j in range(W)]
-            num_batches = (len(all_pixels) + batch_size - 1) // batch_size
-
-            for batch_idx in range(num_batches):
-                batch_pixels = all_pixels[batch_idx * batch_size:(batch_idx + 1) * batch_size]
-                batch_size_actual = len(batch_pixels)
-
-                perturbed_imgs = torch.zeros((batch_size_actual, *processed_img.shape[1:]), device=self.device)
-
-                # 批量计算扰动
-                for idx, (i, j) in enumerate(batch_pixels):
-                    perturbed_imgs[idx] = gaussian_blur_perturb(processed_img, i, j, sigma, kernel_size)
-                    # perturbed_imgs[idx] = poisson_gaussian_noise_perturb(processed_img, i, j, sigma)
-
-                probs_perturbed_logits = policy.compute_learned_prior(perturbed_imgs).dist.logits  # (B, K)
-
-                # delta_probs = torch.norm(probs_original - probs_perturbed, p=2, dim=1)  # MSE LOSS
-                delta_probs = kl_categorical(probs_original_logits, probs_perturbed_logits)
-
-                # 存入 saliency map
-                for idx, (i, j) in enumerate(batch_pixels):
-                    saliency_maps[i, j] = delta_probs[idx]
-
-                torch.cuda.empty_cache()
-
-            return saliency_maps.cpu().numpy(), torch.exp(probs_original_logits).flatten().detach().cpu().numpy()
-
-    def compute_instance_influence(self, saliency, instance_masks, percentile=0.99):
-
-        """
-        计算每个实例对各个skill的贡献
-        参数：
-            grads: (H, W) 梯度显著性图
-            instance_masks: List[(H, W) binary masks]
-        返回：
-            influence: (N_instances) 影响矩阵
-        """
-        influence = []
-        baseline = saliency.mean()
-
-        for name in instance_masks.keys():
-            mask = instance_masks[name]
-            # area = mask.sum() + 1e-6
-
-            normal = (saliency - baseline) * mask[np.newaxis, :]  # (H, W)
-            influence.append(normal.sum())
-            # influence.append(saliency.sum() / area)
-
-        return np.array(influence)
-
-        # influence = []
-        # for mask in instance_masks:
-        #     mask = mask['mask'].squeeze(0)
-        #     masked_grads = grads * mask[np.newaxis, :, :]  # (K, H, W)
-        #
-        #     valid_values = masked_grads[:, mask > 0]  # 仅选择 mask 位置的梯度值
-        #     influence = np.percentile(valid_values, percentile, axis=1)
-        #
-        #     influence.append(influence)
-        #
-        # return np.array(influence)
 
     def visualize_dimension_influence(self, img, masks, saliency, influence, dist, skill_index, hl_step):
         """
@@ -574,8 +353,8 @@ class InstanceInfluence:
             text = f"{j + 1} {name}"
 
             plt.text(0, y, text,
-                         fontsize=14, color='black',
-                         va='top', family='monospace')
+                     fontsize=14, color='black',
+                     va='top', family='monospace')
 
             y -= dy
 
@@ -586,9 +365,9 @@ class InstanceInfluence:
         plt.axis('off')
 
         y = 1.0
-        dy = 1.0 / (len(self.labels) + 1)
+        dy = 1.0 / (len(self.skill_labels) + 1)
 
-        for j, name in enumerate(self.labels):
+        for j, name in enumerate(self.skill_labels):
             text = f"{j + 1} {name} ({dist[j].item():.2f})"
 
             if skill_index is not None and j == skill_index:
@@ -631,39 +410,45 @@ class InstanceInfluence:
 
         return normalized_saliency
 
-    def evaluate(self, influence, ground_truth, task_gt_objects, topk=3):
+    def _evaluate(self, influence, skill_idx, topk=3):
         """
         评估 saliency 分布在 top-1 / top-k 情况下对 ground truth 的命中情况
 
         参数:
             influence: List[float]，每个物体的 saliency 值（顺序与 self.labels 对应）
-            ground_truth: str，当前应操作的目标物体
+            skill_idx: int，当前选择的skill index
             task_gt_objects: List[str]，整个任务应涉及的 4 个关键物体名称
             topk: int，考虑 top-k 的范围
 
         返回:
             dict，包括 top-1 准确率、top-k recall、strict 命中等
         """
-        # assert len(influence) == len(self.objects), "影响值和标签数量不一致"
+        objects = self.objects
+        if self.dynamic_objects:
+            objects = self.objects[skill_idx]
+        assert len(influence) == len(objects), "影响值和标签数量不一致"
 
         # 获取排序后的索引和对应物体
         indices = sorted(range(len(influence)), key=lambda i: -influence[i])
         # ranked_objects = [self.labels[i] for i in indices]
         # topk_objects = ranked_objects[:topk]
 
-        # Top-1 准确性
-        top1_hit = int(indices[0] == ground_truth)
+        # Top-1 Acc
+        top1_hit = int(objects[indices[0]] == self.skill_obj_map[self.skill_labels[skill_idx]])
 
         # Top-k Recall：命中几个任务目标物体
-        correct_topk = len(set(indices[:topk]) & set(task_gt_objects))
-        topk_recall = correct_topk / len(task_gt_objects)
+        multi_relevant_obj = self.multi_skill_obj_map[self.skill_labels[skill_idx]]
+        len_candidates_obj = len(set(multi_relevant_obj) & set(objects))
+        selected_objects = [objects[i] for i in indices[:len_candidates_obj]]
+        correct_topk = len(set(selected_objects) & set(multi_relevant_obj))
+        group_recall = correct_topk / len_candidates_obj
 
         # Strict Top-k 是否完全覆盖所有任务物体
         # strict_topk = int(set(task_gt_objects).issubset(set(indices[:topk])))
 
         return {
             "top1": top1_hit,
-            f"top{topk}_recall": topk_recall,
+            f"group_recall": group_recall,
             # f"strict_top{topk}": strict_topk,
         }
 

@@ -157,7 +157,7 @@ if __name__ == "__main__":
     # phase_names = ['open_fridge', 'store_mango', 'close_fridge', 'open_cab', 'store_jello']
 
     phase_lengths = [2, 7, 7, 6, 2, 2, 7, 7, 1]
-    phase_names = ['open_fridge', 'store_mango', 'store_lemon', 'store_orange', 'close_fridge', 'open_cab', 'store_cheezit', 'store_jello', 'close_cab']
+    phase_names = ['open_fridge', 'store_mango', 'store_lemon', 'store_orange', 'close_fridge', 'open_cabinet', 'store_cheezit', 'store_jello', 'close_cabinet']
 
     process_h5_skills(OUTPUT_ROOT, output_dir, phase_names, phase_lengths, 'observation_pos')
     preview(os.path.join(output_dir, "fruits_snacks_0.h5"))

@@ -84,7 +84,10 @@ class OneHotImagePriorBCModel(OneHotImageBCModel):
 
         self.prior_encoder = self.build_encoder()
 
-        self.prior_head = nn.Sequential(
+        self.prior_head = self._build_prior_head(hp)
+
+    def _build_prior_head(self, hp):
+        return nn.Sequential(
             nn.Linear(hp.img_enc_dim, 256),
             nn.ReLU(),
             nn.Linear(256, 256),
@@ -146,13 +149,60 @@ class OneHotImagePriorBCModel(OneHotImageBCModel):
         :arg phase: 'train' or 'val'
         :arg logger: logger class, visualization functions should be implemented in this class
         """
-        self._logger.log_scalar(model_output.prior_entropy, "prior_entropy", step, phase) # wandb
+        self._logger.log_scalar(model_output.prior_entropy, "prior_entropy", step, phase)  # wandb
         # self._logger.add_scalar(f'{phase}/prior_entropy', model_output.prior_entropy, step)
 
         # log videos/gifs in tensorboard
         if log_images:
             print('{} {}: logging videos'.format(phase, step))
             self._logger.visualize(model_output, inputs, losses, step, phase, logger, **logging_kwargs)
+
+
+class MultiStepsOneHotImagePriorBCModel(OneHotImagePriorBCModel):
+    def __init__(self, hp, logger):
+        super().__init__(hp, logger)
+
+        self.prior_head1 = self._build_prior_head(hp)
+        self.prior_head2 = self._build_prior_head(hp)
+
+    def forward(self, input):
+        if isinstance(input, AttrDict):
+            output = AttrDict()
+
+            img_embed = self.encoder(input.images)
+            output.reconstruction = self.head(torch.cat([img_embed, input.skills], dim=-1))
+            output.prior = self.prior_head(self.prior_encoder(input.images))
+
+            output.prior_probs = torch.exp(output.prior)
+            output.prior_entropy = -torch.sum(output.prior_probs * output.prior, dim=1).mean()
+            return output
+        else:
+            # only prior output
+            enc = self.prior_encoder(input)
+            return self.prior_head(enc), self.prior_head1(enc), self.prior_head2(enc)
+
+    def loss(self, output, inputs):
+        losses = AttrDict()
+
+        mse_loss = torch.nn.MSELoss()
+        nll_loss = torch.nn.NLLLoss()
+        # kl_loss = torch.nn.KLDivLoss(reduction='batchmean')
+
+        losses.rec_mse = mse_loss(output.reconstruction, inputs.actions)
+        losses.prior = nll_loss(output.prior, inputs.skills.argmax(dim=-1))
+        # losses.prior = kl_loss(output.prior, self._smooth_one_hot(inputs.skills.argmax(dim=-1),
+        #                                                           n_classes=self._hp.skill_dim,
+        #                                                           smoothing=0.05))
+
+        losses.total = losses.rec_mse + losses.prior
+        return losses
+
+    def compute_learned_prior(self, obs):
+        enc = self.prior_encoder(obs)
+        logits_0 = self.prior_head(enc)
+        logits_1 = self.prior_head_1(enc)
+        logits_2 = self.prior_head_2(enc)
+        return Categorical(logits=logits_0), Categorical(logits=logits_1), Categorical(logits=logits_2)
 
 
 class OneHotImagePriorCompleteBCModel(OneHotImagePriorBCModel):

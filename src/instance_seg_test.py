@@ -1,123 +1,25 @@
 import random
-
 import cv2
-import gym
-import d4rl
-import mmcv
-import torch
 from PIL import Image
-
 from groundingdino.util import box_ops
 from groundingdino.util.inference import load_model, load_image, predict, annotate
 from segment_anything import SamPredictor, sam_model_registry, SamAutomaticMaskGenerator
 import h5py
-import numpy as np
 import os
-import matplotlib.pyplot as plt
-from sympy.logic.inference import valid
 import groundingdino.datasets.transforms as T
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-# def show_anns(anns):
-#     if len(anns) == 0:
-#         return
-#     sorted_anns = sorted(anns, key=(lambda x: x['area']), reverse=True)
-#     ax = plt.gca()
-#     ax.set_autoscale_on(False)
-#
-#     img = np.ones((sorted_anns[0]['segmentation'].shape[0], sorted_anns[0]['segmentation'].shape[1], 4))
-#     img[:, :, 3] = 0
-#     for ann in sorted_anns:
-#         m = ann['segmentation']
-#         color_mask = np.concatenate([np.random.random(3), [0.35]])
-#         img[m] = color_mask
-#     ax.imshow(img)
-#
-# file = 'data/kitchen/kitchen-mixed-v0/kitchen-mixed-v0_0.h5'
-#
-# with h5py.File(file, 'r') as dataset:
-#     # print(dataset['traj'].keys())
-#     # print(dataset['traj']['states'])
-#     image_obs = dataset['traj']['observations'][150]
-#
-# sam = sam_model_registry["vit_h"](checkpoint="/home/wenyongyan/下载/sam_vit_h_4b8939.pth")
-# sam.to(device)
-#
-# mask_generator = SamAutomaticMaskGenerator(model=sam, min_mask_region_area=100)
-# masks = mask_generator.generate(image_obs)
-#
-# # predictor = SamPredictor(sam)
-# # predictor.set_image(image_obs)  # 设置输入图像
-# #
-# # input_box = [0, 0, 200, 200]
-# #
-# # masks, scores, logits = predictor.predict(
-# #     box=torch.tensor(input_box).to(torch.float32).unsqueeze(0),
-# #     multimask_output=True)
-#
-# print(len(masks))
-# # print(masks)
-#
-# # plt.figure(figsize=(10, 10))
-# plt.imshow(image_obs)
-# show_anns(masks)
-# plt.title("Segment Anything Model")
-# plt.axis("off")
-# plt.show()
-
-
-# from mmdet.apis import init_detector, inference_detector
-# from mmdet.registry import VISUALIZERS
-# import cv2
-# import mmcv
-#
-# # 配置文件路径和模型权重文件路径
-# config_file = '/home/wenyongyan/下载/mmdetection/mask-rcnn_r50_fpn_1x_coco.py'
-# checkpoint_file = '/home/wenyongyan/下载/mmdetection/mask_rcnn_r50_fpn_1x_coco_20200205-d4b0c5d6.pth'
-#
-# # 初始化模型
-# model = init_detector(config_file, checkpoint_file, device='cuda:0')
-#
-# # 测试图像
-# file = 'skilltree/data/kitchen/kitchen-mixed-v0/kitchen-mixed-v0_0.h5'
-#
-# with h5py.File(file, 'r') as dataset:
-#     image_obs = dataset['traj']['observations'][199]
-# result = inference_detector(model, image_obs)
-#
-# visualizer = VISUALIZERS.build(model.cfg.visualizer)
-# visualizer.dataset_meta = model.dataset_meta
-#
-# visualizer.add_datasample(
-#     name='result',
-#     image=image_obs,
-#     data_sample=result,
-#     draw_gt=False,
-#     pred_score_thr=0.1,
-#     show=False)
-#
-# img = visualizer.get_image()
-# plt.imshow(img)
-# plt.show()
-#
-# plt.savefig('img.png')
-#
-
-
-## deepseek-r1 pipeline
 
 import numpy as np
 import torch
-import cv2
 import matplotlib.pyplot as plt
 from segment_anything import SamPredictor, sam_model_registry
 from transformers import CLIPProcessor, CLIPModel
 import sam2
 from sam2.build_sam import build_sam2
 from sam2.sam2_image_predictor import SAM2ImagePredictor
+from depth_anything_v2.dpt import DepthAnythingV2
 
 sam2_path = os.path.dirname(sam2.__file__)
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # 初始化SAM模型
 # def initialize_sam(sam_checkpoint="/home/wenyongyan/下载/sam_vit_h_4b8939.pth", model_type="vit_h", device="cuda"):
@@ -130,12 +32,23 @@ sam2_path = os.path.dirname(sam2.__file__)
 
 checkpoint = "/home/wenyongyan/下载/sam2.1_hiera_large.pt"
 model_cfg = 'configs/sam2.1/sam2.1_hiera_l.yaml'
-# predictor = SAM2ImagePredictor(build_sam2(model_cfg, checkpoint))
+predictor = SAM2ImagePredictor(build_sam2(model_cfg, checkpoint))
 
 groundingdino_model = load_model("groundingdino/config/GroundingDINO_SwinB_cfg.py",
                                  "groundingdino/weights/groundingdino_swinb_cogcoor.pth")
-frame = 0
 
+model_configs = {
+    'vits': {'encoder': 'vits', 'features': 64, 'out_channels': [48, 96, 192, 384]},
+    'vitb': {'encoder': 'vitb', 'features': 128, 'out_channels': [96, 192, 384, 768]},
+    'vitl': {'encoder': 'vitl', 'features': 256, 'out_channels': [256, 512, 1024, 1024]},
+    'vitg': {'encoder': 'vitg', 'features': 384, 'out_channels': [1536, 1536, 1536, 1536]}
+}
+
+encoder = 'vitl' # or 'vits', 'vitb', 'vitg'
+
+model = DepthAnythingV2(**model_configs[encoder])
+model.load_state_dict(torch.load(f'depth_anything_v2/checkpoints/depth_anything_v2_{encoder}.pth', map_location='cpu'))
+model = model.to(device).eval()
 
 # 初始化CLIP模型
 def initialize_clip(model_name="openai/clip-vit-base-patch32", device="cuda"):
@@ -177,7 +90,27 @@ def detect_candidates_with_dino(model, image_path, caption="object", box_thresho
 
     return image_source, boxes
 
+def get_depth(img):
+    return model.infer_image(img)
 
+def box_inside(inner, outer):
+    return (inner[0] >= outer[0] and inner[1] >= outer[1] and
+            inner[2] <= outer[2] and inner[3] <= outer[3])
+
+def remove_foreground_overlap(boxes, masks):
+    n = len(boxes)
+    masks_visible = [m.copy() for m in masks]  # 拷贝避免修改原 mask
+
+    # 遍历每对 box
+    for i in range(n):
+        for j in range(n):
+            if i == j:
+                continue
+            # 如果 i 在 j 内部，i 是前景，j 是背景
+            if box_inside(boxes[i], boxes[j]):
+                masks_visible[j] = masks_visible[j] & (~masks[i])
+
+    return masks_visible
 
 def groundingdino_box_prompt(image, save_dir=None):
     # TEXT_PROMPT = "kettle . microwave ."
@@ -196,6 +129,9 @@ def groundingdino_box_prompt(image, save_dir=None):
     )
 
     image_source = Image.fromarray(image).convert("RGB")
+    plt.imshow(get_depth(image))
+    plt.show()
+
     # image_source = np.asarray(image_source)
     image_transformed, _ = transform(image_source, None)
 
@@ -210,8 +146,6 @@ def groundingdino_box_prompt(image, save_dir=None):
     print(boxes)
     print(logits)
     print(phrases)
-
-    frame += 1
 
     if len(boxes) > 0:
         # box = boxes[0]
@@ -266,33 +200,26 @@ def generate_masks_with_sam(image, labels, boxes=None, save_dir=None):
     # masks = mask_generator.generate(image_obs)
 
     predictor.set_image(image)
-    # masks, _, _ = predictor.predict(point_coords=np.array([[60, 105], [37, 40], [60, 40], [130, 40], [82, 60],
-    #                                                        [110, 52], [110, 63], [100, 130]]),
-    #                                 point_labels=np.array([1, 1, 1, 1, 1, 1, 1, 1]), multimask_output=True)
-
-    # masks, _, _ = predictor.predict(box=np.array([0, 50, 75, 125]), multimask_output=False)
-
-    # boxes = [[0, 50, 75, 150], [50, 0, 100, 50], [125, 0, 200, 50], [75, 50, 85, 70], [85, 50, 95, 70],
-    #          [95, 60, 110, 75]]
-    masks = {}
+    masks = []
+    masks_dict = {}
     boxes = boxes.copy()
-    size = image.shape[0]
-
-    # box = groundingdino_box_prompt(image, save_dir)
-    # if box is None:
-    #     box = [80, 110, 120, 150]
-    # boxes.append(box)
-
-    # print(boxes)
 
     for i, box in enumerate(boxes):
         # 将边界框转换为 [x_min, y_min, x_max, y_max]
         bbox_coords = np.array([box])  # 这里bbox_coords是一个二维数组
         # 使用边界框生成分割掩码
         mask, _, _ = predictor.predict(box=bbox_coords, multimask_output=False)
-        masks[labels[i]] = cv2.resize(mask[0].astype(np.uint8), (size, size), interpolation=cv2.INTER_NEAREST)
+        mask = mask[0].astype(np.uint8)
+        masks.append(mask)
 
-    return masks
+    remove_foreground_overlap(boxes, masks)
+    for i, box in enumerate(boxes):
+        masks_dict[labels[i]] = masks[i]
+        # plt.title(labels[i])
+        # plt.imshow(masks[i])
+        # plt.show()
+
+    return masks_dict
 
 
 # 使用CLIP对分割区域进行分类
@@ -491,7 +418,7 @@ if __name__ == "__main__":
     with h5py.File(file, 'r') as dataset:
         print(dataset.keys())
         # print(dataset['traj']['states'])
-        image_obs = dataset['states'][0]
+        image_obs = dataset['states'][3]
 
     image_obs = image_obs[7:].reshape(3, res, res) * 255 / 2 + 128
     image_obs = image_obs.astype(np.uint8)

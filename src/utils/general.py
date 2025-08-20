@@ -20,7 +20,7 @@ import collections
 from collections import OrderedDict
 
 
-class TopKMetricAverageMeter:
+class MetricAverageMeter:
     def __init__(self):
         self.metrics = {}  # key: metric name, value: list of values
 
