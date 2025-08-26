@@ -331,3 +331,77 @@ class FruitsSnacks(RealRobotSkillEnv):
         pos = [0.8024984602915509, -0.7170319747069731, -0.31783231969360565, -1.9078798450397978, -0.1717547503006375,
                1.3394796582349422, 0.9985520389668511]
         self._move_to(pos)
+
+
+class HeatBread(RealRobotSkillEnv):
+    SKILL_LIBRARY = ['open_microwave', 'close_microwave', 'set_time', 'move_bread_to_microwave',
+                     'move_bread_to_plate']
+
+    def __init__(self):
+        super().__init__()
+
+    def step(self, action: int):
+        assert self.action_space.contains(action), f"Invalid action: {action}"
+
+        # 执行对应技能
+        skill_fn = self.SKILL_LIBRARY[action]
+        print(skill_fn)
+
+        if action == 0:
+            self._open_microwave()
+        elif action == 1:
+            self._close_microwave()
+        elif action == 2:
+            self._set_time()
+        elif action == 3:
+            self._move_bread_to_microwave()
+        elif action == 4:
+            self._move_bread_to_plate()
+        else:
+            raise NotImplementedError
+
+        obs = self._get_observation()
+
+        reward = 0.0
+        done = False
+        info = {"skill": self.SKILL_LIBRARY[action]}
+
+        return obs, reward, done, info
+
+    def _open_microwave(self):
+        self._replay_trajectory('微波炉按钮_821_v3')
+        self._reset2default_position()
+
+    def _close_microwave(self):
+        self._replay_trajectory('关微波炉容错v3')
+        self._reset2default_position()
+
+    def _set_time(self):
+        self._replay_trajectory('move_to_switch_821')
+        self._grasp(0.005204739980399609)
+        self._replay_trajectory('switch_821')
+        self._release()
+
+        self._reset2default_position()
+
+    def _move_bread_to_microwave(self):
+        self._replay_trajectory('move_to_bread_821_v2')
+        self._grasp(0.026925303041934967)
+        self._replay_trajectory('place_bread_821_v2')
+        self._release()
+        self._replay_trajectory('leave_mircowave_v2')
+
+        self._reset2default_position()
+
+    def _move_bread_to_plate(self):
+        self._replay_trajectory('get_bread_from_micro_821')
+        self._grasp(0.026925303041934967)
+        self._replay_trajectory('place_bread_plate_821')
+        self._release()
+
+        self._reset2default_position()
+
+    def _reset2default_position(self):
+        pos = [0.8024984602915509, -0.7170319747069731, -0.31783231969360565, -1.9078798450397978, -0.1717547503006375,
+               1.3394796582349422, 0.9985520389668511]
+        self._move_to(pos)
