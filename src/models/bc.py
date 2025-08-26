@@ -162,16 +162,20 @@ class MultiStepsOneHotImagePriorBCModel(OneHotImagePriorBCModel):
     def __init__(self, hp, logger):
         super().__init__(hp, logger)
 
-        self.prior_head1 = self._build_prior_head(hp)
-        self.prior_head2 = self._build_prior_head(hp)
+        self.prior_head_1 = self._build_prior_head(hp)
+        self.prior_head_2 = self._build_prior_head(hp)
 
-    def forward(self, input):
+    def forward(self, input, future_output=False):
         if isinstance(input, AttrDict):
             output = AttrDict()
 
             img_embed = self.encoder(input.images)
             output.reconstruction = self.head(torch.cat([img_embed, input.skills], dim=-1))
-            output.prior = self.prior_head(self.prior_encoder(input.images))
+
+            enc = self.prior_encoder(input.images)
+            output.prior = self.prior_head(enc)
+            output.prior_1 = self.prior_head_1(enc)
+            output.prior_2 = self.prior_head_2(enc)
 
             output.prior_probs = torch.exp(output.prior)
             output.prior_entropy = -torch.sum(output.prior_probs * output.prior, dim=1).mean()
@@ -179,7 +183,9 @@ class MultiStepsOneHotImagePriorBCModel(OneHotImagePriorBCModel):
         else:
             # only prior output
             enc = self.prior_encoder(input)
-            return self.prior_head(enc), self.prior_head1(enc), self.prior_head2(enc)
+            if future_output:
+                return self.prior_head(enc), self.prior_head_1(enc), self.prior_head_2(enc)
+            return self.prior_head(enc)
 
     def loss(self, output, inputs):
         losses = AttrDict()
@@ -189,7 +195,9 @@ class MultiStepsOneHotImagePriorBCModel(OneHotImagePriorBCModel):
         # kl_loss = torch.nn.KLDivLoss(reduction='batchmean')
 
         losses.rec_mse = mse_loss(output.reconstruction, inputs.actions)
-        losses.prior = nll_loss(output.prior, inputs.skills.argmax(dim=-1))
+        losses.prior = nll_loss(output.prior, inputs.skills.argmax(dim=-1))\
+                        + nll_loss(output.prior_1, inputs.future_skills[:, 0].argmax(dim=-1))\
+                        + nll_loss(output.prior_2, inputs.future_skills[:, 1].argmax(dim=-1))
         # losses.prior = kl_loss(output.prior, self._smooth_one_hot(inputs.skills.argmax(dim=-1),
         #                                                           n_classes=self._hp.skill_dim,
         #                                                           smoothing=0.05))

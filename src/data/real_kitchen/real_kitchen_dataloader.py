@@ -5,27 +5,6 @@ from src.components.data_loader import Dataset
 import numpy as np
 from src.utils.general import AttrDict
 
-# TASKS_DICT = {
-#     'open_fridge': 0,
-#     'close_fridge': 1,
-#     'open_cab': 2,
-#     'store_mango': 3,
-#     'store_jello': 4,
-# }
-
-TASKS_DICT = {
-    'open_fridge': 0,
-    'close_fridge': 1,
-    'open_cab': 2,
-    'close_cab': 3,
-    'store_mango': 4,
-    'store_lemon': 5,
-    'store_orange': 6,
-    'store_cheezit': 7,
-    'store_jello': 8,
-    'end': 9
-}
-
 
 class RealKitchenDataset(Dataset):
     SPLIT = AttrDict(train=0.99, val=0.01, test=0.0)
@@ -42,7 +21,7 @@ class RealKitchenDataset(Dataset):
         print('loading files from', self.data_dir)
         self.filenames = self._get_filenames()
         self.dataset = self._get_samples_per_file(self.filenames)
-        self.skill_enc = np.eye(len(TASKS_DICT))
+        self.skill_enc = np.eye(len(self.spec.TASKS_DICT))
         # self.seqs = []
         self.size = 0
 
@@ -147,11 +126,16 @@ class RealKitchenDataset(Dataset):
         return images
 
     def _preprocess_skills(self, skills):
-        str2index = np.vectorize(lambda x: TASKS_DICT[x.decode('utf-8')])
+        str2index = np.vectorize(lambda x: self.spec.TASKS_DICT[x.decode('utf-8')])
         return str2index(skills)
 
 
 class MultiStepsRealKitchenDataset(RealKitchenDataset):
+
+    def __init__(self, data_dir, data_conf, phase, shuffle=True, dataset_size=-1):
+        super().__init__(data_dir, data_conf, phase, shuffle=True, dataset_size=-1)
+        self._add_future_skills()
+
     def __getitem__(self, index):
         seq = self._sample_seq()
         idx = np.random.randint(0, seq.actions.shape[0] - 1)
@@ -163,7 +147,7 @@ class MultiStepsRealKitchenDataset(RealKitchenDataset):
             images=seq.images[idx],
             actions=seq.actions[idx].astype(np.float32),
             skills=self.skill_enc[seq.skills[idx]].astype(np.float32),
-            next_skills=self.skill_enc[seq.next_skills[idx]],  # shape [n_future, num_skills]
+            future_skills=self.skill_enc[seq.next_skills[idx]],  # shape [n_future, num_skills]
         )
 
         return output
@@ -177,7 +161,7 @@ class MultiStepsRealKitchenDataset(RealKitchenDataset):
             T = len(skills)
 
             # 存储未来 n_future 个技能
-            next_skills = np.full((T, n_future), TASKS_DICT['end'], dtype=np.int64)
+            next_skills = np.full((T, n_future), self.spec.TASKS_DICT['end'], dtype=np.int64)
 
             for i in range(T):
                 current = skills[i]
@@ -191,7 +175,7 @@ class MultiStepsRealKitchenDataset(RealKitchenDataset):
 
                 # 如果没找到够的，就用 'end' 填充
                 while len(future) < n_future:
-                    future.append(TASKS_DICT['end'])
+                    future.append(self.spec.TASKS_DICT['end'])
 
                 next_skills[i] = future
 

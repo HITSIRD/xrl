@@ -3,8 +3,9 @@ import copy
 import numpy as np
 import torch
 from captum.attr import IntegratedGradients, GradientShap, GuidedGradCam, LayerGradCam, DeepLift, DeepLiftShap, LRP, \
-    Occlusion, GuidedBackprop, InputXGradient
+    Occlusion, GuidedBackprop, InputXGradient, Lime
 from captum.attr._utils.lrp_rules import EpsilonRule
+from tensorstore import dtype
 
 from src.utils.dist import kl_categorical
 from src.utils.image import gaussian_blur_perturb
@@ -46,7 +47,7 @@ def compute_lrp_saliency(policy, img, skill_idx):
 def compute_occlusion_saliency(policy, img, skill_idx):
     occ = Occlusion(policy)
     attr = occ.attribute(img, target=skill_idx.item(), sliding_window_shapes=(1, 10, 10), perturbations_per_eval=256,
-                          show_progress=True).detach().cpu().numpy()
+                         show_progress=True).detach().cpu().numpy()
 
     saliency_map = np.linalg.norm(attr, ord=2, axis=1).squeeze()
 
@@ -113,10 +114,10 @@ def compute_gradient_saliency(policy, img, skill_index):
     grad_output[0, skill_index] = 1.0  # 仅保留目标维度的梯度
     probs.backward(gradient=grad_output, retain_graph=True)
     # 提取输入图像的梯度
-    grad = img.grad.data.squeeze().cpu().numpy().mean(axis=0)
-    # saliency_map = np.linalg.norm(grad, ord=2, axis=1).squeeze()
+    grad = img.grad.data.cpu().numpy()
+    saliency_map = np.linalg.norm(grad, ord=2, axis=1).squeeze()
 
-    return grad
+    return saliency_map
 
 
 def compute_integrated_gradient_saliency(policy, img, skill_index):
@@ -161,9 +162,9 @@ def compute_integrated_gradient_saliency(policy, img, skill_index):
     # return saliency_maps, probs.flatten().detach().cpu().numpy()  # (H, W)
 
     ig = IntegratedGradients(policy)
-    saliency_maps = ig.attribute(img, target=skill_index.item(),
-                                 return_convergence_delta=False).squeeze().detach().cpu().numpy().mean(axis=0)
-    # saliency_maps = np.linalg.norm(saliency, ord=2, axis=1).squeeze()
+    saliency = ig.attribute(img, target=skill_index.item(),
+                            return_convergence_delta=False).detach().cpu().numpy()
+    saliency_maps = np.linalg.norm(saliency, ord=2, axis=1).squeeze()
 
     return saliency_maps
 
@@ -173,7 +174,7 @@ def compute_gradient_shap(policy, img, skill_index):
     baseline = torch.randn_like(img).to(device)  # 选择全零图像作为 baseline
     #
     attr = gs.attribute(img, target=skill_index.item(), baselines=baseline,
-                                 return_convergence_delta=False).detach().cpu().numpy()
+                        return_convergence_delta=False).detach().cpu().numpy()
     saliency_maps = np.linalg.norm(attr, ord=2, axis=1).squeeze()
 
     return saliency_maps
@@ -224,6 +225,17 @@ def compute_perturbation_saliency(policy, img, skill_idx, sigma=5, kernel_size=1
                 saliency_maps[i, j] = delta_probs[idx]
 
         return saliency_maps.cpu().numpy()
+
+
+def compute_lime_saliency(policy, img, skill_idx, feature_mask=None):
+    lime = Lime(policy)
+    feature_mask = torch.from_numpy(feature_mask.astype(np.int32)).to(device=device).unsqueeze(0).repeat(1, 3, 1, 1)
+    # print(torch.max(feature_mask))
+    attr = lime.attribute(img, target=skill_idx.item(), feature_mask=feature_mask, n_samples=10000,
+                          perturbations_per_eval=256,
+                          show_progress=True).detach().cpu().numpy()
+    saliency_maps = np.linalg.norm(attr, ord=2, axis=1).squeeze().squeeze()
+    return saliency_maps
 
 
 def compute_instance_influence(saliency, instance_masks, percentile=0.99):

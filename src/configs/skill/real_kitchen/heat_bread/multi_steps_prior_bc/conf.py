@@ -1,10 +1,10 @@
-from src.configs.default.real_kitchen import data_spec
-from src.configs.skill.real_kitchen.bc.conf import *
-from src.models.bc import OneHotImagePriorCompleteBCModel
+from src.configs.default.heat_bread import data_spec
+from src.configs.skill.real_kitchen.heat_bread.bc.conf import *
+from src.models.bc import MultiStepsOneHotImagePriorBCModel
 from src.utils.general import AttrDict
 
 configuration.update(AttrDict(
-    model=OneHotImagePriorCompleteBCModel,
+    model=MultiStepsOneHotImagePriorBCModel,
 ))
 
 model_config = AttrDict(
@@ -13,8 +13,11 @@ model_config = AttrDict(
     skill_dim=data_spec.n_skills,
     nz_enc=128,
     nz_mid=128,
+    # n_processing_layers=5,
+    # n_input_frames=1,
     img_enc_dim=128,
     prior_input_res=data_spec.res,
+    use_resnet=True
 )
 
 # Dataset

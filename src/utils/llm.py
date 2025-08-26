@@ -109,6 +109,8 @@ from langchain_core.output_parsers import StrOutputParser
 template = """
 你是一个智能体，负责解释一个机械臂的行为。机械臂在一个厨房的视觉环境中执行任务，机械臂的观测是RGB图像。机械臂需要根据观测从多个技能中选择一个并执行。
 
+当前的任务是完成厨房收纳，需要将水果依次放入冰箱中，然后将零食依次放入储藏柜中。
+
 现在你获得以下信息：
 1. 场景中出现的所有相关物体；
 2. 每个物体的显著性分数，表示该物体对机器人决策的重要性；
@@ -117,7 +119,8 @@ template = """
 你的任务是：
 - 根据技能索引和显著性列表，解释机器人当前为什么执行该技能；
 - 用简短的语言给出你的推理过程和解释理由；
-- 注意显著性结果和实际选择的技能可能存在偏差，并无完全相符，如果二者有较大偏差，需要给额外解释，用简短的语言表达。
+- 只需要对当前执行的技能进行解释；
+- 注意显著性结果和实际选择的技能可能存在偏差，不完全相符，如果显著性结果和技能输出相符，则无需额外解释，如果有较大偏差，需要给额外解释，用简短语言表达。
 
 场景物体：
 - 冰箱
@@ -138,6 +141,7 @@ template = """
 - 技能 6：收纳橙子  
 - 技能 7：收纳饼干
 - 技能 8：收纳草莓固体饮料
+- 技能 9: 结束
 
 输入示例：
 
@@ -148,15 +152,16 @@ template = """
 - Object 1 (芒果): 0.0796
 - Object 2 (橙子): 0.0552
 
-实例输出格式：
+示例输出格式：
 
-预测技能：打开冰箱
+当前技能：打开冰箱
+未来准备执行技能：收纳芒果，然后收纳柠檬
 推理过程：冰箱的显著性分数远高于其他物体，表明机械臂当前的注意力主要集中在冰箱上。
 
 ---
 
-现在，机械臂选择了技能索引{skill_index}，并且不同物体的重要性权重为：
-{score}
+当前，机械臂选择了技能索引{skill_index}，之后选择技能索引{skill_index_1},之后选择技能索引{skill_index_2}, 并且不同物体的重要性权重为：
+{score}。解释为：
 """
 
 prompt = PromptTemplate.from_template(template)
@@ -168,7 +173,7 @@ class FeastPromptTemplate(StringPromptTemplate):
 
 
 # prompt_template = FeastPromptTemplate(input_variables=["decision_path", "score"])
-prompt_template = FeastPromptTemplate(input_variables=["skill_index", "score"])
+prompt_template = FeastPromptTemplate(input_variables=["skill_index", "skill_index_1", "skill_index_2", "score"])
 
 model = ChatOpenAI(
     api_key="sk-KH82aab3b53176ce707cad1961fcc9491c39d4279cdad5zo",

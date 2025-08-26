@@ -1,20 +1,29 @@
-from src.data.real_kitchen.real_kitchen_dataloader import RealKitchenDataset
+from src.data.real_kitchen.real_kitchen_dataloader import RealKitchenDataset, MultiStepsRealKitchenDataset
 from src.utils.general import AttrDict
 
 data_spec = AttrDict(
     # dataset_class=GlobalSplitVideoDataset,
-    dataset_class=RealKitchenDataset,
+    dataset_class=MultiStepsRealKitchenDataset,
     n_actions=7,
     state_dim=7,
-    n_skills=9,
+    n_skills=5 + 1,
     # env_name="kitchen-mkbl-v0",
     split=AttrDict(train=0.99, val=0.01, test=0.0),
     res=256,
     # crop_rand_subseq=True,
     # max_seq_len = 100,
 
-    skill_labels=['open_fridge', 'close_fridge', 'open_cabinet', 'close_cabinet', 'store_mango', 'store_lemon', 'store_orange',
-            'store_cheezit', 'store_jello'],
+    TASKS_DICT={
+        'open_microwave': 0,
+        'close_microwave': 1,
+        'set_time': 2,
+        'move_bread_to_microwave': 3,
+        'move_bread_to_plate': 4,
+        'end': 5
+    },
+
+    skill_labels=['open_microwave', 'move_bread_to_microwave', 'close_microwave', 'set_time', 'open_microwave',
+                   'move_bread_to_plate', 'close_microwave', 'end'],
 
     objects=[["fridge",
               "cabinet",
@@ -155,6 +164,4 @@ data_spec = AttrDict(
                          'store_orange': ['fridge', 'mango', 'lemon', 'orange'],
                          'store_cheezit': ['cabinet', 'cheezit', 'jello'],
                          'store_jello': ['cabinet', 'cheezit', 'jello']},
-
-    gt_skill_index=[0, 1, 2, 3, 4, 5, 6, 7, 8]
 )

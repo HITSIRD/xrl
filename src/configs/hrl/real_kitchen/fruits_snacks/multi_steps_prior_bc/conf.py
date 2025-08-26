@@ -1,6 +1,6 @@
-from src.configs.hrl.real_kitchen.base_conf import *
-from src.configs.skill.real_kitchen.prior_bc.conf import model_config
-from src.models.bc import OneHotImagePriorBCModel
+from src.configs.hrl.real_kitchen.fruits_snacks.base_conf import *
+from src.configs.skill.real_kitchen.fruits_snacks.prior_bc.conf import model_config
+from src.models.bc import MultiStepsOneHotImagePriorBCModel
 from src.rl.components.sampler import ImageAugmentedSampler
 from src.rl.policies.deterministic_policy import DeterministicPolicy, PriorDeterministicPolicy
 from src.rl.policies.script_policy import ScriptPolicy
@@ -25,9 +25,10 @@ ll_policy_params = AttrDict(
     load_weights=True,
     policy_model_epoch=epoch,
     initial_log_sigma=-50,
-    policy_model=OneHotImagePriorBCModel,
+    policy_model=MultiStepsOneHotImagePriorBCModel,
     policy_model_params=ll_model_params,
-    policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"], "skill/real_kitchen/prior_bc/fruits-snacks/top50"),
+    policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
+                                         "skill/real_kitchen/fruits_snacks/multi_steps_prior_bc/top50"),
 )
 
 ll_policy_params.update(ll_model_params)

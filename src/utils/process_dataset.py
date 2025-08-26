@@ -6,7 +6,7 @@ from matplotlib import pyplot as plt
 from tqdm import tqdm
 
 
-def crop_and_resize(image: np.ndarray, size=256) -> np.ndarray:
+def crop_and_resize(image: np.ndarray, size=256, margin_up=80, margin_down=0) -> np.ndarray:
     """
     裁剪中央方形并缩放图像。
     """
@@ -15,13 +15,15 @@ def crop_and_resize(image: np.ndarray, size=256) -> np.ndarray:
     top = (h - min_side) // 2
     left = (w - min_side) // 2
 
-    crop_size = 80
-    cropped = image[top + crop_size:top + min_side, left + crop_size // 2:left + min_side - crop_size // 2]
+    crop_size = margin_up + margin_down
+    assert crop_size < min_side
+    cropped = image[
+        top + margin_up:top + min_side - margin_down, left + crop_size // 2:left + min_side - crop_size // 2]
     resized = cv2.resize(cropped, (size, size), interpolation=cv2.INTER_LANCZOS4)
     return resized
 
 
-def process_dataset(input_root: str, output_root: str):
+def process_dataset(input_root: str, output_root: str, margin_up=80, margin_down=0):
     os.makedirs(output_root, exist_ok=True)
 
     folders = [f for f in os.listdir(input_root) if os.path.isdir(os.path.join(input_root, f))]
@@ -44,7 +46,8 @@ def process_dataset(input_root: str, output_root: str):
             q = f['q'][()]
             images = f['rgb'][()]  # shape: (1000, 720, 1280, 3)
 
-        processed = np.stack([crop_and_resize(img) for img in images], axis=0)  # shape: (1000, 128, 128, 3)
+        processed = np.stack([crop_and_resize(img, margin_up=margin_up, margin_down=margin_down) for img in images],
+                             axis=0)  # shape: (1000, 128, 128, 3)
         # plt.imshow(processed[0])
         # plt.show()
 
@@ -58,7 +61,7 @@ def process_dataset(input_root: str, output_root: str):
         print(f"Saved {out_file}")
 
 
-def process_h5_skills(input_path, output_path, phase_names, phase_lengths, skip_first_opt):
+def process_h5_skills(input_path, output_path, phase_names, phase_lengths, start_opt):
     os.makedirs(output_path, exist_ok=True)
 
     files = [f for f in os.listdir(input_path) if f.endswith(".h5")]
@@ -69,7 +72,7 @@ def process_h5_skills(input_path, output_path, phase_names, phase_lengths, skip_
             skill = f_in['skill'][()]  # (N,)
             image = f_in['rgb'][()]  # (N, H, W, 3)
 
-        new_skill, idx = merge_skills(list(skill), phase_names, phase_lengths, skip_first_opt, max_len=50)
+        new_skill, idx = merge_skills(list(skill), phase_names, phase_lengths, start_opt, max_len=50)
         new_skill = np.array(new_skill, dtype='S')  # 转回 byte string
 
         # 保存新的文件
@@ -82,7 +85,7 @@ def process_h5_skills(input_path, output_path, phase_names, phase_lengths, skip_
         print(f"Processed: {fname}")
 
 
-def merge_skills(raw_skills, new_skill_names, merge_lengths, skip_first_opt, max_len=1000000):
+def merge_skills(raw_skills, new_skill_names, merge_lengths, start_opt, max_len=1000000):
     assert len(new_skill_names) == len(merge_lengths)
 
     last_skill = None
@@ -106,7 +109,9 @@ def merge_skills(raw_skills, new_skill_names, merge_lengths, skip_first_opt, max
             last_skill = skill
             changed = True
 
-        start = start | (skill.decode('utf-8') != skip_first_opt)
+        if not start:
+            flag = skill.decode('utf-8') == start_opt
+            start = start | flag
         if start:
             start_idx = min(i, start_idx)
             if changed:
@@ -127,7 +132,8 @@ def merge_skills(raw_skills, new_skill_names, merge_lengths, skip_first_opt, max
 def preview(path):
     last_skill = None
     with h5py.File(path, 'r') as f:
-        # plt.imsave("preview.png", f['rgb'][100])
+        plt.imshow(f['rgb'][100])
+        plt.show()
         print(f['pose'].shape)
         print(f['skill'].shape)
         print(f['q'].shape)
@@ -145,19 +151,31 @@ def preview(path):
 
 if __name__ == "__main__":
     # 替换为你的路径
-    INPUT_ROOT = "/home/wenyongyan/下载/dataset/fruits_snacks"
-    OUTPUT_ROOT = "/home/wenyongyan/下载/output/fruits_snacks"
-    output_dir = "/home/wenyongyan/文档/xrl/src/data/real_kitchen/fruits-snacks-50-v0"
+    task = 'heat_bread'
+    INPUT_ROOT = f"/home/wenyongyan/下载/dataset/{task}"
+    OUTPUT_ROOT = f"/home/wenyongyan/下载/output/{task}"
+    output_dir = "/home/wenyongyan/Projects/xrl/src/data/real_kitchen/heat-bread-50-v0"
 
-    # process_dataset(INPUT_ROOT, OUTPUT_ROOT)
+    # process_dataset(INPUT_ROOT, OUTPUT_ROOT, margin_up=20)
 
     # skill_sequence = ['开冰箱门', '靠近芒果', '芒果夹', '芒果抓', '放芒果', '松开', '离开冰箱', '关冰箱门', '开柜门', '靠近草莓jelly' ,
     #                   '草莓jelly抓取', '草莓jelly抓', '放jelly', '松开', '离开柜子']
     # phase_lengths = [1, 6, 1, 1, 6]
     # phase_names = ['open_fridge', 'store_mango', 'close_fridge', 'open_cab', 'store_jello']
 
-    phase_lengths = [2, 7, 7, 6, 2, 2, 7, 7, 1]
-    phase_names = ['open_fridge', 'store_mango', 'store_lemon', 'store_orange', 'close_fridge', 'open_cabinet', 'store_cheezit', 'store_jello', 'close_cabinet']
+    # fruits snacks
+    # phase_lengths = [2, 7, 7, 6, 2, 2, 7, 7, 1]
+    # phase_names = ['open_fridge', 'store_mango', 'store_lemon', 'store_orange', 'close_fridge', 'open_cabinet', 'store_cheezit', 'store_jello', 'close_cabinet']
 
-    process_h5_skills(OUTPUT_ROOT, output_dir, phase_names, phase_lengths, 'observation_pos')
-    preview(os.path.join(output_dir, "fruits_snacks_0.h5"))
+    # heat bread
+    phase_lengths = [2, 6, 2, 6, 2, 5, 2]
+    phase_names = ['open_microwave', 'move_bread_to_microwave', 'close_microwave', 'set_time', 'open_microwave',
+                   'move_bread_to_plate', 'close_microwave']
+
+    process_h5_skills(OUTPUT_ROOT, output_dir, phase_names, phase_lengths, '微波炉按钮')
+    preview(os.path.join(output_dir, f"{task}_0.h5"))
+    # preview(os.path.join(OUTPUT_ROOT, f"{task}_0.h5"))
+    # preview(os.path.join(OUTPUT_ROOT, f"{task}_1.h5"))
+    # preview(os.path.join(OUTPUT_ROOT, f"{task}_2.h5"))
+    # preview(os.path.join(OUTPUT_ROOT, f"{task}_3.h5"))
+    # preview(os.path.join(OUTPUT_ROOT, f"{task}_4.h5"))

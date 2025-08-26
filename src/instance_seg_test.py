@@ -21,14 +21,16 @@ from depth_anything_v2.dpt import DepthAnythingV2
 sam2_path = os.path.dirname(sam2.__file__)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# 初始化SAM模型
-# def initialize_sam(sam_checkpoint="/home/wenyongyan/下载/sam_vit_h_4b8939.pth", model_type="vit_h", device="cuda"):
-#     sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
-#     sam.to(device=device)
-#     return SamPredictor(sam)
 
-# sam = sam_model_registry["vit_h"](checkpoint="/home/wenyongyan/下载/sam_vit_h_4b8939.pth")
-# sam.to(device)
+# 初始化SAM模型
+def initialize_sam(sam_checkpoint="/home/wenyongyan/下载/sam_vit_h_4b8939.pth", model_type="vit_h", device="cuda"):
+    sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
+    sam.to(device=device)
+    return SamPredictor(sam)
+
+
+sam = sam_model_registry["vit_h"](checkpoint="/home/wenyongyan/下载/sam_vit_h_4b8939.pth")
+sam.to(device)
 
 checkpoint = "/home/wenyongyan/下载/sam2.1_hiera_large.pt"
 model_cfg = 'configs/sam2.1/sam2.1_hiera_l.yaml'
@@ -44,11 +46,12 @@ model_configs = {
     'vitg': {'encoder': 'vitg', 'features': 384, 'out_channels': [1536, 1536, 1536, 1536]}
 }
 
-encoder = 'vitl' # or 'vits', 'vitb', 'vitg'
+encoder = 'vitl'  # or 'vits', 'vitb', 'vitg'
 
 model = DepthAnythingV2(**model_configs[encoder])
 model.load_state_dict(torch.load(f'depth_anything_v2/checkpoints/depth_anything_v2_{encoder}.pth', map_location='cpu'))
 model = model.to(device).eval()
+
 
 # 初始化CLIP模型
 def initialize_clip(model_name="openai/clip-vit-base-patch32", device="cuda"):
@@ -66,12 +69,14 @@ def get_image_embedding(image_path, clip_model, preprocess, device):
         embedding /= embedding.norm(dim=-1, keepdim=True)
     return embedding
 
+
 def get_average_embedding(image_paths, clip_model, preprocess, device):
     """提取多张参考图的平均特征"""
     embeddings = [get_image_embedding(p, clip_model, preprocess, device) for p in image_paths]
     avg_embedding = torch.stack(embeddings).mean(dim=0)
     avg_embedding /= avg_embedding.norm(dim=-1, keepdim=True)
     return avg_embedding
+
 
 def detect_candidates_with_dino(model, image_path, caption="object", box_threshold=0.1, text_threshold=0.1):
     """用 GroundingDINO 检测候选框"""
@@ -90,12 +95,15 @@ def detect_candidates_with_dino(model, image_path, caption="object", box_thresho
 
     return image_source, boxes
 
+
 def get_depth(img):
     return model.infer_image(img)
+
 
 def box_inside(inner, outer):
     return (inner[0] >= outer[0] and inner[1] >= outer[1] and
             inner[2] <= outer[2] and inner[3] <= outer[3])
+
 
 def remove_foreground_overlap(boxes, masks):
     n = len(boxes)
@@ -111,6 +119,7 @@ def remove_foreground_overlap(boxes, masks):
                 masks_visible[j] = masks_visible[j] & (~masks[i])
 
     return masks_visible
+
 
 def groundingdino_box_prompt(image, save_dir=None):
     # TEXT_PROMPT = "kettle . microwave ."
@@ -182,44 +191,46 @@ def _process_box(box):
 
 
 # 使用SAM生成分割掩码
-def generate_masks_with_sam(image, labels, boxes=None, save_dir=None):
+def generate_masks_with_sam(image, labels=None, boxes=None, combined=False, save_dir=None):
     """
     使用SAM生成图像中的所有分割掩码
     """
-    # plt.imsave(f'original_image_{frame}.png', image)  # 转换 BGR 到 RGB
-    # plt.imsave(f'upscale_image_{frame}.png', image_obs)  # 转换 BGR 到 RGB
-
-    # predictor.set_image(image)
-    # masks, _, _ = predictor.predict()
-
-    # sam = sam_model_registry["vit_h"](checkpoint="/home/wenyongyan/下载/sam_vit_h_4b8939.pth")
-    # sam.to(device)
-
     # mask_generator = SamAutomaticMaskGenerator(model=sam, pred_iou_thresh=0.95, box_nms_thresh=0.1, crop_nms_thresh=0.5,
     #                                            crop_n_layers=1, min_mask_region_area=50)
     # masks = mask_generator.generate(image_obs)
 
     predictor.set_image(image)
-    masks = []
-    masks_dict = {}
-    boxes = boxes.copy()
 
-    for i, box in enumerate(boxes):
-        # 将边界框转换为 [x_min, y_min, x_max, y_max]
-        bbox_coords = np.array([box])  # 这里bbox_coords是一个二维数组
-        # 使用边界框生成分割掩码
-        mask, _, _ = predictor.predict(box=bbox_coords, multimask_output=False)
-        mask = mask[0].astype(np.uint8)
-        masks.append(mask)
+    if boxes is None:
+        # masks, _, _ = predictor.predict()
 
-    remove_foreground_overlap(boxes, masks)
-    for i, box in enumerate(boxes):
-        masks_dict[labels[i]] = masks[i]
-        # plt.title(labels[i])
-        # plt.imshow(masks[i])
-        # plt.show()
+        mask_generator = SamAutomaticMaskGenerator(model=sam)
+        masks = mask_generator.generate(image)
 
-    return masks_dict
+        if combined:
+            return combine_masks(masks)
+        return masks
+    else:
+        masks = []
+        masks_dict = {}
+        boxes = boxes.copy()
+
+        for i, box in enumerate(boxes):
+            # 将边界框转换为 [x_min, y_min, x_max, y_max]
+            bbox_coords = np.array([box])  # 这里bbox_coords是一个二维数组
+            # 使用边界框生成分割掩码
+            mask, _, _ = predictor.predict(box=bbox_coords, multimask_output=False)
+            mask = mask[0].astype(np.uint8)
+            masks.append(mask)
+
+        remove_foreground_overlap(boxes, masks)
+        for i, box in enumerate(boxes):
+            masks_dict[labels[i]] = masks[i]
+            # plt.title(labels[i])
+            # plt.imshow(masks[i])
+            # plt.show()
+
+        return masks_dict
 
 
 # 使用CLIP对分割区域进行分类
@@ -312,49 +323,15 @@ def visualize_results(image, results):
     plt.show()
 
 
-def shadow_suppression(img):
-    """
-    三阶段阴影抑制处理
-    """
-    # 阶段1: 自适应直方图均衡化
-    lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
-    l, a, b = cv2.split(lab)
-    clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
-    l_eq = clahe.apply(l)
-    lab_eq = cv2.merge((l_eq, a, b))
-    img_eq = cv2.cvtColor(lab_eq, cv2.COLOR_LAB2BGR)
+def combine_masks(mask_list):
+    h, w = mask_list[0]['segmentation'].shape
+    combined = np.zeros((h, w), dtype=np.uint8)  # 初始化为0，表示背景
 
-    # 阶段2: 饱和度增强
-    hsv = cv2.cvtColor(img_eq, cv2.COLOR_BGR2HSV)
-    hsv[:, :, 1] = np.clip(hsv[:, :, 1] * 1.5, 0, 255).astype(np.uint8)
+    for i, mask in enumerate(mask_list, start=1):
+        # 用 i 表示第 i 个 mask 区域
+        combined[mask['segmentation']] = i
 
-    # 阶段3: 阴影区域弱化
-    _, light_mask = cv2.threshold(l_eq, 0, 255,
-                                  cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    shadow_mask = cv2.bitwise_not(light_mask)
-    hsv[:, :, 2] = np.where(shadow_mask > 0,
-                            hsv[:, :, 2] * 0.8,
-                            hsv[:, :, 2])
-
-    return cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
-
-
-def is_shadow_region(mask, image_hsv,
-                     brightness_thresh=60,
-                     saturation_thresh=30):
-    """
-    基于HSV特征的阴影区域检测
-    """
-    # 提取掩码区域的HSV特征
-    mask_area = image_hsv[mask['segmentation'] > 0]
-    avg_brightness = np.mean(mask_area[:, 2])
-    avg_saturation = np.mean(mask_area[:, 1])
-
-    # 阴影判断规则
-    if avg_brightness < brightness_thresh and \
-            avg_saturation < saturation_thresh:
-        return True
-    return False
+    return combined
 
 
 def visualize_masks(masks, image):
@@ -363,7 +340,7 @@ def visualize_masks(masks, image):
     # 为每个 mask 分配一种随机颜色
     for i, mask in enumerate(masks):
         color = [random.randint(0, 255) for _ in range(3)]  # 随机颜色
-        mask_overlay[mask[0] > 0] = color  # 应用颜色到 mask 区域
+        mask_overlay[mask['segmentation'] > 0] = color  # 应用颜色到 mask 区域
 
     # 将 mask 叠加到原图上
     blended_image = cv2.addWeighted(image, 0.7, mask_overlay, 0.3, 0)
@@ -376,27 +353,17 @@ def visualize_masks(masks, image):
     plt.show()
 
 
-def filter_shadow_masks(masks, image):
-    """
-    过滤阴影掩码
-    """
-    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-    valid_masks = []
-    for mask in masks:
-        if not is_shadow_region(mask, hsv):
-            valid_masks.append(mask)
-    return valid_masks
-
-
 def main(image, labels):
     # 初始化模型
     # sam_predictor = initialize_sam(device=device)
     # clip_model, clip_processor = initialize_clip(device=device)
 
-    groundingdino_box_prompt(image)
+    # groundingdino_box_prompt(image)
 
     # 使用SAM生成分割掩码
-    masks = generate_masks_with_sam(image, labels)
+    # masks = generate_masks_with_sam(image, labels)
+
+    masks = generate_masks_with_sam(image)
 
     visualize_masks(masks, image)
 
@@ -413,7 +380,7 @@ def main(image, labels):
 if __name__ == "__main__":
     res = 256
 
-    file = 'src/experiments/hrl/real_kitchen/prior_bc/fruits_snacks_top50/sample_rollout_0.h5'
+    file = 'src/experiments/hrl/real_kitchen/fruits_snacks/multi_steps_prior_bc/top50/sample_rollout_0.h5'
 
     with h5py.File(file, 'r') as dataset:
         print(dataset.keys())

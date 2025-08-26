@@ -1,5 +1,5 @@
-from src.configs.default.real_kitchen import data_spec
-from src.configs.skill.real_kitchen.bc.conf import *
+from src.configs.default.fruits_snacks import data_spec
+from src.configs.skill.real_kitchen.fruits_snacks.bc.conf import *
 from src.models.bc import OneHotImagePriorBCModel
 from src.utils.general import AttrDict
 

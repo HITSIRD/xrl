@@ -26,7 +26,7 @@ from src.utils.pytorch import no_batchnorm_update
 from src.utils.saliency import compute_integrated_gradient_saliency, compute_gradient_saliency, compute_gradient_shap, \
     compute_perturbation_saliency, compute_gradCAM_saliency, compute_deeplift_saliency, compute_deepSHAP_saliency, \
     compute_lrp_saliency, compute_occlusion_saliency, compute_instance_influence, compute_guided_backprop_saliency, \
-    compute_input_x_gradient_saliency
+    compute_input_x_gradient_saliency, compute_lime_saliency
 from src.utils.video import create_video_from_pdfs_and_markdowns
 from src.utils.render import render_mujoco_object_masks
 from src.utils.general import MetricAverageMeter
@@ -57,7 +57,7 @@ class InstanceInfluence:
         self.metric = MetricAverageMeter()
 
         self.dynamic_objects = get_depth(self.objects) > 1
-        self.lang_exp = True
+        self.lang_exp = False
 
         for i in range(self.args.n_episode):
             self.args.episode_idx = i
@@ -163,7 +163,10 @@ class InstanceInfluence:
                     # results = classify_with_clip(clip_model, clip_processor, img, masks, self.candidate_labels)
 
                     dist = policy.net(processed_img).flatten().detach().cpu().numpy()
-                    saliency = self.compute_saliency(policy.net, processed_img, skill_index)
+                    _, dist_1, dist_2 = policy.net.compute_learned_prior(processed_img)
+                    skill_index_1, skill_index_2 = dist_1.rsample().item(), dist_2.rsample().item()
+
+                    saliency = self.compute_saliency(policy.net, processed_img, skill_index, original_img=img)
                     saliency = self._normalize_saliency(saliency)
                     influence = compute_instance_influence(saliency, masks)  # (N, K)
 
@@ -171,9 +174,12 @@ class InstanceInfluence:
                 self.visualize_dimension_influence(img, masks, saliency, influence, dist, skill_index, hl_step)
 
                 influence_str = ""
-                for i, (object, obj_influence) in enumerate(
-                        zip(self.objects, influence)):
-                    influence_str += f'Object {i} ({object}): {obj_influence:.3f}\n'
+                if self.dynamic_objects:
+                    for i, (object, obj_influence) in enumerate(zip(self.objects[skill_index], influence)):
+                        influence_str += f'Object {i} ({object}): {obj_influence:.3f}\n'
+                else:
+                    for i, (object, obj_influence) in enumerate(zip(self.objects, influence)):
+                        influence_str += f'Object {i} ({object}): {obj_influence:.3f}\n'
 
                 # print(influence_str)
                 eval = self._evaluate(influence, skill_index)
@@ -182,7 +188,8 @@ class InstanceInfluence:
 
                 if self.lang_exp:
                     explanation = chain.invoke(
-                        prompt_template.format(skill_index=skill_index, score=influence_str))
+                        prompt_template.format(skill_index=skill_index, skill_index_1=skill_index_1,
+                                               skill_index_2=skill_index_2, score=influence_str))
                     print(explanation)
                     self.save_explanation(explanation, hl_step)
 
@@ -258,7 +265,7 @@ class InstanceInfluence:
         plt.savefig(f'{self.args.save_dir}/instance_influence_{index}.pdf')
         plt.close()
 
-    def compute_saliency(self, policy, processed_img, skill_idx):
+    def compute_saliency(self, policy, processed_img, skill_idx, original_img=None):
         if self.args.exp_method == 'ig':
             return compute_integrated_gradient_saliency(policy, processed_img, skill_idx)
         elif self.args.exp_method == 'gradient':
@@ -283,6 +290,9 @@ class InstanceInfluence:
             return compute_lrp_saliency(policy, processed_img, skill_idx)
         elif self.args.exp_method == 'occlusion':
             return compute_occlusion_saliency(policy, processed_img, skill_idx)
+        elif self.args.exp_method == 'lime':
+            return compute_lime_saliency(policy, processed_img, skill_idx,
+                                         generate_masks_with_sam(original_img, combined=True))
         else:
             raise Exception(f'unsupported explanation method {self.args.exp_method}')
 
