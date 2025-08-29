@@ -120,11 +120,11 @@ class InstanceInfluence:
         # initialize clip model
         # clip_model, clip_processor = initialize_clip(device=self.device)
 
-        # encoder = self.agent.hl_agent.policy.net.img_encoder_p
         policy = self.agent.hl_agent.policy
-        # num_skill = self.conf.agent.hl_agent_params.policy_params.skill_dim
         hl_step = 0
         result = []
+        if hasattr(policy.net, 'reset_hidden_state'):
+            policy.net.reset_hidden_state()
 
         for i in range(len(episode['observation'])):
             if episode['is_hl_step'][i]:

@@ -1,5 +1,5 @@
 from src.configs.hrl.real_kitchen.fruits_snacks.base_conf import *
-from src.configs.skill.real_kitchen.fruits_snacks.prior_bc.conf import model_config
+from src.configs.skill.real_kitchen.fruits_snacks.multi_steps_prior_bc.conf import model_config
 from src.models.bc import MultiStepsOneHotImagePriorBCModel
 from src.rl.components.sampler import ImageAugmentedSampler
 from src.rl.policies.deterministic_policy import DeterministicPolicy, PriorDeterministicPolicy

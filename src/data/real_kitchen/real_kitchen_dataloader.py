@@ -70,6 +70,8 @@ class RealKitchenDataset(Dataset):
                         data.actions = F[name][()].astype(np.float32)
                     if name == 'skill':
                         data.skills = self._preprocess_skills(F[name][()])
+                    if name == 'rgb':
+                        pass
                     else:
                         data[name] = F[name][()]
 
@@ -133,15 +135,13 @@ class RealKitchenDataset(Dataset):
 class MultiStepsRealKitchenDataset(RealKitchenDataset):
 
     def __init__(self, data_dir, data_conf, phase, shuffle=True, dataset_size=-1):
-        super().__init__(data_dir, data_conf, phase, shuffle=True, dataset_size=-1)
+        super().__init__(data_dir, data_conf, phase, shuffle=shuffle, dataset_size=dataset_size)
+        self.n_future = 2
         self._add_future_skills()
 
     def __getitem__(self, index):
         seq = self._sample_seq()
         idx = np.random.randint(0, seq.actions.shape[0] - 1)
-
-        # 当前 skill
-        skill0 = seq.skills[idx]
 
         output = AttrDict(
             images=seq.images[idx],
@@ -152,31 +152,158 @@ class MultiStepsRealKitchenDataset(RealKitchenDataset):
 
         return output
 
-    def _add_future_skills(self, n_future=2):
+    def _add_future_skills(self):
         """为每个 sequence 增加 future skills 信息"""
-        assert n_future >= 1
+        assert self.n_future >= 1
 
         for data in self.dataset:
             skills = data.skills  # shape [T]
             T = len(skills)
 
             # 存储未来 n_future 个技能
-            next_skills = np.full((T, n_future), self.spec.TASKS_DICT['end'], dtype=np.int64)
+            next_skills = np.full((T, self.n_future), self.spec.TASKS_DICT['end'], dtype=np.int64)
 
             for i in range(T):
                 current = skills[i]
                 future = []
                 j = i + 1
                 # 找到后续变化的技能
-                while j < T and len(future) < n_future:
+                while j < T and len(future) < self.n_future:
                     if skills[j] != skills[j - 1]:
                         future.append(skills[j])
                     j += 1
 
                 # 如果没找到够的，就用 'end' 填充
-                while len(future) < n_future:
+                while len(future) < self.n_future:
                     future.append(self.spec.TASKS_DICT['end'])
 
                 next_skills[i] = future
 
             data.next_skills = next_skills  # shape [T, n_future]
+
+
+class SequenceRealKitchenDataset(RealKitchenDataset):
+    def __init__(self, data_dir, data_conf, phase, shuffle=True, dataset_size=-1):
+        super().__init__(data_dir, data_conf, phase, shuffle=shuffle, dataset_size=dataset_size)
+        self.max_seq_len = data_conf.dataset_spec.max_seq_len
+        self.segments = []
+
+        for traj in self.dataset:
+            self.segments.append(self._split_by_skill(traj['skills']))
+
+    def _split_by_skill(self, skills):
+        segments = []
+        prev_skill = skills[0]
+        start = 0
+        for t in range(1, len(skills)):
+            if skills[t] != prev_skill:
+                segments.append((prev_skill, start, t))  # skill, start_idx, end_idx
+                prev_skill = skills[t]
+                start = t
+        segments.append((prev_skill, start, len(skills)))
+        return segments
+
+    def __getitem__(self, index):
+        traj_idx = np.random.randint(len(self.dataset))
+        traj = self.dataset[traj_idx]
+        images, actions, skills = traj["images"], traj["actions"], traj["skills"]
+
+        segments = self.segments[traj_idx]
+        skill_imgs, skill_actions, skill_labels = [], [], []
+
+        idx = np.random.randint(0, segments[0][2] - segments[0][1])
+        for (skill, start, end) in segments:
+            skill_imgs.append(images[start + idx])  # (C,H,W)
+            skill_actions.append(actions[start + idx])  # (C,H,W)
+            skill_labels.append(skill)
+
+        start_idx = np.random.randint(0, len(skill_labels) - 2)
+        skill_imgs = skill_imgs[start_idx:]
+        skill_labels = skill_labels[start_idx:]
+        skill_actions = skill_actions[start_idx:]
+
+        if len(skill_labels) >= self.max_seq_len:
+            skill_imgs = skill_imgs[:self.max_seq_len]
+            skill_labels = skill_labels[:self.max_seq_len]
+            skill_actions = skill_actions[:self.max_seq_len]
+            pad_mask = np.ones(self.max_seq_len, dtype=np.float32)
+        else:
+            pad_len = self.max_seq_len - len(skill_labels)
+            pad_mask = np.array([1] * len(skill_imgs) + [0] * pad_len, dtype=np.float32)
+            skill_imgs.extend([np.zeros(skill_imgs[0].shape, dtype=np.float32)] * pad_len)
+            skill_actions.extend([np.zeros(skill_actions[0].shape, dtype=np.float32)] * pad_len)
+            skill_labels.extend([self.spec.TASKS_DICT['end']] * pad_len)
+
+        skill_imgs = np.stack(skill_imgs)  # (max_seq_len, C, H, W)
+        skill_actions = np.stack(skill_actions)
+        skill_labels = self.skill_enc[np.array(skill_labels)]  # (max_seq_len, num_classes)
+
+        return AttrDict(
+            images=skill_imgs,
+            actions=skill_actions.astype(np.float32),
+            skills=skill_labels.astype(np.float32),
+            pad_mask=pad_mask
+        )
+
+
+class MultiStepsSequenceRealKitchenDataset(SequenceRealKitchenDataset, MultiStepsRealKitchenDataset):
+
+    def __getitem__(self, index):
+        traj_idx = np.random.randint(len(self.dataset))
+        traj = self.dataset[traj_idx]
+        images, actions, skills = traj["images"], traj["actions"], traj["skills"]
+
+        segments = self.segments[traj_idx]
+        skill_imgs, skill_actions, skill_labels = [], [], []
+
+        idx = np.random.randint(0, segments[0][2] - segments[0][1])
+        for (skill, start, end) in segments:
+            skill_imgs.append(images[start + idx])  # (C,H,W)
+            skill_actions.append(actions[start + idx])  # (C,H,W)
+            skill_labels.append(skill)
+
+        start_idx = np.random.randint(0, len(skill_labels) - self.n_future)
+        skill_imgs = skill_imgs[start_idx:]
+        skill_labels = skill_labels[start_idx:]
+        skill_actions = skill_actions[start_idx:]
+
+        # future skill list
+        future_skills_list = []
+        for step in range(start_idx + 1, start_idx + self.n_future + 1):
+            future_skills = skill_labels[step:]
+            future_skills_list.append(future_skills)
+
+        if len(skill_labels) >= self.max_seq_len:
+            skill_imgs = skill_imgs[:self.max_seq_len]
+            skill_labels = skill_labels[:self.max_seq_len]
+            skill_actions = skill_actions[:self.max_seq_len]
+            pad_mask = np.ones(self.max_seq_len, dtype=np.float32)
+        else:
+            pad_len = self.max_seq_len - len(skill_labels)
+            pad_mask = np.array([1] * len(skill_imgs) + [0] * pad_len, dtype=np.float32)
+            skill_imgs.extend([np.zeros(skill_imgs[0].shape, dtype=np.float32)] * pad_len)
+            skill_actions.extend([np.zeros(skill_actions[0].shape, dtype=np.float32)] * pad_len)
+            skill_labels.extend([self.spec.TASKS_DICT['end']] * pad_len)
+
+        for i in range(len(future_skills_list)):
+            if len(future_skills_list[i]) >= self.max_seq_len:
+                future_skills_list[i] = future_skills_list[i][:self.max_seq_len]
+            else:
+                future_skills_list[i].extend(
+                    [self.spec.TASKS_DICT['end']] * (self.max_seq_len - len(future_skills_list[i])))
+
+        skill_imgs = np.stack(skill_imgs)  # (max_seq_len, C, H, W)
+        skill_actions = np.stack(skill_actions)
+        skill_labels = self.skill_enc[np.array(skill_labels)]  # (max_seq_len, num_classes)
+        future_skills_array = np.stack([
+            self.skill_enc[np.array(future_skills)]
+            for future_skills in future_skills_list
+        ])
+
+        return AttrDict(
+            images=skill_imgs,
+            actions=skill_actions.astype(np.float32),
+            skills=skill_labels.astype(np.float32),
+            future_skills=future_skills_array.astype(np.float32),
+            pad_mask=pad_mask
+        )

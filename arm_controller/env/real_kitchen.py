@@ -1,9 +1,8 @@
 import gym
-import panda_py
+# import panda_py
 from gym import spaces
 import numpy as np
 import cv2
-from traits.trait_types import self
 
 from arm_controller.configs.config import ARM_URL
 from arm_controller.src.controllers.camera import Camera
@@ -343,7 +342,6 @@ class HeatBread(RealRobotSkillEnv):
     def step(self, action: int):
         assert self.action_space.contains(action), f"Invalid action: {action}"
 
-        # 执行对应技能
         skill_fn = self.SKILL_LIBRARY[action]
         print(skill_fn)
 

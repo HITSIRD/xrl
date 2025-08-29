@@ -83,7 +83,6 @@ class OneHotImagePriorBCModel(OneHotImageBCModel):
         super().__init__(hp, logger)
 
         self.prior_encoder = self.build_encoder()
-
         self.prior_head = self._build_prior_head(hp)
 
     def _build_prior_head(self, hp):
@@ -105,7 +104,7 @@ class OneHotImagePriorBCModel(OneHotImageBCModel):
             output.prior = self.prior_head(self.prior_encoder(input.images))
 
             output.prior_probs = torch.exp(output.prior)
-            output.prior_entropy = -torch.sum(output.prior_probs * output.prior, dim=1).mean()
+            output.prior_entropy = -torch.sum(output.prior_probs * output.prior, dim=-1).mean()
             return output
         else:
             # only prior output
@@ -158,6 +157,82 @@ class OneHotImagePriorBCModel(OneHotImageBCModel):
             self._logger.visualize(model_output, inputs, losses, step, phase, logger, **logging_kwargs)
 
 
+class SequenceOneHotImagePriorBCModel(OneHotImagePriorBCModel):
+    def __init__(self, hp, logger):
+        super().__init__(hp, logger)
+
+        # GRU for sequence modeling
+        self.gru = nn.GRU(
+            input_size=hp.img_enc_dim,
+            hidden_size=hp.rnn_hidden_dim,
+            num_layers=hp.rnn_num_layers,
+            batch_first=True
+        )
+
+        self._hidden_state = None
+
+    def _build_prior_head(self, hp):
+        return nn.Sequential(
+            nn.Linear(hp.rnn_hidden_dim, 256),
+            nn.ReLU(),
+            nn.Linear(256, 256),
+            nn.ReLU(),
+            nn.Linear(256, hp.skill_dim),
+            nn.LogSoftmax(dim=-1)
+        )
+
+    def forward(self, input):
+        """
+        inputs.images: [B, T, C, H, W]
+        inputs.skills: [B, T, skill_dim]
+        inputs.pad_mask: [B, T]
+        """
+        if isinstance(input, AttrDict):
+            output = AttrDict()
+
+            B, T = input.images.shape[:2]
+
+            img_embed = self.encoder(input.images.view(B * T, *input.images.shape[2:]))
+            output.reconstruction = self.head(
+                torch.cat([img_embed, input.skills.view(B * T, *input.skills.shape[2:])], dim=-1))
+
+            prior_img_embed = self.prior_encoder(input.images.view(B * T, *input.images.shape[2:]))
+            prior_img_embed, _ = self.gru(prior_img_embed.view(B, T, -1))
+            output.prior = self.prior_head(prior_img_embed)
+
+            output.prior_probs = torch.exp(output.prior)
+            output.prior_entropy = -torch.sum(output.prior_probs * output.prior, dim=-1).mean()
+            return output
+        else:
+            # only prior output
+            self._forward_single_step(input)
+
+    def _forward_single_step(self, image):
+        img_feature = self.prior_encoder(image)
+        gru_output, self.hidden_state = self.gru(img_feature, self.hidden_state)
+        return self.prior_head(gru_output)
+
+    def reset_hidden_state(self):
+        """重置隐藏状态"""
+        self.hidden_state = None
+
+    def loss(self, output, inputs):
+        losses = AttrDict()
+        B, T, C = output.prior.shape
+
+        mse_loss = torch.nn.MSELoss()
+        nll_loss = torch.nn.NLLLoss()
+
+        losses.rec_mse = mse_loss(output.reconstruction, inputs.actions.view(B * T, *inputs.actions.shape[2:]))
+        losses.prior = nll_loss(output.prior.reshape(B * T, C), inputs.skills.argmax(dim=-1).reshape(B * T))
+
+        losses.total = losses.rec_mse + losses.prior
+        return losses
+
+    def compute_learned_prior(self, obs):
+        return Categorical(logits=self._forward_single_step(obs))
+
+
 class MultiStepsOneHotImagePriorBCModel(OneHotImagePriorBCModel):
     def __init__(self, hp, logger):
         super().__init__(hp, logger)
@@ -192,15 +267,11 @@ class MultiStepsOneHotImagePriorBCModel(OneHotImagePriorBCModel):
 
         mse_loss = torch.nn.MSELoss()
         nll_loss = torch.nn.NLLLoss()
-        # kl_loss = torch.nn.KLDivLoss(reduction='batchmean')
 
         losses.rec_mse = mse_loss(output.reconstruction, inputs.actions)
-        losses.prior = nll_loss(output.prior, inputs.skills.argmax(dim=-1))\
-                        + nll_loss(output.prior_1, inputs.future_skills[:, 0].argmax(dim=-1))\
-                        + nll_loss(output.prior_2, inputs.future_skills[:, 1].argmax(dim=-1))
-        # losses.prior = kl_loss(output.prior, self._smooth_one_hot(inputs.skills.argmax(dim=-1),
-        #                                                           n_classes=self._hp.skill_dim,
-        #                                                           smoothing=0.05))
+        losses.prior = nll_loss(output.prior, inputs.skills.argmax(dim=-1)) \
+                       + nll_loss(output.prior_1, inputs.future_skills[:, 0].argmax(dim=-1)) \
+                       + nll_loss(output.prior_2, inputs.future_skills[:, 1].argmax(dim=-1))
 
         losses.total = losses.rec_mse + losses.prior
         return losses
@@ -210,6 +281,73 @@ class MultiStepsOneHotImagePriorBCModel(OneHotImagePriorBCModel):
         logits_0 = self.prior_head(enc)
         logits_1 = self.prior_head_1(enc)
         logits_2 = self.prior_head_2(enc)
+        return Categorical(logits=logits_0), Categorical(logits=logits_1), Categorical(logits=logits_2)
+
+
+class MultiStepsSequenceOneHotImagePriorBCModel(SequenceOneHotImagePriorBCModel):
+    def __init__(self, hp, logger):
+        super().__init__(hp, logger)
+
+        self.prior_head_1 = self._build_prior_head(hp)
+        self.prior_head_2 = self._build_prior_head(hp)
+
+    def forward(self, input, future_output=False):
+        """
+        inputs.images: [B, T, C, H, W]
+        inputs.skills: [B, T, skill_dim]
+        inputs.pad_mask: [B, T]
+        """
+        if isinstance(input, AttrDict):
+            output = AttrDict()
+
+            B, T = input.images.shape[:2]
+
+            img_embed = self.encoder(input.images.view(B * T, *input.images.shape[2:]))
+            output.reconstruction = self.head(
+                torch.cat([img_embed, input.skills.view(B * T, *input.skills.shape[2:])], dim=-1))
+
+            prior_img_embed = self.prior_encoder(input.images.view(B * T, *input.images.shape[2:]))
+            prior_img_embed, _ = self.gru(prior_img_embed.view(B, T, -1))
+            output.prior = self.prior_head(prior_img_embed)
+            output.prior_1 = self.prior_head_1(prior_img_embed)
+            output.prior_2 = self.prior_head_2(prior_img_embed)
+
+            output.prior_probs = torch.exp(output.prior)
+            output.prior_entropy = -torch.sum(output.prior_probs * output.prior, dim=-1).mean()
+            return output
+        else:
+            # only prior output
+            return self._forward_single_step(input, future_output)
+
+    def _forward_single_step(self, image, future_output):
+        img_feature = self.prior_encoder(image)
+        gru_output, self.hidden_state = self.gru(img_feature, self.hidden_state)
+        if future_output:
+            return self.prior_head(gru_output), self.prior_head_1(gru_output), self.prior_head_2(gru_output)
+        else:
+            return self.prior_head(gru_output)
+
+    def reset_hidden_state(self):
+        print('reset hidden state...')
+        self.hidden_state = None
+
+    def loss(self, output, inputs):
+        losses = AttrDict()
+        B, T, C = output.prior.shape
+
+        mse_loss = torch.nn.MSELoss()
+        nll_loss = torch.nn.NLLLoss()
+
+        losses.rec_mse = mse_loss(output.reconstruction, inputs.actions.view(B * T, *inputs.actions.shape[2:]))
+        losses.prior = nll_loss(output.prior.reshape(B * T, C), inputs.skills.argmax(dim=-1).reshape(B * T)) + nll_loss(
+            output.prior_1.reshape(B * T, C), inputs.future_skills[:, 0].argmax(dim=-1).reshape(B * T)) + nll_loss(
+            output.prior_2.reshape(B * T, C), inputs.future_skills[:, 1].argmax(dim=-1).reshape(B * T))
+
+        losses.total = losses.rec_mse + losses.prior
+        return losses
+
+    def compute_learned_prior(self, obs):
+        logits_0, logits_1, logits_2 = self._forward_single_step(obs, future_output=True)
         return Categorical(logits=logits_0), Categorical(logits=logits_1), Categorical(logits=logits_2)
 
 

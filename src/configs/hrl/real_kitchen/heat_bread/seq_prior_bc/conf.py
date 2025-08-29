@@ -1,6 +1,6 @@
 from src.configs.hrl.real_kitchen.heat_bread.base_conf import *
-from src.configs.skill.real_kitchen.heat_bread.multi_steps_prior_bc.conf import model_config
-from src.models.bc import MultiStepsOneHotImagePriorBCModel
+from src.configs.skill.real_kitchen.heat_bread.seq_prior_bc.conf import model_config
+from src.models.bc import SequenceOneHotImagePriorBCModel
 from src.rl.components.sampler import ImageAugmentedSampler
 from src.rl.policies.deterministic_policy import PriorDeterministicPolicy
 from src.rl.policies.script_policy import ScriptPolicy
@@ -25,10 +25,10 @@ ll_policy_params = AttrDict(
     load_weights=True,
     policy_model_epoch=epoch,
     initial_log_sigma=-50,
-    policy_model=MultiStepsOneHotImagePriorBCModel,
+    policy_model=SequenceOneHotImagePriorBCModel,
     policy_model_params=ll_model_params,
     policy_model_checkpoint=os.path.join(os.environ["EXP_DIR"],
-                                         "skill/real_kitchen/heat_bread/multi_steps_prior_bc/top50"),
+                                         "skill/real_kitchen/heat_bread/seq_prior_bc"),
 )
 
 ll_policy_params.update(ll_model_params)

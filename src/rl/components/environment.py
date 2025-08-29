@@ -55,21 +55,8 @@ class GymEnv(BaseEnvironment):
     """Wrapper around openai/gym environments."""
 
     def __init__(self, config):
-        self._hp = self._default_hparams().overwrite(config)
+        self._hp = config
         self._env = self._make_env(self._hp.name)
-
-        # from mujoco_py.builder import MujocoException
-        # self._mj_except = MujocoException
-
-    def _default_hparams(self):
-        default_dict = ParamDict({
-            'name': None,  # name of openai/gym environment
-            'reward_norm': 1.,  # reward normalization factor
-            'punish_reward': -100,  # reward used when action leads to simulation crash
-            'unwrap_time': True,  # removes time limit wrapper from envs so that done is not set on timeout
-        })
-
-        return super()._default_hparams().overwrite(default_dict)
 
     def reset(self):
         obs = self._env.reset()

@@ -1,9 +1,9 @@
-from src.data.real_kitchen.real_kitchen_dataloader import RealKitchenDataset, MultiStepsRealKitchenDataset
+from src.data.real_kitchen.real_kitchen_dataloader import RealKitchenDataset
 from src.utils.general import AttrDict
 
 data_spec = AttrDict(
     # dataset_class=GlobalSplitVideoDataset,
-    dataset_class=MultiStepsRealKitchenDataset,
+    dataset_class=RealKitchenDataset,
     n_actions=7,
     state_dim=7,
     n_skills=5 + 1,
@@ -12,6 +12,7 @@ data_spec = AttrDict(
     res=256,
     # crop_rand_subseq=True,
     # max_seq_len = 100,
+    max_seq_len = 5,
 
     TASKS_DICT={
         'open_microwave': 0,

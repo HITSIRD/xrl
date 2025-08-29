@@ -7,8 +7,8 @@ from src.rl.components.policy import Policy
 from src.rl.components.buffer import UniformReplayBuffer
 from src.utils.general import AttrDict
 from src.rl.components.agent import FixedIntervalHierarchicalAgent
-from src.rl.envs.kitchen import KitchenEnv
-from src.rl.components.sampler import ACImageAugmentedHierarchicalSampler, HierarchicalSampler
+from src.rl.envs.real_kitchen import RealKitchenEnv
+from src.rl.components.sampler import HierarchicalSampler
 from src.configs.default.fruits_snacks import data_spec
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
@@ -18,7 +18,7 @@ notes = 'hierarchical RL on the kitchen env'
 configuration = AttrDict(
     seed=42,
     agent=FixedIntervalHierarchicalAgent,
-    environment=KitchenEnv,
+    environment=RealKitchenEnv,
     sampler=HierarchicalSampler,
     data_dir='.',
     num_epochs=10,

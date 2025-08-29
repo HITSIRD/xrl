@@ -61,7 +61,7 @@ class PriorDeterministicPolicy(DeterministicPolicy):
 
     def forward(self, obs, index=None):
         obs = self._split_obs(obs)
-        index = torch.argmax(self.net.prior_head(self.net.prior_encoder(obs.images))).detach().cpu().item()
+        index = torch.argmax(self.net(obs.images)).detach().cpu().item()
         return AttrDict(action=self.skill_enc[index], action_index=index)
 
     def _split_obs(self, obs):
@@ -76,3 +76,8 @@ class PriorDeterministicPolicy(DeterministicPolicy):
                 images=unflattened_obs.prior_obs,
                 skills=obs[:, -self.net.latent_dim:],
             )
+
+    def reset(self):
+        super().reset()
+        if hasattr(self.net, 'reset_hidden_state'):
+            self.net.reset_hidden_state()

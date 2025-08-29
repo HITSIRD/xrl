@@ -7,9 +7,9 @@ from src.rl.components.policy import Policy
 from src.rl.components.buffer import UniformReplayBuffer
 from src.utils.general import AttrDict
 from src.rl.components.agent import FixedIntervalHierarchicalAgent
-from src.rl.envs.kitchen import KitchenEnv
-from src.rl.components.sampler import ACImageAugmentedHierarchicalSampler, HierarchicalSampler
-from src.configs.default.fruits_snacks import data_spec
+from src.rl.envs.real_kitchen import RealKitchenEnv
+from src.rl.components.sampler import HierarchicalSampler
+from src.configs.default.heat_bread import data_spec
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 
@@ -18,11 +18,11 @@ notes = 'hierarchical RL on the kitchen env'
 configuration = AttrDict(
     seed=42,
     agent=FixedIntervalHierarchicalAgent,
-    environment=KitchenEnv,
+    environment=RealKitchenEnv,
     sampler=HierarchicalSampler,
     data_dir='.',
     num_epochs=10,
-    max_rollout_len=9,
+    max_rollout_len=7,
     n_steps_per_epoch=100000,
     n_warmup_steps=1000,
     n_steps_per_update=1,
@@ -127,6 +127,7 @@ data_config.dataset_spec = data_spec
 
 # Environment
 env_config = AttrDict(
+    name='HeatBread-v0',
     reward_norm=1.,
     screen_height=ll_model_params.prior_input_res,
     screen_width=ll_model_params.prior_input_res,

@@ -9,7 +9,7 @@ configuration = AttrDict(
     num_epochs=10,
 
     img_res=256,
-    num_skills=7,
+    num_skills=5 + 1,
     action_dim=7,
     lr=0.0003,
     batch_size=256,

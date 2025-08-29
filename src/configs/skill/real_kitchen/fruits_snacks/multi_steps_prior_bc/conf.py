@@ -1,10 +1,15 @@
 from src.configs.default.fruits_snacks import data_spec
 from src.configs.skill.real_kitchen.fruits_snacks.bc.conf import *
+from src.data.real_kitchen.real_kitchen_dataloader import MultiStepsRealKitchenDataset
 from src.models.bc import MultiStepsOneHotImagePriorBCModel
 from src.utils.general import AttrDict
 
 configuration.update(AttrDict(
     model=MultiStepsOneHotImagePriorBCModel,
+))
+
+data_spec.update(AttrDict(
+    dataset_class=MultiStepsRealKitchenDataset,
 ))
 
 model_config = AttrDict(

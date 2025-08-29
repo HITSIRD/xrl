@@ -172,10 +172,8 @@ if __name__ == "__main__":
     phase_names = ['open_microwave', 'move_bread_to_microwave', 'close_microwave', 'set_time', 'open_microwave',
                    'move_bread_to_plate', 'close_microwave']
 
-    process_h5_skills(OUTPUT_ROOT, output_dir, phase_names, phase_lengths, '微波炉按钮')
-    preview(os.path.join(output_dir, f"{task}_0.h5"))
-    # preview(os.path.join(OUTPUT_ROOT, f"{task}_0.h5"))
-    # preview(os.path.join(OUTPUT_ROOT, f"{task}_1.h5"))
-    # preview(os.path.join(OUTPUT_ROOT, f"{task}_2.h5"))
-    # preview(os.path.join(OUTPUT_ROOT, f"{task}_3.h5"))
-    # preview(os.path.join(OUTPUT_ROOT, f"{task}_4.h5"))
+    # process_h5_skills(OUTPUT_ROOT, output_dir, phase_names, phase_lengths, '微波炉按钮')
+    # for i in range(10):
+    #     preview(os.path.join(output_dir, f"{task}_{i}.h5"))
+    for i in range(10):
+        preview(os.path.join(INPUT_ROOT, f"{task}_{i}/traj.h5"))
