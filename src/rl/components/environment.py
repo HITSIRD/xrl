@@ -2,6 +2,7 @@ from contextlib import contextmanager
 from functools import partial
 import torch
 import numpy as np
+from exceptiongroup import catch
 from torchvision.transforms import Resize
 from PIL import Image
 
@@ -56,7 +57,11 @@ class GymEnv(BaseEnvironment):
 
     def __init__(self, config):
         self._hp = config
-        self._env = self._make_env(self._hp.name)
+        try:
+            self._env = self._make_env(self._hp.name)
+        except Exception as e:
+            print(f"No env")
+            self._env = None
 
     def reset(self):
         obs = self._env.reset()
