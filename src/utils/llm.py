@@ -1,6 +1,61 @@
+import base64
+import io
+
+from PIL import Image
 from langchain.prompts import PromptTemplate, StringPromptTemplate
 from langchain.chat_models import ChatOpenAI
+from langchain_core.messages import HumanMessage
 from langchain_core.output_parsers import StrOutputParser
+
+model = ChatOpenAI(
+    api_key="sk-KH82aab3b53176ce707cad1961fcc9491c39d4279cdad5zo",
+    base_url="https://api.gptsapi.net/v1",
+    model="gpt-4o",
+)
+
+image_prompt = """
+根据该图像描述这个场景中的物体以及状态，把这个场景转成一个适合做机器人任务标注的structured JSON描述，包含物体类别（class）、位置（粗略的相对区域）、状态（是否打开、是否包含内容、是否被操作等）示例{
+  "scene": "kitchen_table_with_robot",
+  "objects": [
+    {
+      "class": "robot_arm",
+      "position": "left",
+      "state": "active",
+      "interaction": "gripper facing microwave, possibly retrieving bread"
+    },
+    {
+      "class": "microwave",
+      "position": "back_center_top",
+      "state": "door_open",
+      "contains": ["bread"]
+    }
+  ]
+}
+
+只输出json，不要输出其他任何内容。
+"""
+
+
+def numpy_to_base64(image_np):
+    pil_image = Image.fromarray(image_np)
+    buffer = io.BytesIO()
+    pil_image.save(buffer, format="PNG")
+    return base64.b64encode(buffer.getvalue()).decode("utf-8")
+
+
+def create_image_message(image_np, detail="auto"):
+    base64_image = numpy_to_base64(image_np)
+    return HumanMessage(
+        content=[
+            {
+                "type": "image_url",
+                "image_url": {"url": f"data:image/png;base64,{base64_image}", "detail": detail}
+            },
+            {"type": "text",
+             "text": image_prompt}
+        ]
+    )
+
 
 # template = """
 # ## Task
@@ -107,13 +162,13 @@ from langchain_core.output_parsers import StrOutputParser
 # - 技能 6：0.03
 
 template = """
-你是一个智能体，负责解释一个机械臂的行为。机械臂在一个厨房的视觉环境中执行任务，机械臂的观测是RGB图像。机械臂需要根据观测从多个技能中选择一个并执行。
+你是一个智能解释器，负责解释一个机械臂的行为。机械臂在一个厨房的视觉环境中执行任务，机械臂的观测是RGB图像。机械臂需要根据观测从多个技能中选择一个并执行。
 
 当前的任务是完成厨房收纳，需要将水果依次放入冰箱中，然后将零食依次放入储藏柜中。
 
 现在你获得以下信息：
 1. 场景中出现的所有相关物体；
-2. 每个物体的显著性分数，表示该物体对机器人决策的重要性；
+2. 可解释方法计算出的每个物体的显著性分数，表示该物体对机器人决策的重要性；
 3. 每个技能与其对应子任务之间的映射关系。
 
 你的任务是：
@@ -138,7 +193,7 @@ template = """
 - 技能 3：关闭储藏柜
 - 技能 4：收纳芒果
 - 技能 5：收纳柠檬
-- 技能 6：收纳橙子  
+- 技能 6：收纳橙子
 - 技能 7：收纳饼干
 - 技能 8：收纳草莓固体饮料
 - 技能 9: 结束
@@ -155,13 +210,63 @@ template = """
 示例输出格式：
 
 当前技能：打开冰箱
-未来准备执行技能：收纳芒果，然后收纳柠檬
-推理过程：冰箱的显著性分数远高于其他物体，表明机械臂当前的注意力主要集中在冰箱上。
+推理过程：
 
 ---
 
-当前，机械臂选择了技能索引{skill_index}，之后选择技能索引{skill_index_1},之后选择技能索引{skill_index_2}, 并且不同物体的重要性权重为：
+当前，机械臂选择了技能索引{skill_index}, 并且不同物体的重要性权重为：
 {score}。解释为：
+"""
+
+template = """
+你是一个智能解释器，负责解释一个机械臂的行为。机械臂在一个厨房的视觉环境中执行任务，机械臂的观测是RGB图像。机械臂需要根据观测从多个技能中选择一个并执行。
+
+当前的任务是加热面包，需要将面包放入微波炉中加热，然后放到盘上。
+
+现在你获得以下信息：
+1. 场景描述，用json格式表示；
+2. 可解释方法计算出的每个物体的显著性分数，表示该物体对机器人决策的重要性；
+3. 每个技能与其对应子任务之间的映射关系。
+
+你的要求是：
+- 根据场景描述、技能索引和显著性列表，解释机器人当前为什么执行该技能；
+- 用简短的语言给出你的推理过程；
+- 注意显著性分数的计算结果是事后解释和分析，不一定和实际选择的技能相符，对于这种情况要指出来。
+- 注意你的解释对象是一个对机器学习背景缺乏了解的普通人，因此不要出现原始的显著性分数结果，也不要出现类似“显著性”这样的专业术语，要通俗易懂。
+- 用中文描述。
+
+场景描述：
+{scene_description}
+
+历史选择技能序列：
+[0]
+
+执行技能：3
+
+技能与子任务映射：
+- 技能 0：打开微波炉
+- 技能 1：关闭微波炉
+- 技能 2：设置时间
+- 技能 3：面包放入微波炉
+- 技能 4：面包放入盘中
+- 技能 5：结束
+输入示例：
+
+显著性分数：
+- Object 0 (microwave): 17.12
+- Object 1 (bread): 72.85
+- Object 2 (switch): -3.66
+
+示例输出格式：
+
+当前技能：面包放入微波炉
+推理过程：XXX
+
+---
+
+当前，机械臂选择了技能索引{skill_index}，历史选择技能为{history}, 并且不同物体的重要性权重为
+{score}
+解释：
 """
 
 prompt = PromptTemplate.from_template(template)
@@ -173,13 +278,11 @@ class FeastPromptTemplate(StringPromptTemplate):
 
 
 # prompt_template = FeastPromptTemplate(input_variables=["decision_path", "score"])
-prompt_template = FeastPromptTemplate(input_variables=["skill_index", "skill_index_1", "skill_index_2", "score"])
-
-model = ChatOpenAI(
-    api_key="sk-KH82aab3b53176ce707cad1961fcc9491c39d4279cdad5zo",
-    base_url="https://api.gptsapi.net/v1",
-    model="gpt-4o",
-)
+prompt_template = FeastPromptTemplate(input_variables=["scene_description", "skill_index", "score", "history"])
 
 parser = StrOutputParser()
 chain = model | parser
+
+
+def get_scene_description(img):
+    return model.invoke([create_image_message(img)]).content

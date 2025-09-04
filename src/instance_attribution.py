@@ -21,7 +21,7 @@ from instance_seg_test import generate_masks_with_sam, initialize_clip, classify
 from openai import OpenAI
 
 from src.utils.image import gaussian_blur_perturb, poisson_gaussian_noise_perturb
-from src.utils.llm import chain, prompt_template
+from src.utils.llm import chain, prompt_template, get_scene_description
 from src.utils.pytorch import no_batchnorm_update
 from src.utils.saliency import compute_integrated_gradient_saliency, compute_gradient_saliency, compute_gradient_shap, \
     compute_perturbation_saliency, compute_gradCAM_saliency, compute_deeplift_saliency, compute_deepSHAP_saliency, \
@@ -57,7 +57,7 @@ class InstanceInfluence:
         self.metric = MetricAverageMeter()
 
         self.dynamic_objects = get_depth(self.objects) > 1
-        self.lang_exp = False
+        self.lang_exp = self.args.lang_exp
 
         for i in range(self.args.n_episode):
             self.args.episode_idx = i
@@ -122,6 +122,7 @@ class InstanceInfluence:
 
         policy = self.agent.hl_agent.policy
         hl_step = 0
+        history = []
         result = []
         if hasattr(policy.net, 'reset_hidden_state'):
             policy.net.reset_hidden_state()
@@ -164,7 +165,7 @@ class InstanceInfluence:
 
                     dist = policy.net(processed_img).flatten().detach().cpu().numpy()
                     _, dist_1, dist_2 = policy.net.compute_learned_prior(processed_img)
-                    skill_index_1, skill_index_2 = dist_1.rsample().item(), dist_2.rsample().item()
+                    # skill_index_1, skill_index_2 = dist_1.rsample().item(), dist_2.rsample().item()
 
                     saliency = self.compute_saliency(policy.net, processed_img, skill_index, original_img=img)
                     saliency = self._normalize_saliency(saliency)
@@ -187,12 +188,18 @@ class InstanceInfluence:
                 self.metric.update(eval)
 
                 if self.lang_exp:
+                    scene_description = self.load_language_output(hl_step, "description")
+                    if not scene_description:
+                        scene_description = get_scene_description(img)
+                        print("request scene description...")
+                        self.save_language_output(scene_description, hl_step, "description")
                     explanation = chain.invoke(
-                        prompt_template.format(skill_index=skill_index, skill_index_1=skill_index_1,
-                                               skill_index_2=skill_index_2, score=influence_str))
+                        prompt_template.format(scene_description=scene_description, skill_index=skill_index,
+                                               score=influence_str, history=history))
                     print(explanation)
-                    self.save_explanation(explanation, hl_step)
+                    self.save_language_output(explanation, hl_step, "explanation")
 
+                history.append(skill_index)
                 hl_step += 1
 
         self.save_result_to_cache(result)
@@ -206,11 +213,22 @@ class InstanceInfluence:
         plt.savefig(f'{self.args.save_dir}/original_img_{index}.png')
         plt.close()
 
-    def save_explanation(self, explanation, index):
-        file_path = f'{self.args.save_dir}/explanation_{index}.md'
+    def save_language_output(self, output, index, prefix):
+        file_path = f'{self.args.save_dir}/{prefix}_{index}.md'
 
         with open(file_path, 'w', encoding='utf-8') as file:
-            file.write(explanation)
+            file.write(output)
+
+    def load_language_output(self, index, prefix):
+        file_path = f'{self.args.save_dir}/{prefix}_{index}.md'
+
+        try:
+            with open(file_path, 'r', encoding='utf-8') as file:
+                return file.read()
+        except FileNotFoundError:
+            return False
+        except Exception:
+            return False
 
     def save_result_to_cache(self, result):
         with open(os.path.join(self.args.save_dir, 'result.pkl'), "wb") as f:

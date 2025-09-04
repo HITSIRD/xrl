@@ -13,6 +13,7 @@ def get_args():
     parser.add_argument('--n_episode', default=1, type=int)
     parser.add_argument('--overwrite_cache', action='store_true')
     parser.add_argument('--sam_segmentation', action='store_true')
+    parser.add_argument('--lang_exp', action='store_true')
 
     # Running protocol
     parser.add_argument('--resume', default='', type=str, metavar='PATH',

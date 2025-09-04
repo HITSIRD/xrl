@@ -291,7 +291,7 @@ class MultiStepsSequenceOneHotImagePriorBCModel(SequenceOneHotImagePriorBCModel)
         self.prior_head_1 = self._build_prior_head(hp)
         self.prior_head_2 = self._build_prior_head(hp)
 
-    def forward(self, input, future_output=False):
+    def forward(self, input, future_output=False, update_hidden=False):
         """
         inputs.images: [B, T, C, H, W]
         inputs.skills: [B, T, skill_dim]
@@ -317,11 +317,13 @@ class MultiStepsSequenceOneHotImagePriorBCModel(SequenceOneHotImagePriorBCModel)
             return output
         else:
             # only prior output
-            return self._forward_single_step(input, future_output)
+            return self._forward_single_step(input, future_output, update_hidden)
 
-    def _forward_single_step(self, image, future_output):
+    def _forward_single_step(self, image, future_output, update_hidden=False):
         img_feature = self.prior_encoder(image)
-        gru_output, self.hidden_state = self.gru(img_feature, self.hidden_state)
+        gru_output, hidden_state = self.gru(img_feature, self.hidden_state)
+        if update_hidden:
+            self.hidden_state = hidden_state
         if future_output:
             return self.prior_head(gru_output), self.prior_head_1(gru_output), self.prior_head_2(gru_output)
         else:
@@ -347,7 +349,7 @@ class MultiStepsSequenceOneHotImagePriorBCModel(SequenceOneHotImagePriorBCModel)
         return losses
 
     def compute_learned_prior(self, obs):
-        logits_0, logits_1, logits_2 = self._forward_single_step(obs, future_output=True)
+        logits_0, logits_1, logits_2 = self._forward_single_step(obs, future_output=True, update_hidden=True)
         return Categorical(logits=logits_0), Categorical(logits=logits_1), Categorical(logits=logits_2)
 
 
