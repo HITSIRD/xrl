@@ -11,7 +11,7 @@ data_spec = AttrDict(
     split=AttrDict(train=0.99, val=0.01, test=0.0),
     res=256,
     # crop_rand_subseq=True,
-    max_seq_len = 5,
+    max_seq_len=5,
 
     TASKS_DICT={
         'open_fridge': 0,
@@ -23,12 +23,14 @@ data_spec = AttrDict(
         'store_orange': 6,
         'store_cheezit': 7,
         'store_jello': 8,
-        'end': 9
+        'end()': 9
     },
 
     skill_labels=['open_fridge', 'close_fridge', 'open_cabinet', 'close_cabinet', 'store_mango', 'store_lemon',
-                  'store_orange',
-                  'store_cheezit', 'store_jello', 'end'],
+                  'store_orange', 'store_cheezit', 'store_jello', 'end'],
+
+    skill_labels_ch=['开冰箱门', '关冰箱门', '开储藏柜', '关储藏柜', '收纳芒果', '收纳柠檬', '收纳橙子', '收纳饼干盒',
+                     '收纳饮料粉'],
 
     objects=[["fridge",
               "cabinet",
@@ -48,15 +50,6 @@ data_spec = AttrDict(
 
              ["fridge",
               "cabinet",
-              "cheezit",
-              "jello"],
-
-             ["fridge",
-              "cabinet",
-              "jello"],
-
-             ["fridge",
-              "cabinet",
               "mango",
               "lemon",
               "orange",
@@ -87,6 +80,15 @@ data_spec = AttrDict(
              ["fridge",
               "cabinet",
               "cheezit",
+              "jello"],
+
+             ["fridge",
+              "cabinet",
+              "cheezit",
+              "jello"],
+
+             ["fridge",
+              "cabinet",
               "jello"]
              ],
 
@@ -94,6 +96,30 @@ data_spec = AttrDict(
             [51, 15, 134, 130],
             [98, 148, 126, 178],
             [118, 180, 144, 210],
+            [115, 118, 140, 145],
+            [155, 182, 194, 248],
+            [56, 126, 82, 156]],
+
+           [[144, 48, 250, 174],
+            [51, 15, 134, 130],
+            [98, 148, 126, 178],
+            [118, 180, 144, 210],
+            [115, 118, 140, 145],
+            [155, 182, 194, 248],
+            [56, 126, 82, 156]],
+
+           [[144, 48, 250, 174],
+            [51, 15, 134, 130],
+            [180, 117, 198, 139],
+            [118, 180, 144, 210],
+            [115, 118, 140, 145],
+            [155, 182, 194, 248],
+            [56, 126, 82, 156]],
+
+           [[144, 48, 250, 174],
+            [51, 15, 134, 130],
+            [180, 117, 198, 139],
+            [168, 105, 187, 128],
             [115, 118, 140, 145],
             [155, 182, 194, 248],
             [56, 126, 82, 156]],
@@ -113,60 +139,36 @@ data_spec = AttrDict(
 
            [[144, 48, 250, 174],
             [51, 15, 134, 130],
-            [68, 64, 88, 90]],
-
-           [[144, 48, 250, 174],
-            [51, 15, 134, 130],
-            [98, 148, 126, 178],
-            [118, 180, 144, 210],
-            [115, 118, 140, 145],
-            [155, 182, 194, 248],
-            [56, 126, 82, 156]],
-
-           [[144, 48, 250, 174],
-            [51, 15, 134, 130],
-            [180, 117, 198, 139],
-            [118, 180, 144, 210],
-            [115, 118, 140, 145],
-            [155, 182, 194, 248],
-            [56, 126, 82, 156]],
-
-           [[144, 48, 250, 174],
-            [51, 15, 134, 130],
-            [180, 117, 198, 139],
-            [168, 105, 187, 128],
-            [115, 118, 140, 145],
-            [155, 182, 194, 248],
-            [56, 126, 82, 156]],
-
-           [[144, 48, 250, 174],
-            [51, 15, 134, 130],
             [155, 182, 194, 248],
             [56, 126, 82, 156]],
 
            [[144, 48, 250, 174],
             [51, 15, 134, 130],
             [73, 62, 102, 86],
-            [56, 126, 82, 156]]
+            [56, 126, 82, 156]],
+
+           [[144, 48, 250, 174],
+            [51, 15, 134, 130],
+            [68, 64, 88, 90]]
            ],
 
-    skill_obj_map={'open_fridge': 'fridge',
-                   'close_fridge': 'fridge',
-                   'open_cabinet': 'cabinet',
-                   'close_cabinet': 'cabinet',
-                   'store_mango': 'mango',
-                   'store_lemon': 'lemon',
-                   'store_orange': 'orange',
-                   'store_cheezit': 'cheezit',
-                   'store_jello': 'jello'},
+    skill_obj_map={0: 'fridge',
+                   1: 'mango',
+                   2: 'lemon',
+                   3: 'orange',
+                   4: 'fridge',
+                   5: 'cabinet',
+                   6: 'jello',
+                   7: 'cheezit',
+                   8: 'cabinet'},
 
-    multi_skill_obj_map={'open_fridge': ['fridge', 'mango', 'lemon', 'orange'],
-                         'close_fridge': ['fridge', 'mango', 'lemon', 'orange'],
-                         'open_cabinet': ['cabinet', 'cheezit', 'jello'],
-                         'close_cabinet': ['cabinet', 'cheezit', 'jello'],
-                         'store_mango': ['fridge', 'mango', 'lemon', 'orange'],
-                         'store_lemon': ['fridge', 'mango', 'lemon', 'orange'],
-                         'store_orange': ['fridge', 'mango', 'lemon', 'orange'],
-                         'store_cheezit': ['cabinet', 'cheezit', 'jello'],
-                         'store_jello': ['cabinet', 'cheezit', 'jello']},
+multi_skill_obj_map = {0: ['fridge'],
+                       4: ['fridge', 'mango'],
+                       5: ['fridge', 'lemon'],
+                       6: ['fridge', 'orange'],
+                       1: ['fridge'],
+                       2: ['cabinet'],
+                       7: ['cabinet', 'cheezit'],
+                       8: ['cabinet', 'jello'],
+                       3: ['cabinet']},
 )

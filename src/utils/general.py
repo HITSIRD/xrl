@@ -59,7 +59,7 @@ class MetricAverageMeter:
         从缓存文件中加载记录到 self.metrics
         """
         for fname in sorted(os.listdir(data_dir)):
-            if not fname.endswith(f".{ext}"):
+            if not fname.endswith(f"result.{ext}"):
                 continue
             path = os.path.join(data_dir, fname)
             print(f'load result: {path}')

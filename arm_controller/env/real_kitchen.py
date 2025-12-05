@@ -1,8 +1,9 @@
 import gym
-# import panda_py
+import panda_py
 from gym import spaces
 import numpy as np
 import cv2
+from matplotlib import pyplot as plt
 
 from arm_controller.configs.config import ARM_URL
 from arm_controller.src.controllers.camera import Camera
@@ -23,7 +24,7 @@ class RealRobotSkillEnv(gym.Env):
         self.gripper_speed = 0.03
         self.gripper_force = 10.0
 
-        self.traj_dir = '/home/user/文档/projects/xrl/arm_controller/data/traj'
+        self.traj_dir = '/home/user/文档/projects/robot_arm_django/home/arm_controller/data/traj'
 
         # Action 是离散的技能索引
         self.action_space = spaces.Discrete(len(self.SKILL_LIBRARY))
@@ -43,7 +44,10 @@ class RealRobotSkillEnv(gym.Env):
 
     def render(self, mode='human'):
         image = self.camera.get_frame()
-        return crop_and_resize(image, self.image_shape[0])
+        image = crop_and_resize(image, self.image_shape[0])
+        plt.imshow(image)
+        plt.show()
+        return image
 
     def _get_observation(self) -> np.ndarray:
         q = self.arm.q
@@ -339,6 +343,12 @@ class HeatBread(RealRobotSkillEnv):
     def __init__(self):
         super().__init__()
 
+    def reset(self) -> np.ndarray:
+        self._reset2default_position()
+        self._release()
+        obs = self._get_observation()
+        return obs
+
     def step(self, action: int):
         assert self.action_space.contains(action), f"Invalid action: {action}"
 
@@ -396,6 +406,227 @@ class HeatBread(RealRobotSkillEnv):
         self._grasp(0.026925303041934967)
         self._replay_trajectory('place_bread_plate_821')
         self._release()
+
+        self._reset2default_position()
+
+    def _reset2default_position(self):
+        pos = [0.8024984602915509, -0.7170319747069731, -0.31783231969360565, -1.9078798450397978, -0.1717547503006375,
+               1.3394796582349422, 0.9985520389668511]
+        self._move_to(pos)
+
+
+class Cola(RealRobotSkillEnv):
+    SKILL_LIBRARY = ['open(fridge)', 'close(fridge)', 'move(ice_cup, table)', 'move(milk, fridge)',
+                     'move(cola, bin)', 'move(straw, ice_cup)', 'pour(cola, ice_cup)', 'end()']
+
+    def __init__(self):
+        super().__init__()
+
+    def reset(self) -> np.ndarray:
+        self._reset2default_position()
+        self._release()
+        obs = self._get_observation()
+        return obs
+
+    def step(self, action: int):
+        assert self.action_space.contains(action), f"Invalid action: {action}"
+
+        skill_fn = self.SKILL_LIBRARY[action]
+        print(skill_fn)
+
+        if action == 0:
+            self._open_fridge()
+        elif action == 1:
+            self._close_fridge()
+        elif action == 2:
+            self._move_ice_cup_table()
+        elif action == 3:
+            self._move_milk_fridge()
+        elif action == 4:
+            self._move_cola_bin()
+        elif action == 5:
+            self._move_straw_ice_cup()
+        elif action == 6:
+            self._pour_cola_ice_cup()
+        else:
+            raise NotImplementedError
+
+        obs = self._get_observation()
+
+        reward = 0.0
+        done = False
+        info = {"skill": self.SKILL_LIBRARY[action]}
+
+        return obs, reward, done, info
+
+    def _open_fridge(self):
+        self._replay_trajectory('open_fridge_ice_1015')
+        self._reset2default_position()
+
+    def _close_fridge(self):
+        self._replay_trajectory('close_fridge_ice_1015')
+        self._reset2default_position()
+
+    def _move_ice_cup_table(self):
+        self._replay_trajectory('pick_ice_from_fridge_1015')
+        self._grasp(0.058231886476278305)
+        self._replay_trajectory('place_ice_to_table_1015')
+        self._release()
+        self._replay_trajectory('place_ice_reset_1015')
+
+        self._reset2default_position()
+
+    def _move_milk_fridge(self):
+        self._replay_trajectory('pick_milk_251103')
+        self._grasp(0.058231886476278305)
+        self._replay_trajectory('place_milk_251103')
+        self._release()
+        self._replay_trajectory('reset_from_fridge_251103')
+
+        self._reset2default_position()
+
+    def _move_cola_bin(self):
+        self._replay_trajectory('cola_pick')
+        self._grasp(0.058231886476278305)
+        self._replay_trajectory('move_cola_bin_251103')
+        self._release()
+
+        self._reset2default_position()
+
+    def _move_straw_ice_cup(self):
+        self._replay_trajectory('pick_straw_251103')
+        self._grasp(0.058231886476278305)
+        self._reset2default_position()
+        self._replay_trajectory('place_straw_251103')
+        self._release()
+
+        self._reset2default_position()
+
+    def _pour_cola_ice_cup(self):
+        self._replay_trajectory('cola_pick')
+        self._grasp(0.058231886476278305)
+        self._replay_trajectory('cola_pour')
+        self._replay_trajectory('cola_place')
+        self._release()
+        self._replay_trajectory('cola_reset')
+
+        self._reset2default_position()
+
+    def _reset2default_position(self):
+        pos = [0.8024984602915509, -0.7170319747069731, -0.31783231969360565, -1.9078798450397978, -0.1717547503006375,
+               1.3394796582349422, 0.9985520389668511]
+        self._move_to(pos)
+
+
+class Coffee(RealRobotSkillEnv):
+    SKILL_LIBRARY = ['move(funnel, table)', 'move(funnel, pot)', 'pour_preheat(gooseneck_kettle, funnel)', 'pour(gooseneck_kettle, funnel)', 'pour(pot, bottle)',
+                     'pour(pot, cup)', 'pour(coffee_powder, funnel)', 'pour(kettle, gooseneck_kettle)', 'end()']
+
+    def __init__(self):
+        super().__init__()
+
+    def reset(self) -> np.ndarray:
+        self._reset2default_position()
+        self._release()
+        obs = self._get_observation()
+        return obs
+
+    def step(self, action: int):
+        assert self.action_space.contains(action), f"Invalid action: {action}"
+
+        skill_fn = self.SKILL_LIBRARY[action]
+        print(skill_fn)
+
+        if action == 0:
+            self._move_funnel_table()
+        elif action == 1:
+            self._move_funnel_pot()
+        elif action == 2:
+            self._pour_preheat_gooseneck_kettle_funnel()
+        elif action == 3:
+            self._pour_gooseneck_kettle_funnel()
+        elif action == 4:
+            self._pour_pot_bottle()
+        elif action == 5:
+            self._pour_pot_cup()
+        elif action == 6:
+            self._pour_coffee_powder_funnel()
+        elif action == 7:
+            self._pour_kettle_gooseneck_kettle()
+        else:
+            raise NotImplementedError
+
+        obs = self._get_observation()
+
+        reward = 0.0
+        done = False
+        info = {"skill": self.SKILL_LIBRARY[action]}
+
+        return obs, reward, done, info
+
+    def _move_funnel_table(self):
+        self._replay_trajectory('pick_funnel_1108')
+        self._reset2default_position()
+
+    def _move_funnel_pot(self):
+        self._replay_trajectory('reset_funnel_1108')
+        self._reset2default_position()
+
+    def _pour_preheat_gooseneck_kettle_funnel(self):
+        self._replay_trajectory('grasp_black_1108')
+        self._grasp(0.008237226866185665)
+        self._replay_trajectory('pour_preheat_1108')
+        self._grasp(0.020)
+        self._replay_trajectory('leave_preheat_1108')
+        self._release()
+
+        self._reset2default_position()
+
+    def _pour_gooseneck_kettle_funnel(self):
+        self._replay_trajectory('grasp_black_1108')
+        self._grasp(0.008237226866185665)
+        self._replay_trajectory('pour1_1108')
+        self._grasp(0.020)
+        self._replay_trajectory('leave_preheat_1108')
+        self._release()
+
+        self._reset2default_position()
+
+    def _pour_pot_bottle(self):
+        self._replay_trajectory('pick_kettle_1108')
+        self._grasp(0.008237226866185665)
+        self._replay_trajectory('pour_kettle_water_1108')
+        self._grasp(0.030)
+        self._replay_trajectory('leave_kettle_water_1108')
+        self._release()
+
+        self._reset2default_position()
+
+    def _pour_pot_cup(self):
+        self._replay_trajectory('pick_kettle_1108')
+        self._grasp(0.008237226866185665)
+        self._replay_trajectory('pour_kettle_cup_1108')
+        self._grasp(0.030)
+        self._replay_trajectory('leave_kettle_water_1108')
+        self._release()
+
+        self._reset2default_position()
+
+    def _pour_coffee_powder_funnel(self):
+        self._replay_trajectory('pick_powder_1108')
+        self._grasp(0.008237226866185665)
+        self._replay_trajectory('pour_powder_1108')
+        self._release()
+        self._replay_trajectory('leave_powder_1108')
+
+        self._reset2default_position()
+
+    def _pour_kettle_gooseneck_kettle(self):
+        self._replay_trajectory('grasp_mkettle_1113')
+        self._grasp(0.008237226866185665)
+        self._replay_trajectory('pour_mkettle_1_1113')
+        self._release()
+        self._replay_trajectory('leave_mkettle_1113')
 
         self._reset2default_position()
 

@@ -64,8 +64,6 @@ class BaseModel(nn.Module):
         for name, loss in losses.items():
             self._logger.log_scalar(loss.item(), name + '_loss', step, phase) # for wandb
             # self._logger.add_scalar(f'{phase}/{name}_loss',loss.item(), step)
-            # if 'breakdown' in loss and log_images:
-            #     self._logger.log_graph(loss.breakdown, name + '_breakdown', step, phase)
 
     def _load_weights(self, weight_loading_info):
         """

@@ -6,6 +6,7 @@ from src.modules.distributions import Categorical
 from src.modules.networks import CNNEncoder, ResNetEncoder
 from src.utils.general import AttrDict
 import torch.nn.functional as F
+from contextlib import contextmanager
 
 
 class BCModel(BaseModel):
@@ -169,7 +170,9 @@ class SequenceOneHotImagePriorBCModel(OneHotImagePriorBCModel):
             batch_first=True
         )
 
+        self._image = None
         self._hidden_state = None
+        self._analyze_hidden_mode = False
 
     def _build_prior_head(self, hp):
         return nn.Sequential(
@@ -181,12 +184,23 @@ class SequenceOneHotImagePriorBCModel(OneHotImagePriorBCModel):
             nn.LogSoftmax(dim=-1)
         )
 
-    def forward(self, input):
+    def forward(self, input, update_hidden=False, hidden_state=None):
         """
         inputs.images: [B, T, C, H, W]
         inputs.skills: [B, T, skill_dim]
         inputs.pad_mask: [B, T]
         """
+        if self._analyze_hidden_mode:
+            self._image.requires_grad_(True)
+            img_feature = self.prior_encoder(self._image)
+            if input.shape[0] != 1:
+                input = input.unsqueeze(0)
+                img_feature = img_feature.expand((input.shape[-2], *img_feature.shape))
+            gru_output, _ = self.gru(img_feature, input)
+            gru_output = gru_output.squeeze(1)
+            out = self.prior_head(gru_output)
+            return out
+
         if isinstance(input, AttrDict):
             output = AttrDict()
 
@@ -205,16 +219,24 @@ class SequenceOneHotImagePriorBCModel(OneHotImagePriorBCModel):
             return output
         else:
             # only prior output
-            self._forward_single_step(input)
+            return self._forward_single_step(input, update_hidden=update_hidden, hidden_state=hidden_state)
 
-    def _forward_single_step(self, image):
+    def _forward_single_step(self, image, update_hidden=False, hidden_state=None):
         img_feature = self.prior_encoder(image)
-        gru_output, self.hidden_state = self.gru(img_feature, self.hidden_state)
+        h = self._hidden_state if hidden_state is None else hidden_state
+        gru_output, hidden_state = self.gru(img_feature, h)
+        if update_hidden:
+            self._hidden_state = hidden_state
         return self.prior_head(gru_output)
 
     def reset_hidden_state(self):
-        """重置隐藏状态"""
-        self.hidden_state = None
+        self._hidden_state = None
+
+    @contextmanager
+    def enable_hidden_analysis(self):
+        self._analyze_hidden_mode = True
+        yield ()
+        self._analyze_hidden_mode = False
 
     def loss(self, output, inputs):
         losses = AttrDict()
@@ -231,6 +253,12 @@ class SequenceOneHotImagePriorBCModel(OneHotImagePriorBCModel):
 
     def compute_learned_prior(self, obs):
         return Categorical(logits=self._forward_single_step(obs))
+
+    def set_image(self, image):
+        self._image = image
+
+    def hidden_state(self):
+        return self._hidden_state
 
 
 class MultiStepsOneHotImagePriorBCModel(OneHotImagePriorBCModel):
@@ -435,3 +463,154 @@ class OneHotImagePriorCompleteBCModel(OneHotImagePriorBCModel):
         # self._logger.add_scalar(f{phase}/precision', model_output.precision, step)
         # self._logger.add_scalar(f'{phase}/recall', model_output.recall, step)
         # self._logger.add_scalar(f'{phase}/f1_score', model_output.f1_score, step)
+
+
+class TransformerOneHotImagePriorBCModel(OneHotImagePriorBCModel):
+    def __init__(self, hp, logger):
+        super().__init__(hp, logger)
+
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=hp.transformer_hidden_dim,
+            nhead=hp.transformer_num_head,
+            batch_first=True  # requires PyTorch with batch_first support
+        )
+        self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=hp.transformer_num_layers)
+
+        # keep prior_head unchanged (expects rnn_hidden_dim in)
+        self._image = None
+        # replace hidden state with memory buffer for single-step forward
+        self._memory = None  # will hold tensor of shape (B, L, d_model) or None
+        self._analyze_hidden_mode = False
+
+    def _build_prior_head(self, hp):
+        return nn.Sequential(
+            nn.Linear(hp.transformer_hidden_dim * 2, 256),
+            nn.ReLU(),
+            nn.Linear(256, 256),
+            nn.ReLU(),
+            nn.Linear(256, hp.skill_dim),
+            nn.LogSoftmax(dim=-1)
+        )
+
+
+    def _transformer_encode(self, seq_feats, pad_mask=None):
+        """
+        seq_feats: (B, T, img_enc_dim) OR already projected (B, T, d_model)
+        pad_mask: (B, T) float mask where 1 indicates valid token (same as original pad_mask)
+        returns: encoded (B, T, d_model)
+        """
+
+        # transformer expects src_key_padding_mask with True for positions that should be masked
+        if pad_mask is not None:
+            # pad_mask: 1 for valid, 0 for padded (per original code)
+            src_key_padding_mask = (pad_mask == 0)  # shape (B, T) bool
+        else:
+            src_key_padding_mask = None
+
+        # pass through transformer
+        encoded = self.transformer(seq_feats, src_key_padding_mask=src_key_padding_mask)
+        return encoded  # (B, T, d_model)
+
+    def forward(self, input, update_hidden=False):
+        """
+        inputs.images: [B, T, C, H, W]
+        inputs.skills: [B, T, skill_dim]
+        inputs.pad_mask: [B, T]
+        """
+        if isinstance(input, AttrDict):
+            output = AttrDict()
+            B, T = input.images.shape[:2]
+
+            # 1) reconstruction head (unchanged)
+            img_embed = self.encoder(input.images.view(B * T, *input.images.shape[2:]))
+            output.reconstruction = self.head(
+                torch.cat([img_embed, input.skills.view(B * T, *input.skills.shape[2:])], dim=-1))
+
+            # 2) prior: encode each image with prior_encoder
+            prior_img_embed = self.prior_encoder(input.images.view(B * T, *input.images.shape[2:]))
+            D = prior_img_embed.shape[-1]
+            prior_img_embed = prior_img_embed.view(B, T, D)  # (B, T, D)
+
+            pad_mask = input.pad_mask if hasattr(input, 'pad_mask') else None
+
+            # Prepare container for per-time-step combined features
+            combined_feats = []
+            for t in range(T):
+                # history: frames [0:t)
+                if t == 0:
+                    # No history: use zero vector as history encoding (same device / dtype)
+                    history_encoded = prior_img_embed.new_zeros((B, D))
+                else:
+                    # Encode history tokens with transformer encoder.
+                    # _transformer_encode expects (B, L, D) and pad_mask for that window.
+                    hist_tokens = prior_img_embed[:, :t, :]  # (B, t, D)
+                    if pad_mask is not None:
+                        hist_mask = pad_mask[:, :t]  # (B, t)
+                    else:
+                        hist_mask = None
+                    # _transformer_encode should return (B, L, D). We pool (take last non-padded token or mean).
+                    hist_encoded = self._transformer_encode(hist_tokens, pad_mask=hist_mask)  # (B, t, D)
+                    history_encoded = hist_encoded[:, -1, :]  # (B, D)
+
+                # current frame embedding (not passed through transformer history)
+                current_embed = prior_img_embed[:, t, :]  # (B, D)
+
+                # combine history + current. For minimal change, use elementwise add.
+                # If you prefer concatenation, adjust prior_head input dims accordingly.
+                combined = torch.cat([history_encoded, current_embed], -1)  # (B, D)
+                combined_feats.append(combined)
+
+            combined_feats = torch.stack(combined_feats, dim=1)
+            output.prior = self.prior_head(combined_feats)
+
+            output.prior_probs = torch.exp(output.prior)
+            output.prior_entropy = -torch.sum(output.prior_probs * output.prior, dim=-1).mean()
+            return output
+
+        else:
+            return self._forward_single_step(input, update_hidden=update_hidden)
+
+    def _forward_single_step(self, image, update_hidden=False):
+        """
+        image: (B, C, H, W) or (C,H,W) for single
+        hidden_state: optional previous memory tensor of shape (B, L, d_model)
+        We will maintain a simple per-batch memory buffer self._memory to accumulate last L features.
+        """
+        # get current image feature
+        img_feature = self.prior_encoder(image)  # shape (B, img_enc_dim) or (img_enc_dim)
+        memory = self._memory
+
+        if memory is None:
+            seq = torch.zeros_like(img_feature)
+            new_memory = img_feature
+            out = self.prior_head(torch.cat([seq, img_feature], -1))
+        else:
+            encoded = self._transformer_encode(memory, pad_mask=None)
+            last_feat = encoded[None, -1]
+            if img_feature.shape[0] > 1:
+                last_feat = last_feat.expand((img_feature.shape[0], *last_feat.shape[1:]))
+            out = self.prior_head(torch.cat([last_feat, img_feature], -1))
+
+            if img_feature.shape[0] == 1:
+                new_memory = torch.cat([memory, img_feature], dim=0)
+
+        if update_hidden:
+            self._memory = new_memory
+
+        return out
+
+    def loss(self, output, inputs):
+        losses = AttrDict()
+        B, T, C = output.prior.shape
+
+        mse_loss = torch.nn.MSELoss()
+        nll_loss = torch.nn.NLLLoss()
+
+        losses.rec_mse = mse_loss(output.reconstruction, inputs.actions.view(B * T, *inputs.actions.shape[2:]))
+        losses.prior = nll_loss(output.prior.reshape(B * T, C), inputs.skills.argmax(dim=-1).reshape(B * T))
+
+        losses.total = losses.rec_mse + losses.prior
+        return losses
+
+    def reset_hidden_state(self):
+        self._memory = None

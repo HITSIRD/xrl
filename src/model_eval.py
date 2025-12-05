@@ -17,7 +17,7 @@ from src.rl.components.buffer import RolloutStorage
 from openai import OpenAI
 
 
-class InstanceInfluence:
+class Eval:
     """Sets up RL training loop, instantiates all components, runs training."""
 
     def __init__(self, args):
@@ -37,6 +37,7 @@ class InstanceInfluence:
         self.agent.to(self.device)
 
         self.analyze()
+        # self.save()
 
     def analyze(self):
         """Generate rollouts and save to hdf5 files."""
@@ -50,14 +51,14 @@ class InstanceInfluence:
             with self.agent.val_mode():
                 with torch.no_grad():
                     print(step)
-                    prior = policy.compute_learned_prior(img)
-                    print(prior.dist.logits)
+                    prior = policy(img)
+                    print(prior)
                     # print(prior[0].dist.logits)
                     # print(prior[1].dist.logits)
                     # print(prior[2].dist.logits)
 
-    def _load_img(self, size=256, path='fruits_snacks_0.h5', step=0):
-        dir = 'src/data/real_kitchen/fruits-snacks-50-v0'
+    def _load_img(self, size=256, path='heat_bread_0.h5', step=0):
+        dir = 'src/data/real_kitchen/heat-bread-50-v0'
         with h5py.File(os.path.join(dir, path), 'r') as f:
             image = f['rgb'][step]
 
@@ -67,9 +68,53 @@ class InstanceInfluence:
         ax.set_axis_off()
         fig.add_axes(ax)
         plt.imshow(image)
-        plt.savefig(f'{self.args.save_dir}/original_img_{step}.png')
+        # plt.savefig(f'{self.args.save_dir}/original_img_{step}.png')
         plt.show()
         return image.astype(np.float32).transpose(2, 0, 1) / 255 * 2 - 1
+
+    def save(self):
+        policy = self.agent.hl_agent.policy.net
+        if hasattr(policy, 'reset_hidden_state'):
+            policy.reset_hidden_state()
+
+        # 收集所有步骤的数据
+        observations = []
+        actions = []
+        is_hl_steps = []
+
+        for step in [0, 50, 100, 150, 200, 250, 300, 350, 400]:
+            img = torch.from_numpy(self._load_img(step=step)).unsqueeze(0).to(self.device)
+
+            with self.agent.val_mode():
+                with torch.no_grad():
+                    print(step)
+                    prior = policy(img, update_hidden=True)
+
+                    flattened_img = img.reshape(-1).cpu().numpy()
+                    padded_observation = np.concatenate([np.zeros(7), flattened_img])
+                    observations.append(padded_observation)
+
+                    action = prior.argmax(dim=-1).cpu().item()
+                    actions.append(action)
+
+                    is_hl_steps.append(True)
+
+                    print(f"Step {step}: action={action}")
+
+        # 创建保存目录
+        save_dir = os.path.join(self.args.save_dir, "rollout")
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+
+        # 保存到hdf5文件
+        save_path = os.path.join(save_dir, "sample_rollout_9.h5")
+        with h5py.File(save_path, "w") as f:
+            f.create_dataset("states", data=np.array(observations), compression='gzip', compression_opts=9)
+            f.create_dataset("actions", data=np.array(actions), compression='gzip')
+            f.create_dataset("hl_action_index", data=np.array(actions), compression='gzip')
+            f.create_dataset("is_hl_step", data=np.array(is_hl_steps))
+
+        print(f"Rollout data saved to {save_path}")
 
     def get_config(self):
         conf = AttrDict()
@@ -112,4 +157,4 @@ class InstanceInfluence:
 
 
 if __name__ == '__main__':
-    InstanceInfluence(args=get_args())
+    Eval(args=get_args())

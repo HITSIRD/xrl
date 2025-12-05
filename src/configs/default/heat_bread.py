@@ -20,11 +20,13 @@ data_spec = AttrDict(
         'set_time': 2,
         'move_bread_to_microwave': 3,
         'move_bread_to_plate': 4,
-        'end': 5
+        'end()': 5
     },
 
     skill_labels=['open_microwave', 'close_microwave', 'set_time', 'move_bread_to_microwave', 'move_bread_to_plate',
-                  'end'],
+                  'end()'],
+
+    skill_labels_ch=['开微波炉门', '关微波炉门', '设置时间', '面包移动到微波炉', '面包装盘', '结束'],
 
     objects=[["microwave",
               "bread",
@@ -71,7 +73,7 @@ data_spec = AttrDict(
             [108, 164, 172, 218]],
 
            [[120, 8, 208, 102],
-            [103, 41, 126, 58],
+            [124, 49, 150, 71],
             [154, 73, 170, 88],
             [108, 164, 172, 218]],
 
@@ -84,7 +86,7 @@ data_spec = AttrDict(
             [108, 164, 172, 218]],
 
            [[120, 8, 208, 102],
-            [103, 41, 126, 58],
+            [124, 49, 150, 71],
             [154, 73, 170, 88],
             [108, 164, 172, 218]],
 
@@ -94,19 +96,19 @@ data_spec = AttrDict(
             [108, 164, 172, 218]],
            ],
 
-    skill_obj_map={'open_microwave': 'microwave',
-                   'move_bread_to_microwave': 'bread',
-                   'close_microwave': 'bread',
-                   'set_time': 'switch',
-                   'open_microwave': 'microwave',
-                   'move_bread_to_plate': 'bread',
-                   'close_microwave': 'microwave'},
+    skill_obj_map={0: 'microwave',
+                   1: 'bread',
+                   2: 'microwave',
+                   3: 'switch',
+                   4: 'microwave',
+                   5: 'bread',
+                   6: 'microwave'},
 
-    multi_skill_obj_map={'open_microwave': ['microwave', 'bread', 'plate', 'switch'],
-                         'move_bread_to_microwave': ['microwave', 'bread', 'plate', 'switch'],
-                         'close_microwave': ['microwave', 'bread', 'plate', 'switch'],
-                         'set_time': ['microwave', 'bread', 'plate', 'switch'],
-                         'open_microwave': ['microwave', 'bread', 'plate', 'switch'],
-                         'move_bread_to_plate': ['microwave', 'bread', 'plate', 'switch'],
-                         'close_microwave': ['microwave', 'bread', 'plate', 'switch']},
+    multi_skill_obj_map={0: ['microwave'],
+                         1: ['microwave', 'bread'],
+                         2: ['microwave'],
+                         3: ['switch'],
+                         4: ['microwave'],
+                         5: ['bread', 'plate'],
+                         6: ['microwave']},
 )

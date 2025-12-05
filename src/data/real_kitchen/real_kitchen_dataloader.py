@@ -175,7 +175,7 @@ class MultiStepsRealKitchenDataset(RealKitchenDataset):
 
                 # 如果没找到够的，就用 'end' 填充
                 while len(future) < self.n_future:
-                    future.append(self.spec.TASKS_DICT['end'])
+                    future.append(self.spec.TASKS_DICT['end()'])
 
                 next_skills[i] = future
 
@@ -232,7 +232,7 @@ class SequenceRealKitchenDataset(RealKitchenDataset):
             pad_mask = np.array([1] * len(skill_imgs) + [0] * pad_len, dtype=np.float32)
             skill_imgs.extend([np.zeros(skill_imgs[0].shape, dtype=np.float32)] * pad_len)
             skill_actions.extend([np.zeros(skill_actions[0].shape, dtype=np.float32)] * pad_len)
-            skill_labels.extend([self.spec.TASKS_DICT['end']] * pad_len)
+            skill_labels.extend([self.spec.TASKS_DICT['end()']] * pad_len)
 
         skill_imgs = np.stack(skill_imgs)  # (max_seq_len, C, H, W)
         skill_actions = np.stack(skill_actions)
@@ -283,14 +283,14 @@ class MultiStepsSequenceRealKitchenDataset(SequenceRealKitchenDataset, MultiStep
             pad_mask = np.array([1] * len(skill_imgs) + [0] * pad_len, dtype=np.float32)
             skill_imgs.extend([np.zeros(skill_imgs[0].shape, dtype=np.float32)] * pad_len)
             skill_actions.extend([np.zeros(skill_actions[0].shape, dtype=np.float32)] * pad_len)
-            skill_labels.extend([self.spec.TASKS_DICT['end']] * pad_len)
+            skill_labels.extend([self.spec.TASKS_DICT['end()']] * pad_len)
 
         for i in range(len(future_skills_list)):
             if len(future_skills_list[i]) >= self.max_seq_len:
                 future_skills_list[i] = future_skills_list[i][:self.max_seq_len]
             else:
                 future_skills_list[i].extend(
-                    [self.spec.TASKS_DICT['end']] * (self.max_seq_len - len(future_skills_list[i])))
+                    [self.spec.TASKS_DICT['end()']] * (self.max_seq_len - len(future_skills_list[i])))
 
         skill_imgs = np.stack(skill_imgs)  # (max_seq_len, C, H, W)
         skill_actions = np.stack(skill_actions)
@@ -307,3 +307,5 @@ class MultiStepsSequenceRealKitchenDataset(SequenceRealKitchenDataset, MultiStep
             future_skills=future_skills_array.astype(np.float32),
             pad_mask=pad_mask
         )
+
+# class SequenceTRealKitchenDataset(SequenceRealKitchenDataset):

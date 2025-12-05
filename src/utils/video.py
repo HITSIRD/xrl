@@ -1,4 +1,7 @@
+import io
 import os
+
+import h5py
 import numpy as np
 from PIL import Image
 from torchvision.transforms import Resize
@@ -8,17 +11,18 @@ import moviepy.editor as mp
 import os
 import textwrap
 
+
 def ch_first2last(video):
-    return video.transpose((0,2,3,1))
+    return video.transpose((0, 2, 3, 1))
 
 
 def ch_last2first(video):
-    return video.transpose((0,3,1,2))
-    
+    return video.transpose((0, 3, 1, 2))
+
 
 def resize_video(video, size):
     if video.shape[1] == 3:
-        video = np.transpose(video, (0,2,3,1))
+        video = np.transpose(video, (0, 2, 3, 1))
     transformed_video = np.stack([np.asarray(Resize(size)(Image.fromarray(im))) for im in video], axis=0)
     return transformed_video
 
@@ -42,7 +46,8 @@ def save_video(video_frames, filename, fps=60, video_format='mp4'):
         },
         outputdict={
             '-f': video_format,
-            '-pix_fmt': 'yuv420p', # '-pix_fmt=yuv420p' needed for osx https://github.com/scikit-video/scikit-video/issues/74
+            '-pix_fmt': 'yuv420p',
+            # '-pix_fmt=yuv420p' needed for osx https://github.com/scikit-video/scikit-video/issues/74
         }
     )
 
@@ -56,10 +61,60 @@ def create_video_grid(col_and_row_frames):
     return video_grid_frames
 
 
+def create_video_from_dataset(
+        path="./experiments/",
+        output_dir="./data/real_kitchen/",
+        output_video="output.mp4",
+        fps=10
+):
+    with h5py.File(path, 'r') as h5_file:
+        images = h5_file['rgb'][()]
+
+    frames = []
+    print(images.shape)
+
+    # 将每个图像保存为临时帧
+    for i, image in enumerate(images):
+        # 如果图像是 numpy 数组，转换为 PIL Image
+        if isinstance(image, np.ndarray):
+            # 处理不同维度的图像数据
+            if image.ndim == 3 and image.shape[0] in [1, 3, 4]:  # CHW 格式
+                if image.shape[0] == 1:
+                    image = image.squeeze(0)  # 转换为 HW
+                else:
+                    image = np.transpose(image, (1, 2, 0))  # 转换为 HWC
+
+            pil_image = Image.fromarray(image)
+        else:
+            pil_image = image
+
+        frame_array = np.array(pil_image)
+        frames.append(frame_array)
+        if i % 100 == 0:
+            print(f'frame {i}')
+        if i % 100 == 0:
+            print(f'frame {i}')
+
+    # 创建视频剪辑
+    clip = mp.ImageSequenceClip(frames, fps=fps)
+
+    # 生成视频文件
+    output_path = os.path.join(output_dir, output_video)
+    clip.write_videofile(output_path, codec='libx265', bitrate='2000k',
+                         ffmpeg_params=['-tag:v', 'hvc1', '-pix_fmt', 'yuv420p'])
+
+    # 清理临时帧文件
+    for frame in frames:
+        if os.path.exists(frame):
+            os.remove(frame)
+
+    print(f"视频已生成：{output_path}")
+
+
 def create_video_from_pdfs_and_markdowns(
         pdf_dir="./experiments/",
         md_dir="./experiments/",
-        output_dir = "./experiments/",
+        output_dir="./experiments/",
         output_video="output.mp4",
         num_files=28,
         frame_duration=2,
@@ -161,3 +216,8 @@ def create_video_from_pdfs_and_markdowns(
     #     for frame in frames:
     #         if os.path.exists(frame):
     #             os.remove(frame)
+
+
+domain = 'heat_bread'
+create_video_from_dataset(path=f'/home/wenyongyan/下载/dataset/{domain}/{domain}_0/traj.h5',
+                          output_video=f'{domain}_0.mp4')

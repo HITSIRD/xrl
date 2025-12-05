@@ -132,7 +132,7 @@ def merge_skills(raw_skills, new_skill_names, merge_lengths, start_opt, max_len=
 def preview(path):
     last_skill = None
     with h5py.File(path, 'r') as f:
-        plt.imshow(f['rgb'][100])
+        plt.imshow(f['rgb'][400])
         plt.show()
         print(f['pose'].shape)
         print(f['skill'].shape)
@@ -151,12 +151,12 @@ def preview(path):
 
 if __name__ == "__main__":
     # 替换为你的路径
-    task = 'heat_bread'
+    task = 'coffee'
     INPUT_ROOT = f"/home/wenyongyan/下载/dataset/{task}"
     OUTPUT_ROOT = f"/home/wenyongyan/下载/output/{task}"
-    output_dir = "/home/wenyongyan/Projects/xrl/src/data/real_kitchen/heat-bread-50-v0"
+    output_dir = "/home/wenyongyan/Projects/xrl/src/data/real_kitchen/coffee-50-v0"
 
-    # process_dataset(INPUT_ROOT, OUTPUT_ROOT, margin_up=20)
+    # process_dataset(INPUT_ROOT, OUTPUT_ROOT, margin_up=80)
 
     # skill_sequence = ['开冰箱门', '靠近芒果', '芒果夹', '芒果抓', '放芒果', '松开', '离开冰箱', '关冰箱门', '开柜门', '靠近草莓jelly' ,
     #                   '草莓jelly抓取', '草莓jelly抓', '放jelly', '松开', '离开柜子']
@@ -168,12 +168,26 @@ if __name__ == "__main__":
     # phase_names = ['open_fridge', 'store_mango', 'store_lemon', 'store_orange', 'close_fridge', 'open_cabinet', 'store_cheezit', 'store_jello', 'close_cabinet']
 
     # heat bread
-    phase_lengths = [2, 6, 2, 6, 2, 5, 2]
-    phase_names = ['open_microwave', 'move_bread_to_microwave', 'close_microwave', 'set_time', 'open_microwave',
-                   'move_bread_to_plate', 'close_microwave']
+    # phase_lengths = [2, 6, 2, 6, 2, 5, 2]
+    # phase_names = ['open_microwave', 'move_bread_to_microwave', 'close_microwave', 'set_time', 'open_microwave',
+    #                'move_bread_to_plate', 'close_microwave']
 
-    # process_h5_skills(OUTPUT_ROOT, output_dir, phase_names, phase_lengths, '微波炉按钮')
+    # cola
+    # phase_lengths = [2, 6, 2, 7, 6, 5, 2, 6, 2]
+    # phase_names = ['open(fridge)', 'move(ice_cup, table)', 'close(fridge)', 'pour(cola, ice_cup)', 'move(straw, ice_cup)',
+    #                'move(cola, bin)', 'open(fridge)', 'move(milk, fridge)', 'close(fridge)']
+    #
+
+    # coffee
+    phase_lengths = [2, 7, 2, 7, 2, 6, 6, 7, 7, 2, 7]
+    phase_names = ['move(funnel, pot)', 'pour_preheat(gooseneck_kettle, funnel)', 'move(funnel, table)',
+                   'pour(pot, cup)',
+                   'move(funnel, pot)', 'pour(coffee_powder, funnel)', 'pour(kettle, gooseneck_kettle)',
+                   'pour_preheat(gooseneck_kettle, funnel)', 'pour(gooseneck_kettle, funnel)', 'move(funnel, table)',
+                   'pour(pot, coffee_cup)']
+
+    process_h5_skills(OUTPUT_ROOT, output_dir, phase_names, phase_lengths, 'reset_funnel')
     # for i in range(10):
     #     preview(os.path.join(output_dir, f"{task}_{i}.h5"))
-    for i in range(10):
-        preview(os.path.join(INPUT_ROOT, f"{task}_{i}/traj.h5"))
+    # for i in range(10):
+    #     preview(os.path.join(OUTPUT_ROOT, f"{task}_{i}.h5"))

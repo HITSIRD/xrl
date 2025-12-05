@@ -47,7 +47,7 @@ def poisson_categorical_log_prior(length, rate, device):
 def kl_categorical(log_preds, log_prior, eps=1e-8):
     """KL divergence between two categorical distributions."""
     kl_div = torch.exp(log_preds) * (log_preds - log_prior)
-    return kl_div.sum(1)
+    return kl_div.sum()
 
 
 class Dirac:

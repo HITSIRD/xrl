@@ -17,6 +17,7 @@ import sam2
 from sam2.build_sam import build_sam2
 from sam2.sam2_image_predictor import SAM2ImagePredictor
 from depth_anything_v2.dpt import DepthAnythingV2
+from src.utils.mask import merge_mask
 
 sam2_path = os.path.dirname(sam2.__file__)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -31,13 +32,14 @@ def initialize_sam(sam_checkpoint="/home/wenyongyan/下载/sam_vit_h_4b8939.pth"
 
 sam = sam_model_registry["vit_h"](checkpoint="/home/wenyongyan/下载/sam_vit_h_4b8939.pth")
 sam.to(device)
+mask_generator = SamAutomaticMaskGenerator(model=sam, points_per_side=32)
 
 checkpoint = "/home/wenyongyan/下载/sam2.1_hiera_large.pt"
 model_cfg = 'configs/sam2.1/sam2.1_hiera_l.yaml'
 predictor = SAM2ImagePredictor(build_sam2(model_cfg, checkpoint))
 
-groundingdino_model = load_model("groundingdino/config/GroundingDINO_SwinB_cfg.py",
-                                 "groundingdino/weights/groundingdino_swinb_cogcoor.pth")
+# groundingdino_model = load_model("groundingdino/config/GroundingDINO_SwinB_cfg.py",
+#                                  "groundingdino/weights/groundingdino_swinb_cogcoor.pth")
 
 model_configs = {
     'vits': {'encoder': 'vits', 'features': 64, 'out_channels': [48, 96, 192, 384]},
@@ -48,9 +50,9 @@ model_configs = {
 
 encoder = 'vitl'  # or 'vits', 'vitb', 'vitg'
 
-model = DepthAnythingV2(**model_configs[encoder])
-model.load_state_dict(torch.load(f'depth_anything_v2/checkpoints/depth_anything_v2_{encoder}.pth', map_location='cpu'))
-model = model.to(device).eval()
+# model = DepthAnythingV2(**model_configs[encoder])
+# model.load_state_dict(torch.load(f'depth_anything_v2/checkpoints/depth_anything_v2_{encoder}.pth', map_location='cpu'))
+# model = model.to(device).eval()
 
 
 # 初始化CLIP模型
@@ -191,26 +193,19 @@ def _process_box(box):
 
 
 # 使用SAM生成分割掩码
-def generate_masks_with_sam(image, labels=None, boxes=None, combined=False, save_dir=None):
+def generate_masks_with_sam(image, labels=None, boxes=None, combined=False, all=False, save_dir=None):
     """
     使用SAM生成图像中的所有分割掩码
     """
-    # mask_generator = SamAutomaticMaskGenerator(model=sam, pred_iou_thresh=0.95, box_nms_thresh=0.1, crop_nms_thresh=0.5,
-    #                                            crop_n_layers=1, min_mask_region_area=50)
-    # masks = mask_generator.generate(image_obs)
-
-    predictor.set_image(image)
-
     if boxes is None:
-        # masks, _, _ = predictor.predict()
-
-        mask_generator = SamAutomaticMaskGenerator(model=sam)
         masks = mask_generator.generate(image)
 
         if combined:
             return combine_masks(masks)
         return masks
     else:
+        predictor.set_image(image)
+
         masks = []
         masks_dict = {}
         boxes = boxes.copy()
@@ -229,6 +224,9 @@ def generate_masks_with_sam(image, labels=None, boxes=None, combined=False, save
             # plt.title(labels[i])
             # plt.imshow(masks[i])
             # plt.show()
+
+        if all:
+            return merge_mask(masks_dict, mask_generator.generate(image))
 
         return masks_dict
 
