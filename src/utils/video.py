@@ -218,6 +218,7 @@ def create_video_from_pdfs_and_markdowns(
     #             os.remove(frame)
 
 
-domain = 'heat_bread'
-create_video_from_dataset(path=f'/home/wenyongyan/下载/dataset/{domain}/{domain}_0/traj.h5',
-                          output_video=f'{domain}_0.mp4')
+# domain = 'cola'
+# episode = 3
+# create_video_from_dataset(path=f'/home/wenyongyan/下载/dataset/{domain}/{domain}_{episode}/traj.h5',
+#                           output_video=f'{domain}_{episode}.mp4')

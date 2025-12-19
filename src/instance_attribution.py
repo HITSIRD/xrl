@@ -10,8 +10,7 @@ import torch
 import os
 import imp
 
-from dm_control.suite.ball_in_cup import catch
-from matplotlib import pyplot as plt
+from matplotlib import pyplot as plt, gridspec
 
 from src.rl.components.params import get_args
 from src.rl.utils.rollout import HPRolloutSaver
@@ -20,17 +19,11 @@ from src.components.checkpointer import get_config_path
 from src.utils.dist import kl_categorical
 from src.utils.general import AttrDict, get_depth
 from instance_seg_test import generate_masks_with_sam, initialize_clip, classify_with_clip
-from openai import OpenAI
 
 from src.utils.hidden_saliency import compute_hidden_saliency
-from src.utils.image import gaussian_blur_perturb, poisson_gaussian_noise_perturb
 from src.utils.llm import chain, prompt_template, get_scene_description
 from src.utils.pytorch import no_batchnorm_update
-from src.utils.saliency import compute_integrated_gradient_saliency, compute_gradient_saliency, compute_gradient_shap, \
-    compute_perturbation_saliency, compute_gradCAM_saliency, compute_deeplift_saliency, compute_deepSHAP_saliency, \
-    compute_lrp_saliency, compute_occlusion_saliency, compute_instance_influence, compute_guided_backprop_saliency, \
-    compute_input_x_gradient_saliency, compute_lime_saliency, compute_feature_ablation_saliency, \
-    compute_deconvolution_saliency, compute_shapley_value_sampling_saliency, compute_saliency
+from src.utils.saliency import compute_instance_influence, compute_saliency
 from src.utils.video import create_video_from_pdfs_and_markdowns
 from src.utils.render import render_mujoco_object_masks
 from src.utils.general import MetricAverageMeter
@@ -66,6 +59,7 @@ class InstanceInfluence:
         self.hl_step = 0
 
         for i in range(self.args.n_episode):
+            # self.args.episode_idx = self.args.n_episode
             self.args.episode_idx = i
             self.init_dir()
 
@@ -73,10 +67,8 @@ class InstanceInfluence:
                 continue
             else:
                 episode = self.sample()
-                # create_video_from_pdfs_and_markdowns(num_files=25, pdf_dir=self.args.save_dir, md_dir=self.args.save_dir,
-                #                                      output_dir=self.args.save_dir, output_video='explanation.mp4',
-                #                                      language_output=True, clean_tmp=True)
-                self.analyze(episode)
+            cached_saliency = self.load_saliency_cache()
+            self.analyze(episode, cached_saliency)
 
         print(self.metric.compute())
 
@@ -120,7 +112,15 @@ class InstanceInfluence:
         saver.save(f"sample_rollout_{self.args.episode_idx}", save_interval=1, reset=True)
         return episode
 
-    def analyze(self, episode):
+    def load_saliency_cache(self):
+        saliency_cache_path = os.path.join(self.args.save_dir, f"saliency_cache.pkl")
+        if os.path.exists(saliency_cache_path):
+            with open(saliency_cache_path, "rb") as f:
+                data = pickle.load(f)
+            return data
+        return None
+
+    def analyze(self, episode, cached_saliency):
         """Generate rollouts and save to hdf5 files."""
 
         # initialize clip model
@@ -132,6 +132,7 @@ class InstanceInfluence:
         history_contrib = []
         result = []
         hidden_saliency_list = []
+        saliency_cache = []
 
         if hasattr(policy.net, 'reset_hidden_state'):
             policy.net.reset_hidden_state()
@@ -190,8 +191,12 @@ class InstanceInfluence:
                     # skill_index_1, skill_index_2 = dist_1.rsample().item(), dist_2.rsample().item()
 
                     # saliency
-                    saliency = self.compute_saliency(self.args.exp_method, policy.net, processed_img, skill_index,
-                                                     original_img=img)
+                    if cached_saliency is not None:
+                        saliency = cached_saliency[i]
+                    else:
+                        saliency = self.compute_saliency(self.args.exp_method, policy.net, processed_img, skill_index,
+                                                         original_img=img)
+                        saliency_cache.append(saliency)
                     saliency = self._normalize_saliency(saliency)
                     influence = compute_instance_influence(saliency, masks)  # (N, K)
 
@@ -200,8 +205,9 @@ class InstanceInfluence:
 
                 # self.visualize_influence(influence, dist, hl_step, skill_index)
 
-                self.visualize_dimension_influence(img, masks, saliency, list(masks.keys()), influence, dist,
-                                                   skill_index)
+                # self.visualize_dimension_influence(img, masks, saliency, list(masks.keys()), influence, dist,
+                #                                    skill_index)
+                self.visualize_eval(img, masks, saliency, list(masks.keys()), influence, skill_index)
 
                 # influence_str = ""
                 # objects = self.objects
@@ -221,14 +227,13 @@ class InstanceInfluence:
                         print("request scene description...")
                         self.save_language_output(scene_description, self.hl_step, "description")
 
-                    sorted_objects = self._sort_influence(influence, list(masks.keys()))
+                    sorted_objects = self._sort_influence(influence, list(masks.keys()))[:5]
                     print(sorted_objects)
 
-                    history_exp = '否' if history_attr < 1 else '是'
                     explanation = chain.invoke(
                         prompt_template.format(scene_description=scene_description,
                                                skill=self.skill_labels_ch[skill_index],
-                                               sorted_objects=sorted_objects, history=history, history_exp=history_exp))
+                                               sorted_objects=sorted_objects, history=history))
                     print(explanation)
                     self.save_language_output(explanation, self.hl_step, "explanation")
 
@@ -236,6 +241,8 @@ class InstanceInfluence:
                 self.hl_step += 1
 
         self.save_result_to_cache(result)
+        if cached_saliency is None:
+            self.save_saliency_cache(saliency_cache)
         # self.save_hidden_saliency(hidden_saliency_list)
         # self.visualize_history_contrib(history_contrib)
         # create_video_from_pdfs_and_markdowns(num_files=self.hl_step, pdf_dir=self.args.save_dir,
@@ -248,6 +255,10 @@ class InstanceInfluence:
         plt.imshow(img)
         plt.savefig(f'{self.args.save_dir}/original_img_{index}.png')
         plt.close()
+
+    def save_saliency_cache(self, saliency_cache):
+        with open(os.path.join(self.args.save_dir, 'saliency_cache.pkl'), "wb") as f:
+            pickle.dump(saliency_cache, f)
 
     def save_hidden_saliency(self, hidden_saliency):
         with open(os.path.join(self.args.save_dir, 'hidden_saliency.pkl'), "wb") as f:
@@ -469,9 +480,99 @@ class InstanceInfluence:
         plt.xlabel("Object Index")
         plt.ylabel("Influence Score")
 
-        for rect, val in zip(bars, top_values):
-            plt.text(rect.get_x() + rect.get_width() / 2, rect.get_height() + 0.01,
-                     f"{val:.2f}", ha='center', va='bottom', fontsize=12)
+        # for rect, val in zip(bars, top_values):
+        #     plt.text(rect.get_x() + rect.get_width() / 2, rect.get_height() + 0.01,
+        #              f"{val:.2f}", ha='center', va='bottom', fontsize=12)
+
+        plt.tight_layout()
+        plt.savefig(f'{self.args.save_dir}/skill_influence_{self.hl_step}.png')
+        plt.close()
+
+    def visualize_eval(self, img, masks, saliency, objects, influence, skill_index):
+        """
+        可视化指定维度受实例影响的情况
+        """
+        topk = 5
+        # num_instances = len(masks)
+        # instance_names = list(masks.keys())
+
+        fig = plt.figure(figsize=(24, 18))
+
+        plt.subplot(2, 3, 1)
+        grad_colored = plt.get_cmap('jet')(saliency)
+        plt.imshow(img)
+        plt.imshow(grad_colored, alpha=0.75)
+        plt.title(f"Saliency", fontsize=40)
+        plt.axis('off')
+
+        plt.subplot(2, 3, 2)
+        plt.imshow(img)
+        mask_colored = img.copy()
+        for j, name in enumerate(masks.keys()):
+            mask = masks[name].astype(np.uint8)
+            mask_colored[mask > 0] = [random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)]
+
+            M = cv2.moments(mask)
+            if M["m00"] > 0:
+                cx = int(M["m10"] / M["m00"])
+                cy = int(M["m01"] / M["m00"])
+                if "object_" in name:
+                    plt.text(cx, cy,
+                             f"{j + 1}",
+                             color='yellow', fontsize=16, weight='bold',
+                             ha='center', va='center',
+                             bbox=dict(boxstyle="circle,pad=0.3", fc="black", ec="yellow", lw=1.5), alpha=0.4)
+                else:
+                    plt.text(cx, cy,
+                             f"{j + 1}",
+                             color='yellow', fontsize=20, weight='bold',
+                             ha='center', va='center',
+                             bbox=dict(boxstyle="circle,pad=0.3", fc="black", ec="yellow", lw=1.5))
+
+        plt.imshow(mask_colored, alpha=0.6)
+        plt.title("Object Masks", fontsize=40)
+        plt.axis('off')
+
+        # === 第3列 Objects ===
+        gs = gridspec.GridSpec(2, 3, width_ratios=[1, 1, 0.75], height_ratios=[1, 1])
+        plt.subplot(gs[:, 2])
+        ax = plt.gca()
+        ax.set_xticks([])
+        ax.set_yticks([])
+
+        y = 1.0 - 0.05
+        dy = 1.0 / (len(self.objects) + 1)
+
+        for j, name in enumerate(objects):
+            if "object_" in name:
+                continue
+
+            text = f"{j + 1} {name}"
+            plt.text(0.05, y, text,
+                     fontsize=40, color='black',
+                     va='top', family='monospace')
+
+            y -= dy
+
+        plt.title("Objects", fontsize=40)
+
+        # === 第7–8列: Top-K Influence 柱状图 ===
+        plt.subplot(2, 3, (4, 5))
+        influence_arr = np.array(influence)
+        top_indices = np.argsort(influence_arr)[::-1][:topk]
+        top_values = influence_arr[top_indices]
+        top_names = [f"{objects[i]}" for i in top_indices]
+
+        bars = plt.bar(top_names, top_values, color=plt.cm.viridis(np.linspace(0.3, 0.9, topk)))
+        plt.title(f"Top {topk} Influential Objects", fontsize=40)
+        plt.xlabel("Object", fontsize=40)
+        plt.ylabel("Influence Score", fontsize=40)
+        plt.xticks(fontsize=32)
+        plt.yticks(fontsize=32)
+
+        # for rect, val in zip(bars, top_values):
+        #     plt.text(rect.get_x() + rect.get_width() / 2, rect.get_height() + 0.01,
+        #              f"{val:.2f}", ha='center', va='bottom', fontsize=12)
 
         plt.tight_layout()
         plt.savefig(f'{self.args.save_dir}/skill_influence_{self.hl_step}.pdf')
@@ -480,7 +581,7 @@ class InstanceInfluence:
     def _normalize_saliency(self, saliency):
         saliency_min = saliency.min()
         saliency_max = saliency.max()
-        normalized_saliency = (saliency - saliency_min) / (saliency_max - saliency_min + 1e-8)
+        normalized_saliency = (saliency - saliency_min) / (saliency_max - saliency_min)
 
         return normalized_saliency
 

@@ -162,8 +162,7 @@ def create_image_message(image_np, detail="auto"):
 # - 技能 6：0.03
 
 template = """
-你是一个智能解释器，负责解释一个机械臂的行为。机械臂在一个厨房的视觉环境中执行任务，机械臂的观测是RGB图像。机械臂需要根据观测从多个技能中选择一个并执行。
-
+你是一个智能解释器，负责解释一个机械臂的行为。机械臂在一个厨房的视觉环境中执行任务，观测是RGB图像。机械臂需要根据观测从多个技能中选择一个并执行。
 当前的任务是完成厨房收纳，需要将水果依次放入冰箱中，然后将零食依次放入储藏柜中。
 
 现在你获得以下信息：
@@ -173,11 +172,9 @@ template = """
 
 你的要求是：
 - 根据场景描述、技能索引和显著物体列表，解释机器人当前为什么执行该技能；
-- 用简短的语言给出你的推理过程，不用做复杂分析，让人看一眼就能理解；
-- 注意物体显著性分数的计算结果是事后解释和分析，不一定和实际选择的技能相符，对于这种情况要指出物体显著性不一定完全反映实际的技能选择。
+- 用简短的语言给出你的推理过程，要做复杂分析，让人看一眼就能理解；
 - 注意你的解释对象是一个对机器学习背景缺乏了解的普通人，因此不要出现不要出现类似“显著性”这样的专业术语，要通俗易懂。
 - 只给出简要推理过程，不需要给出额外信息。
-- 如果基于历史信息进行解释命令为是，则意味着当前的决策主要依据历史信息得到，给出简短的推理；否则，则无视本要求。
 - 用中文描述，不要出现英文。
 
 场景描述：
@@ -188,19 +185,16 @@ template = """
 历史选择技能序列：
 ['打开冰箱']
 
-执行技能：收纳芒果
-
 物体显著性排序：
-['orange', 'lemon', 'cheezit', 'mango', 'jello', 'cabinet', 'fridge']
+['orange', 'lemon', 'cheezit', 'mango', 'jello']
 
 示例输出格式：
 
 推理过程：XXXX
 
----
+------
 
-当前，机械臂选择了技能{skill}，历史选择技能为{history}，基于历史信息进行解释：{history_exp}，并且不同物体的显著性由高到低排序为
-{sorted_objects}
+现在，历史选择技能为{history}，并且不同物体的显著性由高到低排序为{sorted_objects}
 解释：
 """
 
@@ -265,11 +259,10 @@ class FeastPromptTemplate(StringPromptTemplate):
 
 
 # prompt_template = FeastPromptTemplate(input_variables=["decision_path", "score"])
-prompt_template = FeastPromptTemplate(input_variables=["scene_description", "skill", "sorted_objects", "history", "history_exp"])
+prompt_template = FeastPromptTemplate(input_variables=["scene_description", "skill", "sorted_objects", "history"])
 
 parser = StrOutputParser()
 chain = model | parser
-
 
 def get_scene_description(img):
     return model.invoke([create_image_message(img)]).content

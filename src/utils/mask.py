@@ -61,7 +61,7 @@ def assign_regions_from_dicts(mask_dicts):
 
 def merge_mask(mask_dict: Dict[str, np.ndarray],
                unnamed_masks: List[Dict[str, np.ndarray]],
-               min_mask_area=300,
+               min_mask_area=200,
                iou_exclude_thresh: float = 0.2) -> Dict[str, np.ndarray]:
     """合并已有 mask_dict 和未命名 masks（剔除与已有mask重叠过大的）"""
     merged = {k: v for k, v in mask_dict.items()}
@@ -88,7 +88,7 @@ def merge_mask(mask_dict: Dict[str, np.ndarray],
     # 找到已有 object_N 最大编号
     existing_ids = [int(m.group(1)) for k in merged.keys()
                     if (m := re.match(r"^object_(\d+)$", k))]
-    next_id = max(existing_ids, default=0) + 1
+    next_id = max(existing_ids, default=len(merged)) + 1
 
     for cand in filtered_unnamed_masks:
         m = cand["segmentation"]
